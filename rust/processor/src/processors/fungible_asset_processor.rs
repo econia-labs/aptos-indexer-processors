@@ -10,7 +10,7 @@ use crate::{
                 CurrentFungibleAssetBalance, CurrentFungibleAssetMapping, FungibleAssetBalance,
             },
             v2_fungible_asset_utils::{
-                FungibleAssetAggregatedData, FungibleAssetAggregatedDataMapping,
+                FeeStatement, FungibleAssetAggregatedData, FungibleAssetAggregatedDataMapping,
                 FungibleAssetMetadata, FungibleAssetStore,
             },
             v2_fungible_metadata::{FungibleAssetMetadataMapping, FungibleAssetMetadataModel},
@@ -404,20 +404,26 @@ fn parse_v2_coin(
             }
         }
 
+        // The artificial gas event, only need for v1
+        if let Some(req) = user_request {
+            let fee_statement = events.iter().find_map(|event| {
+                let event_type = event.type_str.as_str();
+                FeeStatement::from_event(event_type, &event.data, txn_version)
+            });
+            let gas_event = FungibleAssetActivity::get_gas_event(
+                transaction_info,
+                req,
+                &entry_function_id_str,
+                txn_version,
+                txn_timestamp,
+                block_height,
+                fee_statement,
+            );
+            fungible_asset_activities.push(gas_event);
+        }
+
         // Loop to handle events and collect additional metadata from events for v2
         for (index, event) in events.iter().enumerate() {
-            // The artificial gas event, only need for v1
-            if let Some(req) = user_request {
-                let gas_event = FungibleAssetActivity::get_gas_event(
-                    transaction_info,
-                    req,
-                    &entry_function_id_str,
-                    txn_version,
-                    txn_timestamp,
-                    block_height,
-                );
-                fungible_asset_activities.push(gas_event);
-            }
             if let Some(v1_activity) = FungibleAssetActivity::get_v1_from_event(
                 event,
                 txn_version,
