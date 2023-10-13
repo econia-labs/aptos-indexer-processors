@@ -20,7 +20,7 @@ use econia_db::{
         MarketRegistrationEvent, PlaceLimitOrderEvent, PlaceMarketOrderEvent, PlaceSwapOrderEvent,
         RecognizedMarketEvent,
     },
-    schema::{
+    schema::public::{
         balance_updates_by_handle, cancel_order_events, change_order_size_events, fill_events,
         market_account_handles, market_registration_events, place_limit_order_events,
         place_market_order_events, place_swap_order_events, recognized_market_events,
@@ -371,7 +371,15 @@ fn event_data_to_recognized_market_event(
     event_idx: BigDecimal,
     time: DateTime<Utc>,
 ) -> anyhow::Result<RecognizedMarketEvent> {
-    let market_info = event.data.get("recognized_market_info").unwrap().get("vec").unwrap().as_array().unwrap().get(0);
+    let market_info = event
+        .data
+        .get("recognized_market_info")
+        .unwrap()
+        .get("vec")
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .get(0);
     let mut lot_size = None;
     let mut market_id = None;
     let mut min_size = None;
@@ -385,29 +393,29 @@ fn event_data_to_recognized_market_event(
             tick_size = Some(opt_value_to_big_decimal(info.get("tick_size"))?);
             underwriter_id = Some(opt_value_to_big_decimal(info.get("underwriter_id"))?);
         },
-        _ => {}
+        _ => {},
     }
     let type_data = event.data.get("trading_pair").unwrap();
     let (base_name_generic, base_account_address, base_module_name_hex, base_struct_name_hex) =
-    if opt_value_to_string(type_data.get("base_name_generic"))?.is_empty() {
-        if let Some(base_type) = type_data.get("base_type") {
-            (
-                None,
-                Some(opt_value_to_string(base_type.get("account_address"))?),
-                Some(opt_value_to_string(base_type.get("module_name"))?),
-                Some(opt_value_to_string(base_type.get("struct_name"))?),
-            )
+        if opt_value_to_string(type_data.get("base_name_generic"))?.is_empty() {
+            if let Some(base_type) = type_data.get("base_type") {
+                (
+                    None,
+                    Some(opt_value_to_string(base_type.get("account_address"))?),
+                    Some(opt_value_to_string(base_type.get("module_name"))?),
+                    Some(opt_value_to_string(base_type.get("struct_name"))?),
+                )
+            } else {
+                anyhow::bail!("could not determine base");
+            }
         } else {
-            anyhow::bail!("could not determine base");
-        }
-    } else {
-        (
-            Some(opt_value_to_string(type_data.get("base_name_generic"))?),
-            None,
-            None,
-            None,
-        )
-    };
+            (
+                Some(opt_value_to_string(type_data.get("base_name_generic"))?),
+                None,
+                None,
+                None,
+            )
+        };
     let base_module_name =
         base_module_name_hex.map(|s| hex_to_string(s.as_str()).expect("Expected hex string"));
     let base_struct_name =
