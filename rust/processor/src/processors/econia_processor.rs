@@ -285,7 +285,7 @@ fn event_data_to_cancel_order_event(
     time: DateTime<Utc>,
 ) -> anyhow::Result<CancelOrderEvent> {
     let market_id = opt_value_to_big_decimal(event.data.get("market_id"))?;
-    let user = opt_value_to_string(event.data.get("user"))?;
+    let user = strip_hex_number(opt_value_to_string(event.data.get("user"))?)?;
     let custodian_id = opt_value_to_big_decimal(event.data.get("custodian_id"))?;
     let order_id = opt_value_to_big_decimal(event.data.get("order_id"))?;
     let reason = opt_value_to_i16(event.data.get("reason"))?;
@@ -311,7 +311,7 @@ fn event_data_to_change_order_size_event(
     time: DateTime<Utc>,
 ) -> anyhow::Result<ChangeOrderSizeEvent> {
     let market_id = opt_value_to_big_decimal(event.data.get("market_id"))?;
-    let user = opt_value_to_string(event.data.get("user"))?;
+    let user = strip_hex_number(opt_value_to_string(event.data.get("user"))?)?;
     let custodian_id = opt_value_to_big_decimal(event.data.get("custodian_id"))?;
     let order_id = opt_value_to_big_decimal(event.data.get("order_id"))?;
     let side = opt_value_to_bool(event.data.get("side"))?;
@@ -547,8 +547,8 @@ fn event_data_to_place_market_order_event(
     let market_id = opt_value_to_big_decimal(event.data.get("market_id"))?;
     let size = opt_value_to_big_decimal(event.data.get("size"))?;
     let self_match_behavior = opt_value_to_i16(event.data.get("self_match_behavior"))?;
-    let user = opt_value_to_string(event.data.get("user"))?;
-    let integrator = opt_value_to_string(event.data.get("integrator"))?;
+    let user = strip_hex_number(opt_value_to_string(event.data.get("user"))?)?;
+    let integrator = strip_hex_number(opt_value_to_string(event.data.get("integrator"))?)?;
 
     let place_market_order_event = PlaceMarketOrderEvent {
         txn_version,
@@ -574,8 +574,8 @@ fn event_data_to_place_limit_order_event(
     time: DateTime<Utc>,
 ) -> anyhow::Result<PlaceLimitOrderEvent> {
     let market_id = opt_value_to_big_decimal(event.data.get("market_id"))?;
-    let user = opt_value_to_string(event.data.get("user"))?;
-    let integrator = opt_value_to_string(event.data.get("integrator"))?;
+    let user = strip_hex_number(opt_value_to_string(event.data.get("user"))?)?;
+    let integrator = strip_hex_number(opt_value_to_string(event.data.get("integrator"))?)?;
     let custodian_id = opt_value_to_big_decimal(event.data.get("custodian_id"))?;
     let order_id = opt_value_to_big_decimal(event.data.get("order_id"))?;
     let side = opt_value_to_bool(event.data.get("side"))?;
@@ -614,13 +614,13 @@ fn event_data_to_place_swap_order_event(
     let market_id = opt_value_to_big_decimal(event.data.get("market_id"))?;
     let order_id = opt_value_to_big_decimal(event.data.get("order_id"))?;
     let direction = opt_value_to_bool(event.data.get("direction"))?;
-    let integrator = opt_value_to_string(event.data.get("integrator"))?;
+    let integrator = strip_hex_number(opt_value_to_string(event.data.get("integrator"))?)?;
     let min_base = opt_value_to_big_decimal(event.data.get("min_base"))?;
     let max_base = opt_value_to_big_decimal(event.data.get("max_base"))?;
     let min_quote = opt_value_to_big_decimal(event.data.get("min_quote"))?;
     let max_quote = opt_value_to_big_decimal(event.data.get("max_quote"))?;
     let limit_price = opt_value_to_big_decimal(event.data.get("limit_price"))?;
-    let signing_account = opt_value_to_string(event.data.get("signing_account"))?;
+    let signing_account = strip_hex_number(opt_value_to_string(event.data.get("signing_account"))?)?;
 
     let place_swap_order_event = PlaceSwapOrderEvent {
         txn_version,
