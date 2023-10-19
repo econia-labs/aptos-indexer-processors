@@ -87,7 +87,11 @@ fn hex_to_string(hex: &str) -> anyhow::Result<String> {
         return Err(anyhow!("Hex string is not 0x-prefixed"));
     }
 
-    let hex_no_prefix = &hex[2..];
+    let mut hex_no_prefix = hex[2..].to_owned();
+    // If an odd number of characters, prepend a 0 so that bytes can be decoded.
+    if hex_no_prefix.len() % 2 != 0 {
+        hex_no_prefix = format!("0{}", hex_no_prefix);
+    }
     let hex_bytes =
         hex::decode(hex_no_prefix).map_err(|e| anyhow!("Failed to decode hex: {}", e))?;
 
@@ -416,7 +420,9 @@ fn event_data_to_recognized_market_event(
             if let Some(base_type) = type_data.get("base_type") {
                 (
                     None,
-                    Some(strip_hex_number(opt_value_to_string(base_type.get("account_address"))?)?),
+                    Some(strip_hex_number(opt_value_to_string(
+                        base_type.get("account_address"),
+                    )?)?),
                     Some(opt_value_to_string(base_type.get("module_name"))?),
                     Some(opt_value_to_string(base_type.get("struct_name"))?),
                 )
@@ -486,7 +492,9 @@ fn event_data_to_market_registration_event(
             if let Some(base_type) = event.data.get("base_type") {
                 (
                     None,
-                    Some(strip_hex_number(opt_value_to_string(base_type.get("account_address"))?)?),
+                    Some(strip_hex_number(opt_value_to_string(
+                        base_type.get("account_address"),
+                    )?)?),
                     Some(opt_value_to_string(base_type.get("module_name"))?),
                     Some(opt_value_to_string(base_type.get("struct_name"))?),
                 )
@@ -625,7 +633,8 @@ fn event_data_to_place_swap_order_event(
     let min_quote = opt_value_to_big_decimal(event.data.get("min_quote"))?;
     let max_quote = opt_value_to_big_decimal(event.data.get("max_quote"))?;
     let limit_price = opt_value_to_big_decimal(event.data.get("limit_price"))?;
-    let signing_account = strip_hex_number(opt_value_to_string(event.data.get("signing_account"))?)?;
+    let signing_account =
+        strip_hex_number(opt_value_to_string(event.data.get("signing_account"))?)?;
 
     let place_swap_order_event = PlaceSwapOrderEvent {
         txn_version,
@@ -680,7 +689,7 @@ impl ProcessorTrait for EconiaTransactionProcessor {
             }
         }
 
-        let econia_address = &self.config.econia_address;
+        let econia_address = strip_hex_number(self.config.econia_address.clone())?;
 
         let cancel_order_type = format!("{}::user::CancelOrderEvent", econia_address);
         let change_order_size_type = format!("{}::user::ChangeOrderSizeEvent", econia_address);
