@@ -39,7 +39,12 @@ pub fn strip_hex_number(hex: String) -> anyhow::Result<String> {
     if start != "0x" {
         Err(anyhow!("Invalid hex provided."))
     } else {
-        Ok(format!("0x{}", end.trim_start_matches("0")))
+        let r = format!("0x{}", end.trim_start_matches("0"));
+        if r == "0x" {
+            Ok(String::from("0x0"))
+        } else {
+            Ok(r)
+        }
     }
 }
 
