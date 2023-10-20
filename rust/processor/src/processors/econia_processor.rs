@@ -33,6 +33,21 @@ use std::{collections::HashMap, fmt::Debug, str::FromStr};
 
 pub const NAME: &str = "econia_processor";
 
+pub fn strip_hex_number(hex: String) -> anyhow::Result<String> {
+    let (start, end) = hex.split_at(2);
+
+    if start != "0x" {
+        Err(anyhow!("Invalid hex provided."))
+    } else {
+        let r = format!("0x{}", end.trim_start_matches("0"));
+        if r == "0x" {
+            Ok(String::from("0x0"))
+        } else {
+            Ok(r)
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct EconiaProcessorConfig {
@@ -72,7 +87,11 @@ fn hex_to_string(hex: &str) -> anyhow::Result<String> {
         return Err(anyhow!("Hex string is not 0x-prefixed"));
     }
 
-    let hex_no_prefix = &hex[2..];
+    let mut hex_no_prefix = hex[2..].to_owned();
+    // If an odd number of characters, prepend a 0 so that bytes can be decoded.
+    if hex_no_prefix.len() % 2 != 0 {
+        hex_no_prefix = format!("0{}", hex_no_prefix);
+    }
     let hex_bytes =
         hex::decode(hex_no_prefix).map_err(|e| anyhow!("Failed to decode hex: {}", e))?;
 
@@ -275,7 +294,7 @@ fn event_data_to_cancel_order_event(
     time: DateTime<Utc>,
 ) -> anyhow::Result<CancelOrderEvent> {
     let market_id = opt_value_to_big_decimal(event.data.get("market_id"))?;
-    let user = opt_value_to_string(event.data.get("user"))?;
+    let user = strip_hex_number(opt_value_to_string(event.data.get("user"))?)?;
     let custodian_id = opt_value_to_big_decimal(event.data.get("custodian_id"))?;
     let order_id = opt_value_to_big_decimal(event.data.get("order_id"))?;
     let reason = opt_value_to_i16(event.data.get("reason"))?;
@@ -301,7 +320,7 @@ fn event_data_to_change_order_size_event(
     time: DateTime<Utc>,
 ) -> anyhow::Result<ChangeOrderSizeEvent> {
     let market_id = opt_value_to_big_decimal(event.data.get("market_id"))?;
-    let user = opt_value_to_string(event.data.get("user"))?;
+    let user = strip_hex_number(opt_value_to_string(event.data.get("user"))?)?;
     let custodian_id = opt_value_to_big_decimal(event.data.get("custodian_id"))?;
     let order_id = opt_value_to_big_decimal(event.data.get("order_id"))?;
     let side = opt_value_to_bool(event.data.get("side"))?;
@@ -328,8 +347,8 @@ fn event_data_to_fill_event(
     event_idx: BigDecimal,
     time: DateTime<Utc>,
 ) -> anyhow::Result<FillEvent> {
-    let emit_address = event.account_address.to_string();
-    let maker_address = opt_value_to_string(event.data.get("maker"))?;
+    let emit_address = strip_hex_number(event.account_address.to_string())?;
+    let maker_address = strip_hex_number(opt_value_to_string(event.data.get("maker"))?)?;
     let maker_custodian_id = opt_value_to_big_decimal(event.data.get("maker_custodian_id"))?;
     let maker_order_id = opt_value_to_big_decimal(event.data.get("maker_order_id"))?;
     let maker_side = opt_value_to_bool(event.data.get("maker_side"))?;
@@ -338,7 +357,7 @@ fn event_data_to_fill_event(
     let sequence_number_for_trade =
         opt_value_to_big_decimal(event.data.get("sequence_number_for_trade"))?;
     let size = opt_value_to_big_decimal(event.data.get("size"))?;
-    let taker_address = opt_value_to_string(event.data.get("taker"))?;
+    let taker_address = strip_hex_number(opt_value_to_string(event.data.get("taker"))?)?;
     let taker_custodian_id = opt_value_to_big_decimal(event.data.get("taker_custodian_id"))?;
     let taker_order_id = opt_value_to_big_decimal(event.data.get("taker_order_id"))?;
     let taker_quote_fees_paid = opt_value_to_big_decimal(event.data.get("taker_quote_fees_paid"))?;
@@ -401,7 +420,9 @@ fn event_data_to_recognized_market_event(
             if let Some(base_type) = type_data.get("base_type") {
                 (
                     None,
-                    Some(opt_value_to_string(base_type.get("account_address"))?),
+                    Some(strip_hex_number(opt_value_to_string(
+                        base_type.get("account_address"),
+                    )?)?),
                     Some(opt_value_to_string(base_type.get("module_name"))?),
                     Some(opt_value_to_string(base_type.get("struct_name"))?),
                 )
@@ -424,7 +445,7 @@ fn event_data_to_recognized_market_event(
     let (quote_account_address, quote_module_name_hex, quote_struct_name_hex) =
         if let Some(quote_type) = type_data.get("quote_type") {
             (
-                opt_value_to_string(quote_type.get("account_address"))?,
+                strip_hex_number(opt_value_to_string(quote_type.get("account_address"))?)?,
                 opt_value_to_string(quote_type.get("module_name"))?,
                 opt_value_to_string(quote_type.get("struct_name"))?,
             )
@@ -471,7 +492,9 @@ fn event_data_to_market_registration_event(
             if let Some(base_type) = event.data.get("base_type") {
                 (
                     None,
-                    Some(opt_value_to_string(base_type.get("account_address"))?),
+                    Some(strip_hex_number(opt_value_to_string(
+                        base_type.get("account_address"),
+                    )?)?),
                     Some(opt_value_to_string(base_type.get("module_name"))?),
                     Some(opt_value_to_string(base_type.get("struct_name"))?),
                 )
@@ -494,7 +517,7 @@ fn event_data_to_market_registration_event(
     let (quote_account_address, quote_module_name_hex, quote_struct_name_hex) =
         if let Some(quote_type) = event.data.get("quote_type") {
             (
-                opt_value_to_string(quote_type.get("account_address"))?,
+                strip_hex_number(opt_value_to_string(quote_type.get("account_address"))?)?,
                 opt_value_to_string(quote_type.get("module_name"))?,
                 opt_value_to_string(quote_type.get("struct_name"))?,
             )
@@ -537,8 +560,8 @@ fn event_data_to_place_market_order_event(
     let market_id = opt_value_to_big_decimal(event.data.get("market_id"))?;
     let size = opt_value_to_big_decimal(event.data.get("size"))?;
     let self_match_behavior = opt_value_to_i16(event.data.get("self_match_behavior"))?;
-    let user = opt_value_to_string(event.data.get("user"))?;
-    let integrator = opt_value_to_string(event.data.get("integrator"))?;
+    let user = strip_hex_number(opt_value_to_string(event.data.get("user"))?)?;
+    let integrator = strip_hex_number(opt_value_to_string(event.data.get("integrator"))?)?;
 
     let place_market_order_event = PlaceMarketOrderEvent {
         txn_version,
@@ -564,8 +587,8 @@ fn event_data_to_place_limit_order_event(
     time: DateTime<Utc>,
 ) -> anyhow::Result<PlaceLimitOrderEvent> {
     let market_id = opt_value_to_big_decimal(event.data.get("market_id"))?;
-    let user = opt_value_to_string(event.data.get("user"))?;
-    let integrator = opt_value_to_string(event.data.get("integrator"))?;
+    let user = strip_hex_number(opt_value_to_string(event.data.get("user"))?)?;
+    let integrator = strip_hex_number(opt_value_to_string(event.data.get("integrator"))?)?;
     let custodian_id = opt_value_to_big_decimal(event.data.get("custodian_id"))?;
     let order_id = opt_value_to_big_decimal(event.data.get("order_id"))?;
     let side = opt_value_to_bool(event.data.get("side"))?;
@@ -604,13 +627,14 @@ fn event_data_to_place_swap_order_event(
     let market_id = opt_value_to_big_decimal(event.data.get("market_id"))?;
     let order_id = opt_value_to_big_decimal(event.data.get("order_id"))?;
     let direction = opt_value_to_bool(event.data.get("direction"))?;
-    let integrator = opt_value_to_string(event.data.get("integrator"))?;
+    let integrator = strip_hex_number(opt_value_to_string(event.data.get("integrator"))?)?;
     let min_base = opt_value_to_big_decimal(event.data.get("min_base"))?;
     let max_base = opt_value_to_big_decimal(event.data.get("max_base"))?;
     let min_quote = opt_value_to_big_decimal(event.data.get("min_quote"))?;
     let max_quote = opt_value_to_big_decimal(event.data.get("max_quote"))?;
     let limit_price = opt_value_to_big_decimal(event.data.get("limit_price"))?;
-    let signing_account = opt_value_to_string(event.data.get("signing_account"))?;
+    let signing_account =
+        strip_hex_number(opt_value_to_string(event.data.get("signing_account"))?)?;
 
     let place_swap_order_event = PlaceSwapOrderEvent {
         txn_version,
@@ -665,7 +689,7 @@ impl ProcessorTrait for EconiaTransactionProcessor {
             }
         }
 
-        let econia_address = &self.config.econia_address;
+        let econia_address = strip_hex_number(self.config.econia_address.clone())?;
 
         let cancel_order_type = format!("{}::user::CancelOrderEvent", econia_address);
         let change_order_size_type = format!("{}::user::ChangeOrderSizeEvent", econia_address);
@@ -782,7 +806,7 @@ impl ProcessorTrait for EconiaTransactionProcessor {
                                 .expect("Failed to parse MarketAccounts");
                             let map_field = data.get("map").expect("No map field");
                             market_account_handles.push(MarketAccountHandle {
-                                user: resource.address.clone(),
+                                user: strip_hex_number(resource.address.clone())?,
                                 handle: opt_value_to_string(map_field.get("handle"))?,
                                 creation_time: time,
                             })
