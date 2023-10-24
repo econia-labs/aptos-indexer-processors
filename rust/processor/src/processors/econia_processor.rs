@@ -734,58 +734,66 @@ impl ProcessorTrait for EconiaTransactionProcessor {
             };
             let events = EventModel::from_events(raw_events, txn_version, block_height);
             for (index, event) in events.iter().enumerate() {
+                let split = event.type_.split_once("::");
+                let (address, tail) = if let Some(e) = split {
+                    e
+                } else {
+                    continue;
+                };
+                let address = strip_hex_number(address.to_string())?;
+                let event_type = format!("{address}::{tail}");
                 let txn_version = BigDecimal::from(txn.version);
                 let event_idx = BigDecimal::from(index as u64);
-                if event.type_ == recognized_market_type {
+                if event_type == recognized_market_type {
                     recognized_market_events.push(event_data_to_recognized_market_event(
                         event,
                         txn_version,
                         event_idx,
                         time,
                     )?);
-                } else if event.type_ == cancel_order_type {
+                } else if event_type == cancel_order_type {
                     cancel_order_events.push(event_data_to_cancel_order_event(
                         event,
                         txn_version,
                         event_idx,
                         time,
                     )?);
-                } else if event.type_ == change_order_size_type {
+                } else if event_type == change_order_size_type {
                     change_order_size_events.push(event_data_to_change_order_size_event(
                         event,
                         txn_version,
                         event_idx,
                         time,
                     )?);
-                } else if event.type_ == fill_type {
+                } else if event_type == fill_type {
                     fill_events.push(event_data_to_fill_event(
                         event,
                         txn_version,
                         event_idx,
                         time,
                     )?);
-                } else if event.type_ == market_registration_type {
+                } else if event_type == market_registration_type {
                     market_registration_events.push(event_data_to_market_registration_event(
                         event,
                         txn_version,
                         event_idx,
                         time,
                     )?);
-                } else if event.type_ == place_limit_order_type {
+                } else if event_type == place_limit_order_type {
                     place_limit_order_events.push(event_data_to_place_limit_order_event(
                         event,
                         txn_version,
                         event_idx,
                         time,
                     )?);
-                } else if event.type_ == place_market_order_type {
+                } else if event_type == place_market_order_type {
                     place_market_order_events.push(event_data_to_place_market_order_event(
                         event,
                         txn_version,
                         event_idx,
                         time,
                     )?);
-                } else if event.type_ == place_swap_order_type {
+                } else if event_type == place_swap_order_type {
                     place_swap_order_events.push(event_data_to_place_swap_order_event(
                         event,
                         txn_version,
