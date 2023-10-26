@@ -33,6 +33,8 @@ use std::{collections::HashMap, fmt::Debug, str::FromStr};
 
 pub const NAME: &str = "econia_processor";
 
+pub const MAX_EVENTS_PER_CHUNCK: usize = 1000;
+
 pub fn strip_hex_number(hex: String) -> anyhow::Result<String> {
     let (start, end) = hex.split_at(2);
 
@@ -151,13 +153,16 @@ fn insert_balance_updates(
     conn: &mut PgConnection,
     handles: Vec<BalanceUpdate>,
 ) -> Result<(), diesel::result::Error> {
-    execute_with_better_error(
-        conn,
-        diesel::insert_into(balance_updates_by_handle::table)
-            .values(&handles)
-            .on_conflict_do_nothing(),
-        None,
-    )?;
+    let chunks = handles.chunks(MAX_EVENTS_PER_CHUNCK);
+    for e in chunks {
+        execute_with_better_error(
+            conn,
+            diesel::insert_into(balance_updates_by_handle::table)
+                .values(e)
+                .on_conflict_do_nothing(),
+            None,
+        )?;
+    }
     Ok(())
 }
 
@@ -165,13 +170,16 @@ fn insert_cancel_order_events(
     conn: &mut PgConnection,
     events: Vec<CancelOrderEvent>,
 ) -> Result<(), diesel::result::Error> {
-    execute_with_better_error(
-        conn,
-        diesel::insert_into(cancel_order_events::table)
-            .values(&events)
-            .on_conflict_do_nothing(),
-        None,
-    )?;
+    let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
+    for e in chunks {
+        execute_with_better_error(
+            conn,
+            diesel::insert_into(cancel_order_events::table)
+                .values(e)
+                .on_conflict_do_nothing(),
+            None,
+        )?;
+    }
     Ok(())
 }
 
@@ -179,13 +187,16 @@ fn insert_change_order_size_events(
     conn: &mut PgConnection,
     events: Vec<ChangeOrderSizeEvent>,
 ) -> Result<(), diesel::result::Error> {
-    execute_with_better_error(
-        conn,
-        diesel::insert_into(change_order_size_events::table)
-            .values(&events)
-            .on_conflict_do_nothing(),
-        None,
-    )?;
+    let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
+    for e in chunks {
+        execute_with_better_error(
+            conn,
+            diesel::insert_into(change_order_size_events::table)
+                .values(e)
+                .on_conflict_do_nothing(),
+            None,
+        )?;
+    }
     Ok(())
 }
 
@@ -193,13 +204,16 @@ fn insert_fill_events(
     conn: &mut PgConnection,
     events: Vec<FillEvent>,
 ) -> Result<(), diesel::result::Error> {
-    execute_with_better_error(
-        conn,
-        diesel::insert_into(fill_events::table)
-            .values(&events)
-            .on_conflict_do_nothing(),
-        None,
-    )?;
+    let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
+    for e in chunks {
+        execute_with_better_error(
+            conn,
+            diesel::insert_into(fill_events::table)
+                .values(e)
+                .on_conflict_do_nothing(),
+            None,
+        )?;
+    }
     Ok(())
 }
 
@@ -207,13 +221,16 @@ fn insert_market_account_handles(
     conn: &mut PgConnection,
     handles: Vec<MarketAccountHandle>,
 ) -> Result<(), diesel::result::Error> {
-    execute_with_better_error(
-        conn,
-        diesel::insert_into(market_account_handles::table)
-            .values(&handles)
-            .on_conflict_do_nothing(),
-        None,
-    )?;
+    let chunks = handles.chunks(MAX_EVENTS_PER_CHUNCK);
+    for e in chunks {
+        execute_with_better_error(
+            conn,
+            diesel::insert_into(market_account_handles::table)
+                .values(e)
+                .on_conflict_do_nothing(),
+            None,
+        )?;
+    }
     Ok(())
 }
 
@@ -221,13 +238,16 @@ fn insert_recognized_market_events(
     conn: &mut PgConnection,
     events: Vec<RecognizedMarketEvent>,
 ) -> Result<(), diesel::result::Error> {
-    execute_with_better_error(
-        conn,
-        diesel::insert_into(recognized_market_events::table)
-            .values(&events)
-            .on_conflict_do_nothing(),
-        None,
-    )?;
+    let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
+    for e in chunks {
+        execute_with_better_error(
+            conn,
+            diesel::insert_into(recognized_market_events::table)
+                .values(e)
+                .on_conflict_do_nothing(),
+            None,
+        )?;
+    }
     Ok(())
 }
 
@@ -235,13 +255,16 @@ fn insert_market_registration_events(
     conn: &mut PgConnection,
     events: Vec<MarketRegistrationEvent>,
 ) -> Result<(), diesel::result::Error> {
-    execute_with_better_error(
-        conn,
-        diesel::insert_into(market_registration_events::table)
-            .values(&events)
-            .on_conflict_do_nothing(),
-        None,
-    )?;
+    let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
+    for e in chunks {
+        execute_with_better_error(
+            conn,
+            diesel::insert_into(market_registration_events::table)
+                .values(e)
+                .on_conflict_do_nothing(),
+            None,
+        )?;
+    }
     Ok(())
 }
 
@@ -249,13 +272,16 @@ fn insert_place_limit_order_events(
     conn: &mut PgConnection,
     events: Vec<PlaceLimitOrderEvent>,
 ) -> Result<(), diesel::result::Error> {
-    execute_with_better_error(
-        conn,
-        diesel::insert_into(place_limit_order_events::table)
-            .values(&events)
-            .on_conflict_do_nothing(),
-        None,
-    )?;
+    let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
+    for e in chunks {
+        execute_with_better_error(
+            conn,
+            diesel::insert_into(place_limit_order_events::table)
+                .values(e)
+                .on_conflict_do_nothing(),
+            None,
+        )?;
+    }
     Ok(())
 }
 
@@ -263,13 +289,16 @@ fn insert_place_market_order_events(
     conn: &mut PgConnection,
     events: Vec<PlaceMarketOrderEvent>,
 ) -> Result<(), diesel::result::Error> {
-    execute_with_better_error(
-        conn,
-        diesel::insert_into(place_market_order_events::table)
-            .values(&events)
-            .on_conflict_do_nothing(),
-        None,
-    )?;
+    let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
+    for e in chunks {
+        execute_with_better_error(
+            conn,
+            diesel::insert_into(place_market_order_events::table)
+                .values(e)
+                .on_conflict_do_nothing(),
+            None,
+        )?;
+    }
     Ok(())
 }
 
@@ -277,13 +306,16 @@ fn insert_place_swap_order_events(
     conn: &mut PgConnection,
     events: Vec<PlaceSwapOrderEvent>,
 ) -> Result<(), diesel::result::Error> {
-    execute_with_better_error(
-        conn,
-        diesel::insert_into(place_swap_order_events::table)
-            .values(&events)
-            .on_conflict_do_nothing(),
-        None,
-    )?;
+    let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
+    for e in chunks {
+        execute_with_better_error(
+            conn,
+            diesel::insert_into(place_swap_order_events::table)
+                .values(e)
+                .on_conflict_do_nothing(),
+            None,
+        )?;
+    }
     Ok(())
 }
 
