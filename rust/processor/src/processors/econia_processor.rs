@@ -881,7 +881,7 @@ impl ProcessorTrait for EconiaTransactionProcessor {
         }
         // Insert to the database all events and write sets.
         conn.build_transaction()
-            .read_write()
+            .serializable()
             .run::<_, Error, _>(|pg_conn| {
                 insert_balance_updates(pg_conn, balance_updates)?;
                 insert_cancel_order_events(pg_conn, cancel_order_events)?;
