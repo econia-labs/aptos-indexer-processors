@@ -6,9 +6,8 @@ use crate::{
     models::{ledger_info::LedgerInfo, processor_status::ProcessorStatusQuery},
     processors::{
         ans_processor::AnsProcessor, coin_processor::CoinProcessor,
-        econia_processor::EconiaTransactionProcessor,
-        default_processor::DefaultProcessor, events_processor::EventsProcessor,
-        fungible_asset_processor::FungibleAssetProcessor,
+        default_processor::DefaultProcessor, econia_processor::EconiaTransactionProcessor,
+        events_processor::EventsProcessor, fungible_asset_processor::FungibleAssetProcessor,
         nft_metadata_processor::NftMetadataProcessor, stake_processor::StakeProcessor,
         token_processor::TokenProcessor, token_v2_processor::TokenV2Processor,
         user_transaction_processor::UserTransactionProcessor, ProcessingResult, Processor,
@@ -94,7 +93,7 @@ impl Worker {
             processor_name = processor_name,
             "[Parser] Finish creating the connection pool"
         );
-        let number_concurrent_processing_tasks = number_concurrent_processing_tasks.unwrap_or(10);
+        let number_concurrent_processing_tasks = 1;
         Ok(Self {
             db_pool: conn_pool,
             processor_config,
@@ -151,7 +150,7 @@ impl Worker {
             "[Parser] Connecting and making request to GRPC endpoint",
         );
 
-        let concurrent_tasks = self.number_concurrent_processing_tasks;
+        let concurrent_tasks = 1;
 
         // Build the processor based on the config.
         let processor = build_processor(&self.processor_config, self.db_pool.clone());
@@ -459,10 +458,9 @@ pub fn build_processor(config: &ProcessorConfig, db_pool: PgDbPool) -> Processor
         },
         ProcessorConfig::CoinProcessor => Processor::from(CoinProcessor::new(db_pool)),
         ProcessorConfig::DefaultProcessor => Processor::from(DefaultProcessor::new(db_pool)),
-        ProcessorConfig::EconiaTransactionProcessor(config) => Processor::from(EconiaTransactionProcessor::new(
-            db_pool,
-            config.clone(),
-        )),
+        ProcessorConfig::EconiaTransactionProcessor(config) => {
+            Processor::from(EconiaTransactionProcessor::new(db_pool, config.clone()))
+        },
         ProcessorConfig::EventsProcessor => Processor::from(EventsProcessor::new(db_pool)),
         ProcessorConfig::FungibleAssetProcessor => {
             Processor::from(FungibleAssetProcessor::new(db_pool))
