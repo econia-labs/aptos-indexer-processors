@@ -8,7 +8,7 @@ use crate::{
 };
 use anyhow::anyhow;
 use aptos_indexer_protos::transaction::v1::{
-    transaction::TxnData, write_set_change::Change, MoveStructTag, Transaction,
+    transaction::TxnData, write_set_change::Change, Transaction,
 };
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
@@ -694,12 +694,6 @@ impl ProcessorTrait for EconiaTransactionProcessor {
         let cancel_order_type = format!("{}::user::CancelOrderEvent", econia_address);
         let change_order_size_type = format!("{}::user::ChangeOrderSizeEvent", econia_address);
         let fill_type = format!("{}::user::FillEvent", econia_address);
-        let market_accounts_type = MoveStructTag {
-            address: econia_address.to_string(),
-            module: "user".to_string(),
-            name: "MarketAccounts".to_string(),
-            generic_type_params: vec![],
-        };
         let market_registration_type =
             format!("{}::registry::MarketRegistrationEvent", econia_address);
         let place_limit_order_type = format!("{}::user::PlaceLimitOrderEvent", econia_address);
@@ -804,7 +798,7 @@ impl ProcessorTrait for EconiaTransactionProcessor {
             }
             // Index transaction write set.
             let info = &txn.info.as_ref().expect("No transaction info");
-            let market_accounts_type_string = format!("{address}::{}::{}", market_accounts_type.address, market_accounts_type.module, market_accounts_type.name);
+            let market_accounts_type_string = format!("{econia_address}::user::MarketAccounts");
             for change in &info.changes {
                 match change.change.as_ref().expect("No transaction changes") {
                     Change::WriteResource(resource) => {
