@@ -8,7 +8,7 @@ use crate::{
 };
 use anyhow::anyhow;
 use aptos_indexer_protos::transaction::v1::{
-    transaction::TxnData, write_set_change::Change, MoveStructTag, Transaction,
+    transaction::TxnData, write_set_change::Change, Transaction,
 };
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
@@ -722,16 +722,12 @@ impl ProcessorTrait for EconiaTransactionProcessor {
         }
 
         let econia_address = strip_hex_number(self.config.econia_address.clone())?;
+        let market_accounts_type_string = format!("{econia_address}::user::MarketAccounts");
+        let market_account_type_string = format!("{econia_address}::user::MarketAccount");
 
         let cancel_order_type = format!("{}::user::CancelOrderEvent", econia_address);
         let change_order_size_type = format!("{}::user::ChangeOrderSizeEvent", econia_address);
         let fill_type = format!("{}::user::FillEvent", econia_address);
-        let market_accounts_type = MoveStructTag {
-            address: econia_address.to_string(),
-            module: "user".to_string(),
-            name: "MarketAccounts".to_string(),
-            generic_type_params: vec![],
-        };
         let market_registration_type =
             format!("{}::registry::MarketRegistrationEvent", econia_address);
         let place_limit_order_type = format!("{}::user::PlaceLimitOrderEvent", econia_address);
@@ -766,58 +762,66 @@ impl ProcessorTrait for EconiaTransactionProcessor {
             };
             let events = EventModel::from_events(raw_events, txn_version, block_height);
             for (index, event) in events.iter().enumerate() {
+                let split = event.type_.split_once("::");
+                let (address, tail) = if let Some(e) = split {
+                    e
+                } else {
+                    continue;
+                };
+                let address = strip_hex_number(address.to_string())?;
+                let event_type = format!("{address}::{tail}");
                 let txn_version = BigDecimal::from(txn.version);
                 let event_idx = BigDecimal::from(index as u64);
-                if event.type_ == recognized_market_type {
+                if event_type == recognized_market_type {
                     recognized_market_events.push(event_data_to_recognized_market_event(
                         event,
                         txn_version,
                         event_idx,
                         time,
                     )?);
-                } else if event.type_ == cancel_order_type {
+                } else if event_type == cancel_order_type {
                     cancel_order_events.push(event_data_to_cancel_order_event(
                         event,
                         txn_version,
                         event_idx,
                         time,
                     )?);
-                } else if event.type_ == change_order_size_type {
+                } else if event_type == change_order_size_type {
                     change_order_size_events.push(event_data_to_change_order_size_event(
                         event,
                         txn_version,
                         event_idx,
                         time,
                     )?);
-                } else if event.type_ == fill_type {
+                } else if event_type == fill_type {
                     fill_events.push(event_data_to_fill_event(
                         event,
                         txn_version,
                         event_idx,
                         time,
                     )?);
-                } else if event.type_ == market_registration_type {
+                } else if event_type == market_registration_type {
                     market_registration_events.push(event_data_to_market_registration_event(
                         event,
                         txn_version,
                         event_idx,
                         time,
                     )?);
-                } else if event.type_ == place_limit_order_type {
+                } else if event_type == place_limit_order_type {
                     place_limit_order_events.push(event_data_to_place_limit_order_event(
                         event,
                         txn_version,
                         event_idx,
                         time,
                     )?);
-                } else if event.type_ == place_market_order_type {
+                } else if event_type == place_market_order_type {
                     place_market_order_events.push(event_data_to_place_market_order_event(
                         event,
                         txn_version,
                         event_idx,
                         time,
                     )?);
-                } else if event.type_ == place_swap_order_type {
+                } else if event_type == place_swap_order_type {
                     place_swap_order_events.push(event_data_to_place_swap_order_event(
                         event,
                         txn_version,
@@ -831,8 +835,10 @@ impl ProcessorTrait for EconiaTransactionProcessor {
             for change in &info.changes {
                 match change.change.as_ref().expect("No transaction changes") {
                     Change::WriteResource(resource) => {
-                        if resource.r#type.as_ref().expect("No resource type")
-                            == &market_accounts_type
+                        let resource_type = resource.r#type.as_ref().expect("No resource type");
+                        let address = strip_hex_number(resource_type.address.to_string())?;
+                        let resource_type = format!("{address}::{}::{}", resource_type.module, resource_type.name);
+                        if resource_type == market_accounts_type_string
                         {
                             let data: serde_json::Value = serde_json::from_str(&resource.data)
                                 .expect("Failed to parse MarketAccounts");
@@ -846,8 +852,15 @@ impl ProcessorTrait for EconiaTransactionProcessor {
                     },
                     Change::WriteTableItem(write) => {
                         let table_data = write.data.as_ref().expect("No WriteTableItem data");
-                        if table_data.value_type
-                            != format!("{}::user::MarketAccount", econia_address)
+                        let split = table_data.value_type.split_once("::");
+                        let (address, tail) = if let Some(e) = split {
+                            e
+                        } else {
+                            continue;
+                        };
+                        let address = strip_hex_number(address.to_string())?;
+                        let value_type = format!("{address}::{tail}");
+                        if value_type != market_account_type_string
                         {
                             continue;
                         }
