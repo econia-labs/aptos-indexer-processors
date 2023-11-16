@@ -690,6 +690,8 @@ impl ProcessorTrait for EconiaTransactionProcessor {
         }
 
         let econia_address = strip_hex_number(self.config.econia_address.clone())?;
+        let market_accounts_type_string = format!("{econia_address}::user::MarketAccounts");
+        let market_account_type_string = format!("{econia_address}::user::MarketAccount");
 
         let cancel_order_type = format!("{}::user::CancelOrderEvent", econia_address);
         let change_order_size_type = format!("{}::user::ChangeOrderSizeEvent", econia_address);
@@ -798,7 +800,6 @@ impl ProcessorTrait for EconiaTransactionProcessor {
             }
             // Index transaction write set.
             let info = &txn.info.as_ref().expect("No transaction info");
-            let market_accounts_type_string = format!("{econia_address}::user::MarketAccounts");
             for change in &info.changes {
                 match change.change.as_ref().expect("No transaction changes") {
                     Change::WriteResource(resource) => {
@@ -827,7 +828,7 @@ impl ProcessorTrait for EconiaTransactionProcessor {
                         };
                         let address = strip_hex_number(address.to_string())?;
                         let value_type = format!("{address}::{tail}");
-                        if value_type != format!("{}::user::MarketAccount", econia_address)
+                        if value_type != market_account_type_string
                         {
                             continue;
                         }
