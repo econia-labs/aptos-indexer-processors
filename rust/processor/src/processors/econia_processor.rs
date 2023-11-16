@@ -804,14 +804,13 @@ impl ProcessorTrait for EconiaTransactionProcessor {
             }
             // Index transaction write set.
             let info = &txn.info.as_ref().expect("No transaction info");
+            let market_accounts_type_string = format!("{address}::{}::{}", market_accounts_type.address, market_accounts_type.module, market_accounts_type.name);
             for change in &info.changes {
                 match change.change.as_ref().expect("No transaction changes") {
                     Change::WriteResource(resource) => {
                         let resource_type = resource.r#type.as_ref().expect("No resource type");
                         let address = strip_hex_number(resource_type.address.to_string())?;
                         let resource_type = format!("{address}::{}::{}", resource_type.module, resource_type.name);
-                        let address = strip_hex_number(market_accounts_type.address.to_string())?;
-                        let market_accounts_type_string = format!("{address}::{}::{}", market_accounts_type.module, market_accounts_type.name);
                         if resource_type == market_accounts_type_string
                         {
                             let data: serde_json::Value = serde_json::from_str(&resource.data)
