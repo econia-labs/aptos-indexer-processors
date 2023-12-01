@@ -925,7 +925,10 @@ impl ProcessorTrait for EconiaTransactionProcessor {
                 }).is_ok() {
                 continue;
             }
-            tracing::warn!("transaction serlialization error, retrying... (retries left: {})", MAX_TRANSACTION_RETRIES - i);
+            tracing::warn!("transaction error, retrying... (retries left: {})", MAX_TRANSACTION_RETRIES - i - 1);
+            if i == MAX_TRANSACTION_RETRIES - 1 {
+                return Err(anyhow!("could not run transaction, quitting"));
+            }
         }
 
         Ok((start_version, end_version))
