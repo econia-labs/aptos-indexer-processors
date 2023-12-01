@@ -35,6 +35,8 @@ pub const NAME: &str = "econia_processor";
 
 pub const MAX_EVENTS_PER_CHUNCK: usize = 1000;
 
+pub const MAX_TRANSACTION_RETRIES: usize = 10;
+
 pub fn strip_hex_number(hex: String) -> anyhow::Result<String> {
     let (start, end) = hex.split_at(2);
 
@@ -894,22 +896,37 @@ impl ProcessorTrait for EconiaTransactionProcessor {
                 }
             }
         }
+
         // Insert to the database all events and write sets.
-        conn.build_transaction()
-            .serializable()
-            .run::<_, Error, _>(|pg_conn| {
-                insert_balance_updates(pg_conn, balance_updates)?;
-                insert_cancel_order_events(pg_conn, cancel_order_events)?;
-                insert_change_order_size_events(pg_conn, change_order_size_events)?;
-                insert_fill_events(pg_conn, fill_events)?;
-                insert_market_account_handles(pg_conn, market_account_handles)?;
-                insert_market_registration_events(pg_conn, market_registration_events)?;
-                insert_place_limit_order_events(pg_conn, place_limit_order_events)?;
-                insert_place_market_order_events(pg_conn, place_market_order_events)?;
-                insert_place_swap_order_events(pg_conn, place_swap_order_events)?;
-                insert_recognized_market_events(pg_conn, recognized_market_events)?;
-                Ok(())
-            })?;
+        let mut t = conn.build_transaction().serializable();
+        for i in 0..MAX_TRANSACTION_RETRIES {
+            let balance_updates = balance_updates.clone();
+            let cancel_order_events = cancel_order_events.clone();
+            let change_order_size_events = change_order_size_events.clone();
+            let fill_events = fill_events.clone();
+            let market_account_handles = market_account_handles.clone();
+            let market_registration_events = market_registration_events.clone();
+            let place_limit_order_events = place_limit_order_events.clone();
+            let place_market_order_events = place_market_order_events.clone();
+            let place_swap_order_events = place_swap_order_events.clone();
+            let recognized_market_events = recognized_market_events.clone();
+            if t.run::<_, Error, _>(|pg_conn| {
+                    insert_balance_updates(pg_conn, balance_updates)?;
+                    insert_cancel_order_events(pg_conn, cancel_order_events)?;
+                    insert_change_order_size_events(pg_conn, change_order_size_events)?;
+                    insert_fill_events(pg_conn, fill_events)?;
+                    insert_market_account_handles(pg_conn, market_account_handles)?;
+                    insert_market_registration_events(pg_conn, market_registration_events)?;
+                    insert_place_limit_order_events(pg_conn, place_limit_order_events)?;
+                    insert_place_market_order_events(pg_conn, place_market_order_events)?;
+                    insert_place_swap_order_events(pg_conn, place_swap_order_events)?;
+                    insert_recognized_market_events(pg_conn, recognized_market_events)?;
+                    Ok(())
+                }).is_ok() {
+                continue;
+            }
+            tracing::warn!("transaction serlialization error, retrying... (retries left: {})", MAX_TRANSACTION_RETRIES - i);
+        }
 
         Ok((start_version, end_version))
     }
