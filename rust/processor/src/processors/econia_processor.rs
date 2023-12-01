@@ -39,7 +39,7 @@ pub fn strip_hex_number(hex: String) -> anyhow::Result<String> {
     let (start, end) = hex.split_at(2);
 
     if start != "0x" {
-        Err(anyhow!("Invalid hex provided."))
+        Err(anyhow!("Invalid hex provided ({}).", hex))
     } else {
         let r = format!("0x{}", end.trim_start_matches("0"));
         if r == "0x" {
@@ -836,18 +836,19 @@ impl ProcessorTrait for EconiaTransactionProcessor {
                 match change.change.as_ref().expect("No transaction changes") {
                     Change::WriteResource(resource) => {
                         let resource_type = resource.r#type.as_ref().expect("No resource type");
-                        let address = strip_hex_number(resource_type.address.to_string())?;
-                        let resource_type = format!("{address}::{}::{}", resource_type.module, resource_type.name);
-                        if resource_type == market_accounts_type_string
-                        {
-                            let data: serde_json::Value = serde_json::from_str(&resource.data)
-                                .expect("Failed to parse MarketAccounts");
-                            let map_field = data.get("map").expect("No map field");
-                            market_account_handles.push(MarketAccountHandle {
-                                user: strip_hex_number(resource.address.clone())?,
-                                handle: opt_value_to_string(map_field.get("handle"))?,
-                                creation_time: time,
-                            })
+                        if let Ok(address) = strip_hex_number(resource_type.address.to_string()) {
+                            let resource_type = format!("{address}::{}::{}", resource_type.module, resource_type.name);
+                            if resource_type == market_accounts_type_string
+                            {
+                                let data: serde_json::Value = serde_json::from_str(&resource.data)
+                                    .expect("Failed to parse MarketAccounts");
+                                let map_field = data.get("map").expect("No map field");
+                                market_account_handles.push(MarketAccountHandle {
+                                    user: strip_hex_number(resource.address.clone())?,
+                                    handle: opt_value_to_string(map_field.get("handle"))?,
+                                    creation_time: time,
+                                })
+                            }
                         }
                     },
                     Change::WriteTableItem(write) => {
@@ -858,35 +859,36 @@ impl ProcessorTrait for EconiaTransactionProcessor {
                         } else {
                             continue;
                         };
-                        let address = strip_hex_number(address.to_string())?;
-                        let value_type = format!("{address}::{tail}");
-                        if value_type != market_account_type_string
-                        {
-                            continue;
+                        if let Ok(address) = strip_hex_number(address.to_string()) {
+                            let value_type = format!("{address}::{tail}");
+                            if value_type != market_account_type_string
+                            {
+                                continue;
+                            }
+                            let table_key: serde_json::Value = serde_json::from_str(&table_data.key)
+                                .expect("Failed to parse market account ID to JSON");
+                            let market_account_id = u128::from_str(
+                                &table_key
+                                    .as_str()
+                                    .expect("Failed to parse market account ID to string"),
+                            )
+                            .expect("Failed to parse market account ID to u128");
+                            let data: serde_json::Value = serde_json::from_str(&table_data.value)
+                                .expect("Failed to parse MarketAccount");
+                            balance_updates.push(BalanceUpdate {
+                                txn_version: txn_version.into(),
+                                handle: write.handle.to_string(),
+                                market_id: ((market_account_id >> SHIFT_MARKET_ID) as u64).into(),
+                                custodian_id: ((market_account_id & HI_64) as u64).into(),
+                                time,
+                                base_total: opt_value_to_big_decimal(data.get("base_total"))?,
+                                base_available: opt_value_to_big_decimal(data.get("base_available"))?,
+                                base_ceiling: opt_value_to_big_decimal(data.get("base_ceiling"))?,
+                                quote_total: opt_value_to_big_decimal(data.get("quote_total"))?,
+                                quote_available: opt_value_to_big_decimal(data.get("quote_available"))?,
+                                quote_ceiling: opt_value_to_big_decimal(data.get("quote_ceiling"))?,
+                            })
                         }
-                        let table_key: serde_json::Value = serde_json::from_str(&table_data.key)
-                            .expect("Failed to parse market account ID to JSON");
-                        let market_account_id = u128::from_str(
-                            &table_key
-                                .as_str()
-                                .expect("Failed to parse market account ID to string"),
-                        )
-                        .expect("Failed to parse market account ID to u128");
-                        let data: serde_json::Value = serde_json::from_str(&table_data.value)
-                            .expect("Failed to parse MarketAccount");
-                        balance_updates.push(BalanceUpdate {
-                            txn_version: txn_version.into(),
-                            handle: write.handle.to_string(),
-                            market_id: ((market_account_id >> SHIFT_MARKET_ID) as u64).into(),
-                            custodian_id: ((market_account_id & HI_64) as u64).into(),
-                            time,
-                            base_total: opt_value_to_big_decimal(data.get("base_total"))?,
-                            base_available: opt_value_to_big_decimal(data.get("base_available"))?,
-                            base_ceiling: opt_value_to_big_decimal(data.get("base_ceiling"))?,
-                            quote_total: opt_value_to_big_decimal(data.get("quote_total"))?,
-                            quote_available: opt_value_to_big_decimal(data.get("quote_available"))?,
-                            quote_ceiling: opt_value_to_big_decimal(data.get("quote_ceiling"))?,
-                        })
                     },
                     _ => continue,
                 }
