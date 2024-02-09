@@ -770,7 +770,11 @@ impl ProcessorTrait for EconiaTransactionProcessor {
                 } else {
                     continue;
                 };
-                let address = strip_hex_number(address.to_string())?;
+                let address = if let Ok(addr) = strip_hex_number(address.to_string()) {
+                    addr
+                } else {
+                    continue;
+                };
                 let event_type = format!("{address}::{tail}");
                 let txn_version = BigDecimal::from(txn.version);
                 let event_idx = BigDecimal::from(index as u64);
