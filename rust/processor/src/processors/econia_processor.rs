@@ -710,8 +710,8 @@ impl ProcessorTrait for EconiaTransactionProcessor {
         for txn in &transactions {
             let txn_version = txn.version as i64;
             let block_height = txn.block_height as i64;
-            let txn_data = txn.txn_data.as_ref().expect("Txn Data doesn't exit!");
-            if let TxnData::User(_) = txn_data {
+            let txn_data = txn.txn_data.as_ref();
+            if let Some(TxnData::User(_)) = txn_data {
                 block_height_to_timestamp.insert(
                     block_height,
                     DateTime::from_utc(
