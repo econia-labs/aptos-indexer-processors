@@ -9,7 +9,7 @@ use crate::{
     utils::util::{deserialize_from_string, hash_str, standardize_address, truncate_str},
 };
 use anyhow::{Context, Result};
-use aptos_indexer_protos::transaction::v1::{move_type::Content, MoveType, WriteResource};
+use aptos_protos::transaction::v1::{move_type::Content, MoveType, WriteResource};
 use bigdecimal::BigDecimal;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -18,6 +18,7 @@ use tracing::error;
 pub const COIN_ADDR: &str = "0x0000000000000000000000000000000000000000000000000000000000000001";
 const COIN_TYPE_HASH_LENGTH: usize = 5000;
 const COIN_TYPE_MAX: usize = 1000;
+
 /**
  * This file defines deserialized coin types as defined in our 0x1 contracts.
  */
@@ -40,7 +41,7 @@ impl CoinInfoResource {
 
     /// Getting the table item location of the supply aggregator
     pub fn get_aggregator_metadata(&self) -> Option<AggregatorResource> {
-        if let Some(inner) = self.supply.vec.get(0) {
+        if let Some(inner) = self.supply.vec.first() {
             inner.aggregator.get_aggregator_metadata()
         } else {
             None
@@ -67,7 +68,7 @@ pub struct AggregatorWrapperResource {
 impl AggregatorWrapperResource {
     /// In case we do want to track supply
     pub fn get_aggregator_metadata(&self) -> Option<AggregatorResource> {
-        self.vec.get(0).cloned()
+        self.vec.first().cloned()
     }
 }
 
@@ -79,7 +80,7 @@ pub struct IntegerWrapperResource {
 impl IntegerWrapperResource {
     /// In case we do want to track supply
     pub fn get_supply(&self) -> Option<BigDecimal> {
-        self.vec.get(0).map(|inner| inner.value.clone())
+        self.vec.first().map(|inner| inner.value.clone())
     }
 }
 

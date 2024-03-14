@@ -6,7 +6,9 @@ use crate::{
     models::stake_models::{
         current_delegated_voter::CurrentDelegatedVoter,
         delegator_activities::DelegatedStakingActivity,
-        delegator_balances::{CurrentDelegatorBalance, CurrentDelegatorBalanceMap},
+        delegator_balances::{
+            CurrentDelegatorBalance, CurrentDelegatorBalanceMap, DelegatorBalance,
+        },
         delegator_pools::{
             CurrentDelegatorPoolBalance, DelegatorPool, DelegatorPoolBalance, DelegatorPoolMap,
         },
@@ -16,18 +18,21 @@ use crate::{
     },
     schema,
     utils::{
-        database::{
-            clean_data_for_db, execute_with_better_error, get_chunks, PgDbPool, PgPoolConnection,
-        },
+        database::{execute_in_chunks, PgDbPool},
         util::{parse_timestamp, standardize_address},
     },
 };
+use ahash::AHashMap;
 use anyhow::bail;
-use aptos_indexer_protos::transaction::v1::{write_set_change::Change, Transaction};
+use aptos_protos::transaction::v1::{write_set_change::Change, Transaction};
 use async_trait::async_trait;
-use diesel::{pg::upsert::excluded, result::Error, ExpressionMethods, PgConnection};
+use diesel::{
+    pg::{upsert::excluded, Pg},
+    query_builder::QueryFragment,
+    ExpressionMethods,
+};
 use field_count::FieldCount;
-use std::{collections::HashMap, fmt::Debug};
+use std::fmt::Debug;
 use tracing::error;
 
 pub struct StakeProcessor {
@@ -51,37 +56,16 @@ impl Debug for StakeProcessor {
     }
 }
 
-fn insert_to_db_impl(
-    conn: &mut PgConnection,
-    current_stake_pool_voters: &[CurrentStakingPoolVoter],
-    proposal_votes: &[ProposalVote],
-    delegator_actvities: &[DelegatedStakingActivity],
-    delegator_balances: &[CurrentDelegatorBalance],
-    delegator_pools: &[DelegatorPool],
-    delegator_pool_balances: &[DelegatorPoolBalance],
-    current_delegator_pool_balances: &[CurrentDelegatorPoolBalance],
-    current_delegated_voter: &[CurrentDelegatedVoter],
-) -> Result<(), diesel::result::Error> {
-    insert_current_stake_pool_voter(conn, current_stake_pool_voters)?;
-    insert_proposal_votes(conn, proposal_votes)?;
-    insert_delegator_activities(conn, delegator_actvities)?;
-    insert_delegator_balances(conn, delegator_balances)?;
-    insert_delegator_pools(conn, delegator_pools)?;
-    insert_delegator_pool_balances(conn, delegator_pool_balances)?;
-    insert_current_delegator_pool_balances(conn, current_delegator_pool_balances)?;
-    insert_current_delegated_voter(conn, current_delegated_voter)?;
-    Ok(())
-}
-
-fn insert_to_db(
-    conn: &mut PgPoolConnection,
+async fn insert_to_db(
+    conn: PgDbPool,
     name: &'static str,
     start_version: u64,
     end_version: u64,
     current_stake_pool_voters: Vec<CurrentStakingPoolVoter>,
     proposal_votes: Vec<ProposalVote>,
     delegator_actvities: Vec<DelegatedStakingActivity>,
-    delegator_balances: Vec<CurrentDelegatorBalance>,
+    delegator_balances: Vec<DelegatorBalance>,
+    current_delegator_balances: Vec<CurrentDelegatorBalance>,
     delegator_pools: Vec<DelegatorPool>,
     delegator_pool_balances: Vec<DelegatorPoolBalance>,
     current_delegator_pool_balances: Vec<CurrentDelegatorPoolBalance>,
@@ -93,260 +77,264 @@ fn insert_to_db(
         end_version = end_version,
         "Inserting to db",
     );
-    match conn
-        .build_transaction()
-        .read_write()
-        .run::<_, Error, _>(|pg_conn| {
-            insert_to_db_impl(
-                pg_conn,
-                &current_stake_pool_voters,
-                &proposal_votes,
-                &delegator_actvities,
-                &delegator_balances,
-                &delegator_pools,
-                &delegator_pool_balances,
-                &current_delegator_pool_balances,
-                &current_delegated_voter,
-            )
-        }) {
-        Ok(_) => Ok(()),
-        Err(_) => conn
-            .build_transaction()
-            .read_write()
-            .run::<_, Error, _>(|pg_conn| {
-                let current_stake_pool_voters = clean_data_for_db(current_stake_pool_voters, true);
-                let proposal_votes = clean_data_for_db(proposal_votes, true);
-                let delegator_actvities = clean_data_for_db(delegator_actvities, true);
-                let delegator_balances = clean_data_for_db(delegator_balances, true);
-                let delegator_pools = clean_data_for_db(delegator_pools, true);
-                let delegator_pool_balances = clean_data_for_db(delegator_pool_balances, true);
-                let current_delegator_pool_balances =
-                    clean_data_for_db(current_delegator_pool_balances, true);
-                let current_delegated_voter = clean_data_for_db(current_delegated_voter, true);
 
-                insert_to_db_impl(
-                    pg_conn,
-                    &current_stake_pool_voters,
-                    &proposal_votes,
-                    &delegator_actvities,
-                    &delegator_balances,
-                    &delegator_pools,
-                    &delegator_pool_balances,
-                    &current_delegator_pool_balances,
-                    &current_delegated_voter,
-                )
-            }),
-    }
+    execute_in_chunks(
+        conn.clone(),
+        insert_current_stake_pool_voter_query,
+        current_stake_pool_voters,
+        CurrentStakingPoolVoter::field_count(),
+    )
+    .await?;
+    execute_in_chunks(
+        conn.clone(),
+        insert_proposal_votes_query,
+        proposal_votes,
+        ProposalVote::field_count(),
+    )
+    .await?;
+    execute_in_chunks(
+        conn.clone(),
+        insert_delegator_activities_query,
+        delegator_actvities,
+        DelegatedStakingActivity::field_count(),
+    )
+    .await?;
+    execute_in_chunks(
+        conn.clone(),
+        insert_delegator_balances_query,
+        delegator_balances,
+        DelegatorBalance::field_count(),
+    )
+    .await?;
+    execute_in_chunks(
+        conn.clone(),
+        insert_current_delegator_balances_query,
+        current_delegator_balances,
+        CurrentDelegatorBalance::field_count(),
+    )
+    .await?;
+    execute_in_chunks(
+        conn.clone(),
+        insert_delegator_pools_query,
+        delegator_pools,
+        DelegatorPool::field_count(),
+    )
+    .await?;
+    execute_in_chunks(
+        conn.clone(),
+        insert_delegator_pool_balances_query,
+        delegator_pool_balances,
+        DelegatorPoolBalance::field_count(),
+    )
+    .await?;
+    execute_in_chunks(
+        conn.clone(),
+        insert_current_delegator_pool_balances_query,
+        current_delegator_pool_balances,
+        CurrentDelegatorPoolBalance::field_count(),
+    )
+    .await?;
+    execute_in_chunks(
+        conn.clone(),
+        insert_current_delegated_voter_query,
+        current_delegated_voter,
+        CurrentDelegatedVoter::field_count(),
+    )
+    .await?;
+
+    Ok(())
 }
 
-fn insert_current_stake_pool_voter(
-    conn: &mut PgConnection,
-    item_to_insert: &[CurrentStakingPoolVoter],
-) -> Result<(), diesel::result::Error> {
+fn insert_current_stake_pool_voter_query(
+    items_to_insert: Vec<CurrentStakingPoolVoter>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
     use schema::current_staking_pool_voter::dsl::*;
 
-    let chunks = get_chunks(item_to_insert.len(), CurrentStakingPoolVoter::field_count());
-    for (start_ind, end_ind) in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(schema::current_staking_pool_voter::table)
-                .values(&item_to_insert[start_ind..end_ind])
-                .on_conflict(staking_pool_address)
-                .do_update()
-                .set((
-                    staking_pool_address.eq(excluded(staking_pool_address)),
-                    voter_address.eq(excluded(voter_address)),
-                    last_transaction_version.eq(excluded(last_transaction_version)),
-                    inserted_at.eq(excluded(inserted_at)),
-                    operator_address.eq(excluded(operator_address)),
-                )),
-            Some(
-                " WHERE current_staking_pool_voter.last_transaction_version <= EXCLUDED.last_transaction_version ",
-            ),
-        )?;
-    }
-    Ok(())
+    (diesel::insert_into(schema::current_staking_pool_voter::table)
+         .values(items_to_insert)
+         .on_conflict(staking_pool_address)
+         .do_update()
+         .set((
+             staking_pool_address.eq(excluded(staking_pool_address)),
+             voter_address.eq(excluded(voter_address)),
+             last_transaction_version.eq(excluded(last_transaction_version)),
+             inserted_at.eq(excluded(inserted_at)),
+             operator_address.eq(excluded(operator_address)),
+         )),
+     Some(
+         " WHERE current_staking_pool_voter.last_transaction_version <= EXCLUDED.last_transaction_version ",
+     ),
+    )
 }
 
-fn insert_proposal_votes(
-    conn: &mut PgConnection,
-    item_to_insert: &[ProposalVote],
-) -> Result<(), diesel::result::Error> {
+fn insert_proposal_votes_query(
+    items_to_insert: Vec<ProposalVote>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
     use schema::proposal_votes::dsl::*;
 
-    let chunks = get_chunks(item_to_insert.len(), ProposalVote::field_count());
-    for (start_ind, end_ind) in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(schema::proposal_votes::table)
-                .values(&item_to_insert[start_ind..end_ind])
-                .on_conflict((transaction_version, proposal_id, voter_address))
-                .do_nothing(),
-            None,
-        )?;
-    }
-    Ok(())
+    (
+        diesel::insert_into(schema::proposal_votes::table)
+            .values(items_to_insert)
+            .on_conflict((transaction_version, proposal_id, voter_address))
+            .do_nothing(),
+        None,
+    )
 }
 
-fn insert_delegator_activities(
-    conn: &mut PgConnection,
-    item_to_insert: &[DelegatedStakingActivity],
-) -> Result<(), diesel::result::Error> {
+fn insert_delegator_activities_query(
+    items_to_insert: Vec<DelegatedStakingActivity>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
     use schema::delegated_staking_activities::dsl::*;
 
-    let chunks = get_chunks(
-        item_to_insert.len(),
-        DelegatedStakingActivity::field_count(),
-    );
-    for (start_ind, end_ind) in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(schema::delegated_staking_activities::table)
-                .values(&item_to_insert[start_ind..end_ind])
-                .on_conflict((transaction_version, event_index))
-                .do_nothing(),
-            None,
-        )?;
-    }
-    Ok(())
+    (
+        diesel::insert_into(schema::delegated_staking_activities::table)
+            .values(items_to_insert)
+            .on_conflict((transaction_version, event_index))
+            .do_nothing(),
+        None,
+    )
 }
 
-fn insert_delegator_balances(
-    conn: &mut PgConnection,
-    item_to_insert: &[CurrentDelegatorBalance],
-) -> Result<(), diesel::result::Error> {
+fn insert_delegator_balances_query(
+    items_to_insert: Vec<DelegatorBalance>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::delegator_balances::dsl::*;
+
+    (
+        diesel::insert_into(schema::delegator_balances::table)
+            .values(items_to_insert)
+            .on_conflict((transaction_version, write_set_change_index))
+            .do_nothing(),
+        None,
+    )
+}
+
+fn insert_current_delegator_balances_query(
+    items_to_insert: Vec<CurrentDelegatorBalance>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
     use schema::current_delegator_balances::dsl::*;
 
-    let chunks = get_chunks(item_to_insert.len(), CurrentDelegatorBalance::field_count());
-    for (start_ind, end_ind) in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(schema::current_delegator_balances::table)
-                .values(&item_to_insert[start_ind..end_ind])
-                .on_conflict((delegator_address, pool_address, pool_type, table_handle))
-                .do_update()
-                .set((
-                    last_transaction_version.eq(excluded(last_transaction_version)),
-                    inserted_at.eq(excluded(inserted_at)),
-                    shares.eq(excluded(shares)),
-                    parent_table_handle.eq(excluded(parent_table_handle)),
-                )),
-            Some(
-                " WHERE current_delegator_balances.last_transaction_version <= EXCLUDED.last_transaction_version ",
-            ),
-        )?;
-    }
-    Ok(())
+    (diesel::insert_into(schema::current_delegator_balances::table)
+         .values(items_to_insert)
+         .on_conflict((delegator_address, pool_address, pool_type, table_handle))
+         .do_update()
+         .set((
+             last_transaction_version.eq(excluded(last_transaction_version)),
+             inserted_at.eq(excluded(inserted_at)),
+             shares.eq(excluded(shares)),
+             parent_table_handle.eq(excluded(parent_table_handle)),
+         )),
+     Some(
+         " WHERE current_delegator_balances.last_transaction_version <= EXCLUDED.last_transaction_version ",
+     ),
+    )
 }
 
-fn insert_delegator_pools(
-    conn: &mut PgConnection,
-    item_to_insert: &[DelegatorPool],
-) -> Result<(), diesel::result::Error> {
+fn insert_delegator_pools_query(
+    items_to_insert: Vec<DelegatorPool>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
     use schema::delegated_staking_pools::dsl::*;
 
-    let chunks = get_chunks(item_to_insert.len(), DelegatorPool::field_count());
-    for (start_ind, end_ind) in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(schema::delegated_staking_pools::table)
-                .values(&item_to_insert[start_ind..end_ind])
-                .on_conflict(staking_pool_address)
-                .do_update()
-                .set((
-                    first_transaction_version.eq(excluded(first_transaction_version)),
-                    inserted_at.eq(excluded(inserted_at)),
-                )),
-            Some(
-                " WHERE delegated_staking_pools.first_transaction_version >= EXCLUDED.first_transaction_version ",
-            ),
-        )?;
-    }
-    Ok(())
+    (diesel::insert_into(schema::delegated_staking_pools::table)
+         .values(items_to_insert)
+         .on_conflict(staking_pool_address)
+         .do_update()
+         .set((
+             first_transaction_version.eq(excluded(first_transaction_version)),
+             inserted_at.eq(excluded(inserted_at)),
+         )),
+     Some(
+         " WHERE delegated_staking_pools.first_transaction_version >= EXCLUDED.first_transaction_version ",
+     ),
+    )
 }
 
-fn insert_delegator_pool_balances(
-    conn: &mut PgConnection,
-    item_to_insert: &[DelegatorPoolBalance],
-) -> Result<(), diesel::result::Error> {
+fn insert_delegator_pool_balances_query(
+    items_to_insert: Vec<DelegatorPoolBalance>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
     use schema::delegated_staking_pool_balances::dsl::*;
 
-    let chunks = get_chunks(item_to_insert.len(), DelegatorPoolBalance::field_count());
-    for (start_ind, end_ind) in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(schema::delegated_staking_pool_balances::table)
-                .values(&item_to_insert[start_ind..end_ind])
-                .on_conflict((transaction_version, staking_pool_address))
-                .do_nothing(),
-            None,
-        )?;
-    }
-    Ok(())
+    (
+        diesel::insert_into(schema::delegated_staking_pool_balances::table)
+            .values(items_to_insert)
+            .on_conflict((transaction_version, staking_pool_address))
+            .do_nothing(),
+        None,
+    )
 }
 
-fn insert_current_delegator_pool_balances(
-    conn: &mut PgConnection,
-    item_to_insert: &[CurrentDelegatorPoolBalance],
-) -> Result<(), diesel::result::Error> {
+fn insert_current_delegator_pool_balances_query(
+    items_to_insert: Vec<CurrentDelegatorPoolBalance>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
     use schema::current_delegated_staking_pool_balances::dsl::*;
 
-    let chunks = get_chunks(
-        item_to_insert.len(),
-        CurrentDelegatorPoolBalance::field_count(),
-    );
-    for (start_ind, end_ind) in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(schema::current_delegated_staking_pool_balances::table)
-                .values(&item_to_insert[start_ind..end_ind])
-                .on_conflict(staking_pool_address)
-                .do_update()
-                .set((
-                    total_coins.eq(excluded(total_coins)),
-                    total_shares.eq(excluded(total_shares)),
-                    last_transaction_version.eq(excluded(last_transaction_version)),
-                    inserted_at.eq(excluded(inserted_at)),
-                    operator_commission_percentage.eq(excluded(operator_commission_percentage)),
-                    inactive_table_handle.eq(excluded(inactive_table_handle)),
-                    active_table_handle.eq(excluded(active_table_handle)),
-                )),
-            Some(
-                " WHERE current_delegated_staking_pool_balances.last_transaction_version <= EXCLUDED.last_transaction_version ",
-            ),
-        )?;
-    }
-    Ok(())
+    (diesel::insert_into(schema::current_delegated_staking_pool_balances::table)
+         .values(items_to_insert)
+         .on_conflict(staking_pool_address)
+         .do_update()
+         .set((
+             total_coins.eq(excluded(total_coins)),
+             total_shares.eq(excluded(total_shares)),
+             last_transaction_version.eq(excluded(last_transaction_version)),
+             inserted_at.eq(excluded(inserted_at)),
+             operator_commission_percentage.eq(excluded(operator_commission_percentage)),
+             inactive_table_handle.eq(excluded(inactive_table_handle)),
+             active_table_handle.eq(excluded(active_table_handle)),
+         )),
+     Some(
+         " WHERE current_delegated_staking_pool_balances.last_transaction_version <= EXCLUDED.last_transaction_version ",
+     ),
+    )
 }
 
-fn insert_current_delegated_voter(
-    conn: &mut PgConnection,
-    item_to_insert: &[CurrentDelegatedVoter],
-) -> Result<(), diesel::result::Error> {
+fn insert_current_delegated_voter_query(
+    item_to_insert: Vec<CurrentDelegatedVoter>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
     use schema::current_delegated_voter::dsl::*;
 
-    let chunks = get_chunks(item_to_insert.len(), CurrentDelegatedVoter::field_count());
-    for (start_ind, end_ind) in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(schema::current_delegated_voter::table)
-                .values(&item_to_insert[start_ind..end_ind])
-                .on_conflict((delegation_pool_address, delegator_address))
-                .do_update()
-                .set((
-                    voter.eq(excluded(voter)),
-                    pending_voter.eq(excluded(pending_voter)),
-                    last_transaction_timestamp.eq(excluded(last_transaction_timestamp)),
-                    last_transaction_version.eq(excluded(last_transaction_version)),
-                    table_handle.eq(excluded(table_handle)),
-                    inserted_at.eq(excluded(inserted_at)),
-                )),
-                Some(
-                    " WHERE current_delegated_voter.last_transaction_version <= EXCLUDED.last_transaction_version ",
-                ),
-        )?;
-    }
-    Ok(())
+    (diesel::insert_into(schema::current_delegated_voter::table)
+         .values(item_to_insert)
+         .on_conflict((delegation_pool_address, delegator_address))
+         .do_update()
+         .set((
+             voter.eq(excluded(voter)),
+             pending_voter.eq(excluded(pending_voter)),
+             last_transaction_timestamp.eq(excluded(last_transaction_timestamp)),
+             last_transaction_version.eq(excluded(last_transaction_version)),
+             table_handle.eq(excluded(table_handle)),
+             inserted_at.eq(excluded(inserted_at)),
+         )),
+     Some(
+         " WHERE current_delegated_voter.last_transaction_version <= EXCLUDED.last_transaction_version ",
+     ),
+    )
 }
 
 #[async_trait]
@@ -362,20 +350,22 @@ impl ProcessorTrait for StakeProcessor {
         end_version: u64,
         _: Option<u64>,
     ) -> anyhow::Result<ProcessingResult> {
-        let mut conn = self.get_conn();
+        let processing_start = std::time::Instant::now();
+        let mut conn = self.get_conn().await;
 
-        let mut all_current_stake_pool_voters: StakingPoolVoterMap = HashMap::new();
+        let mut all_current_stake_pool_voters: StakingPoolVoterMap = AHashMap::new();
         let mut all_proposal_votes = vec![];
         let mut all_delegator_activities = vec![];
-        let mut all_delegator_balances: CurrentDelegatorBalanceMap = HashMap::new();
-        let mut all_delegator_pools: DelegatorPoolMap = HashMap::new();
+        let mut all_delegator_balances = vec![];
+        let mut all_current_delegator_balances: CurrentDelegatorBalanceMap = AHashMap::new();
+        let mut all_delegator_pools: DelegatorPoolMap = AHashMap::new();
         let mut all_delegator_pool_balances = vec![];
-        let mut all_current_delegator_pool_balances = HashMap::new();
+        let mut all_current_delegator_pool_balances = AHashMap::new();
 
-        let mut active_pool_to_staking_pool = HashMap::new();
+        let mut active_pool_to_staking_pool = AHashMap::new();
         // structs needed to get delegated voters
-        let mut all_current_delegated_voter = HashMap::new();
-        let mut all_vote_delegation_handle_to_pool_address = HashMap::new();
+        let mut all_current_delegated_voter = AHashMap::new();
+        let mut all_vote_delegation_handle_to_pool_address = AHashMap::new();
 
         for txn in &transactions {
             // Add votes data
@@ -431,13 +421,16 @@ impl ProcessorTrait for StakeProcessor {
             }
 
             // Add delegator balances
-            let delegator_balances = CurrentDelegatorBalance::from_transaction(
-                txn,
-                &active_pool_to_staking_pool,
-                &mut conn,
-            )
-            .unwrap();
-            all_delegator_balances.extend(delegator_balances);
+            let (mut delegator_balances, current_delegator_balances) =
+                CurrentDelegatorBalance::from_transaction(
+                    txn,
+                    &active_pool_to_staking_pool,
+                    &mut conn,
+                )
+                .await
+                .unwrap();
+            all_delegator_balances.append(&mut delegator_balances);
+            all_current_delegator_balances.extend(current_delegator_balances);
 
             // this write table item indexing is to get delegator address, table handle, and voter & pending voter
             for wsc in &transaction_info.changes {
@@ -449,6 +442,7 @@ impl ProcessorTrait for StakeProcessor {
                         &all_vote_delegation_handle_to_pool_address,
                         &mut conn,
                     )
+                    .await
                     .unwrap();
 
                     all_current_delegated_voter.extend(voter_map);
@@ -467,6 +461,7 @@ impl ProcessorTrait for StakeProcessor {
                             &all_current_delegated_voter,
                             &mut conn,
                         )
+                        .await
                         .unwrap()
                     {
                         all_current_delegated_voter.insert(voter.pk(), voter);
@@ -479,7 +474,7 @@ impl ProcessorTrait for StakeProcessor {
         let mut all_current_stake_pool_voters = all_current_stake_pool_voters
             .into_values()
             .collect::<Vec<CurrentStakingPoolVoter>>();
-        let mut all_delegator_balances = all_delegator_balances
+        let mut all_current_delegator_balances = all_current_delegator_balances
             .into_values()
             .collect::<Vec<CurrentDelegatorBalance>>();
         let mut all_delegator_pools = all_delegator_pools
@@ -495,7 +490,7 @@ impl ProcessorTrait for StakeProcessor {
         // Sort by PK
         all_current_stake_pool_voters
             .sort_by(|a, b| a.staking_pool_address.cmp(&b.staking_pool_address));
-        all_delegator_balances.sort_by(|a, b| {
+        all_current_delegator_balances.sort_by(|a, b| {
             (&a.delegator_address, &a.pool_address, &a.pool_type).cmp(&(
                 &b.delegator_address,
                 &b.pool_address,
@@ -507,8 +502,11 @@ impl ProcessorTrait for StakeProcessor {
             .sort_by(|a, b| a.staking_pool_address.cmp(&b.staking_pool_address));
         all_current_delegated_voter.sort();
 
+        let processing_duration_in_secs = processing_start.elapsed().as_secs_f64();
+        let db_insertion_start = std::time::Instant::now();
+
         let tx_result = insert_to_db(
-            &mut conn,
+            self.get_pool(),
             self.name(),
             start_version,
             end_version,
@@ -516,14 +514,22 @@ impl ProcessorTrait for StakeProcessor {
             all_proposal_votes,
             all_delegator_activities,
             all_delegator_balances,
+            all_current_delegator_balances,
             all_delegator_pools,
             all_delegator_pool_balances,
             all_current_delegator_pool_balances,
             all_current_delegated_voter,
-        );
-
+        )
+        .await;
+        let db_insertion_duration_in_secs = db_insertion_start.elapsed().as_secs_f64();
         match tx_result {
-            Ok(_) => Ok((start_version, end_version)),
+            Ok(_) => Ok(ProcessingResult {
+                start_version,
+                end_version,
+                processing_duration_in_secs,
+                db_insertion_duration_in_secs,
+                last_transaction_timstamp: transactions.last().unwrap().timestamp.clone(),
+            }),
             Err(e) => {
                 error!(
                     start_version = start_version,

@@ -1,13 +1,12 @@
 # Aptos Indexer Client Guide
 This guide will get you started with creating an Aptos indexer with custom parsing. We have several endpoints that provided a streaming RPC of transaction data.
 
-## GRPC Data Stream Endpoints(all endpoints are in GCP us-central1 unless specified)
-* devnet: 35.225.218.95:50051
+## GRPC Data Stream Endpoints
+* devnet: https://grpc.devnet.aptoslabs.com:443
 
-* testnet: 35.223.137.149:50051
-  * Asia(GCP asia-northeast3): 34.64.252.224:50051
+* testnet: https://grpc.testnet.aptoslabs.com:443
 
-* mainnet: 34.30.218.153:50051
+* mainnet: https://grpc.mainnet.aptoslabs.com:443
 
 ## Request
  - `config.yaml`
@@ -21,34 +20,7 @@ This guide will get you started with creating an Aptos indexer with custom parsi
 
 ## Response
 - The response is a stream of `RawDatastreamResponse` objects.
-- For each supported language, there is an `aptos` folder which contains the auto-generate protobuf files in that language. You can check out the files to see the stream response format and figure out how to parse the response.
+- To learn more about the protos and the code generated from those protos see [protos/](https://github.com/aptos-labs/aptos-core/tree/main/protos) in aptos-core.
 
 ## [Aptos Indexer GRPC Release Notes](https://github.com/aptos-labs/aptos-core/blob/main/ecosystem/indexer-grpc/release_notes.md)
 
-
-## Dev Guide
-
-### Development
-If you update the proto definitions in `proto/`, you can regenerate them for all languages by running this script:
-```
-./scripts/build_protos.sh
-```
-
-Make sure you have the following deps installed:
-```bash
-# Install buf
-brew install bufbuild/buf/buf
-
-# For generating Rust code
-cargo install protoc-gen-prost
-cargo install protoc-gen-prost-serde
-cargo install protoc-gen-prost-crate
-cargo install protoc-gen-tonic
-
-# For generating TS code
-pnpm install -g protoc-gen-ts
-
-# For generating Python code
-cd python/aptos-indexer-protos
-poetry install
-```

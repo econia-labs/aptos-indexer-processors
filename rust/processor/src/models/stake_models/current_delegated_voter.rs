@@ -13,11 +13,12 @@ use crate::{
     schema::current_delegated_voter,
     utils::{database::PgPoolConnection, util::standardize_address},
 };
-use aptos_indexer_protos::transaction::v1::WriteTableItem;
-use diesel::{prelude::*, ExpressionMethods};
+use ahash::AHashMap;
+use aptos_protos::transaction::v1::WriteTableItem;
+use diesel::prelude::*;
+use diesel_async::RunQueryDsl;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Debug, Identifiable, Queryable)]
 #[diesel(primary_key(delegator_address, delegation_pool_address))]
@@ -25,7 +26,8 @@ use std::collections::HashMap;
 pub struct CurrentDelegatedVoterQuery {
     pub delegation_pool_address: String,
     pub delegator_address: String,
-    pub table_handle: Option<String>, // vote_delegation table handle
+    pub table_handle: Option<String>,
+    // vote_delegation table handle
     pub voter: Option<String>,
     pub pending_voter: Option<String>,
     pub last_transaction_version: i64,
@@ -33,24 +35,28 @@ pub struct CurrentDelegatedVoterQuery {
     pub inserted_at: chrono::NaiveDateTime,
 }
 
-#[derive(Debug, Deserialize, Eq, FieldCount, Identifiable, Insertable, PartialEq, Serialize)]
+#[derive(
+    Debug, Deserialize, Eq, FieldCount, Identifiable, Insertable, PartialEq, Serialize, Clone,
+)]
 #[diesel(primary_key(delegator_address, delegation_pool_address))]
 #[diesel(table_name = current_delegated_voter)]
 pub struct CurrentDelegatedVoter {
     pub delegation_pool_address: String,
     pub delegator_address: String,
-    pub table_handle: Option<String>, // vote_delegation table handle
+    pub table_handle: Option<String>,
+    // vote_delegation table handle
     pub voter: Option<String>,
-    pub pending_voter: Option<String>, // voter to be in the next lockup period
+    pub pending_voter: Option<String>,
+    // voter to be in the next lockup period
     pub last_transaction_version: i64,
     pub last_transaction_timestamp: chrono::NaiveDateTime,
 }
 
 // (delegation_pool_address, delegator_address)
 type CurrentDelegatedVoterPK = (String, String);
-type CurrentDelegatedVoterMap = HashMap<CurrentDelegatedVoterPK, CurrentDelegatedVoter>;
+type CurrentDelegatedVoterMap = AHashMap<CurrentDelegatedVoterPK, CurrentDelegatedVoter>;
 // table handle to delegation pool address mapping
-type VoteDelegationTableHandleToPool = HashMap<String, String>;
+type VoteDelegationTableHandleToPool = AHashMap<String, String>;
 
 impl CurrentDelegatedVoter {
     pub fn pk(&self) -> CurrentDelegatedVoterPK {
@@ -65,14 +71,14 @@ impl CurrentDelegatedVoter {
     /// figure out what the pool address it is
     /// 2. We need to parse the governance record itself
     /// 3. All active shares prior to governance contract need to be tracked as well, the default voters are the delegators themselves
-    pub fn from_write_table_item(
+    pub async fn from_write_table_item(
         write_table_item: &WriteTableItem,
         txn_version: i64,
         txn_timestamp: chrono::NaiveDateTime,
         vote_delegation_handle_to_pool_address: &VoteDelegationTableHandleToPool,
-        conn: &mut PgPoolConnection,
+        conn: &mut PgPoolConnection<'_>,
     ) -> anyhow::Result<CurrentDelegatedVoterMap> {
-        let mut delegated_voter_map: CurrentDelegatedVoterMap = HashMap::new();
+        let mut delegated_voter_map: CurrentDelegatedVoterMap = AHashMap::new();
 
         let table_item_data = write_table_item.data.as_ref().unwrap();
         let table_handle = standardize_address(&write_table_item.handle);
@@ -87,7 +93,7 @@ impl CurrentDelegatedVoter {
                 Some(pool_address) => pool_address.clone(),
                 None => {
                     // look up from db
-                    Self::get_delegation_pool_address_by_table_handle(conn, &table_handle)
+                    Self::get_delegation_pool_address_by_table_handle(conn, &table_handle).await
                         .unwrap_or_else(|_| {
                             tracing::error!(
                                 transaction_version = txn_version,
@@ -124,20 +130,22 @@ impl CurrentDelegatedVoter {
     /// For delegators that have delegated before the vote delegation contract deployment, we
     /// need to mark them as default voters, but also be careful that we don't override the
     /// new data
-    pub fn get_delegators_pre_contract_deployment(
+    pub async fn get_delegators_pre_contract_deployment(
         write_table_item: &WriteTableItem,
         txn_version: i64,
         txn_timestamp: chrono::NaiveDateTime,
         active_pool_to_staking_pool: &ShareToStakingPoolMapping,
         previous_delegated_voters: &CurrentDelegatedVoterMap,
-        conn: &mut PgPoolConnection,
+        conn: &mut PgPoolConnection<'_>,
     ) -> anyhow::Result<Option<Self>> {
-        if let Some(active_balance) =
+        if let Some((_, active_balance)) =
             CurrentDelegatorBalance::get_active_share_from_write_table_item(
                 write_table_item,
                 txn_version,
+                0, // placeholder
                 active_pool_to_staking_pool,
-            )?
+            )
+            .await?
         {
             let pool_address = active_balance.pool_address.clone();
             let delegator_address = active_balance.delegator_address.clone();
@@ -148,7 +156,7 @@ impl CurrentDelegatedVoter {
                 Some(_) => true,
                 None => {
                     // look up from db
-                    Self::get_existence_by_pk(conn, &delegator_address, &pool_address)
+                    Self::get_existence_by_pk(conn, &delegator_address, &pool_address).await
                 },
             };
             if !already_exists {
@@ -166,19 +174,20 @@ impl CurrentDelegatedVoter {
         Ok(None)
     }
 
-    pub fn get_delegation_pool_address_by_table_handle(
-        conn: &mut PgPoolConnection,
+    pub async fn get_delegation_pool_address_by_table_handle(
+        conn: &mut PgPoolConnection<'_>,
         table_handle: &str,
     ) -> anyhow::Result<String> {
         let mut retried = 0;
         while retried < QUERY_RETRIES {
             retried += 1;
-            match CurrentDelegatedVoterQuery::get_by_table_handle(conn, table_handle) {
+            match CurrentDelegatedVoterQuery::get_by_table_handle(conn, table_handle).await {
                 Ok(current_delegated_voter_query_result) => {
-                    return Ok(current_delegated_voter_query_result.delegation_pool_address)
+                    return Ok(current_delegated_voter_query_result.delegation_pool_address);
                 },
                 Err(_) => {
-                    std::thread::sleep(std::time::Duration::from_millis(QUERY_RETRY_DELAY_MS));
+                    tokio::time::sleep(std::time::Duration::from_millis(QUERY_RETRY_DELAY_MS))
+                        .await;
                 },
             }
         }
@@ -187,8 +196,8 @@ impl CurrentDelegatedVoter {
         ))
     }
 
-    pub fn get_existence_by_pk(
-        conn: &mut PgPoolConnection,
+    pub async fn get_existence_by_pk(
+        conn: &mut PgPoolConnection<'_>,
         delegator_address: &str,
         delegation_pool_address: &str,
     ) -> bool {
@@ -199,10 +208,13 @@ impl CurrentDelegatedVoter {
                 conn,
                 delegator_address,
                 delegation_pool_address,
-            ) {
+            )
+            .await
+            {
                 Ok(_) => return true,
                 Err(_) => {
-                    std::thread::sleep(std::time::Duration::from_millis(QUERY_RETRY_DELAY_MS));
+                    tokio::time::sleep(std::time::Duration::from_millis(QUERY_RETRY_DELAY_MS))
+                        .await;
                 },
             }
         }
@@ -211,17 +223,18 @@ impl CurrentDelegatedVoter {
 }
 
 impl CurrentDelegatedVoterQuery {
-    pub fn get_by_table_handle(
-        conn: &mut PgPoolConnection,
+    pub async fn get_by_table_handle(
+        conn: &mut PgPoolConnection<'_>,
         table_handle: &str,
     ) -> diesel::QueryResult<Self> {
         current_delegated_voter::table
             .filter(current_delegated_voter::table_handle.eq(table_handle))
             .first::<Self>(conn)
+            .await
     }
 
-    pub fn get_by_pk(
-        conn: &mut PgPoolConnection,
+    pub async fn get_by_pk(
+        conn: &mut PgPoolConnection<'_>,
         delegator_address: &str,
         delegation_pool_address: &str,
     ) -> diesel::QueryResult<Self> {
@@ -229,6 +242,7 @@ impl CurrentDelegatedVoterQuery {
             .filter(current_delegated_voter::delegator_address.eq(delegator_address))
             .filter(current_delegated_voter::delegation_pool_address.eq(delegation_pool_address))
             .first::<Self>(conn)
+            .await
     }
 }
 

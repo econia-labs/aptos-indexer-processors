@@ -12,7 +12,7 @@ use crate::{
     },
 };
 use anyhow::Context;
-use aptos_indexer_protos::transaction::v1::{Event, WriteResource};
+use aptos_protos::transaction::v1::{Event, WriteResource};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 
@@ -240,6 +240,7 @@ impl AnsWriteResource {
         ))
     }
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RenewNameEvent {
     domain_name: String,
