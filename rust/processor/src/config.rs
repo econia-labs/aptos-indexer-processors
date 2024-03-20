@@ -1,7 +1,10 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{processors::ProcessorConfig, worker::Worker};
+use crate::{
+    gap_detector::DEFAULT_GAP_DETECTION_BATCH_SIZE, processors::ProcessorConfig,
+    transaction_filter::TransactionFilter, worker::Worker,
+};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use server_framework::RunnableConfig;
@@ -21,6 +24,18 @@ pub struct IndexerGrpcProcessorConfig {
     pub starting_version: Option<u64>,
     pub ending_version: Option<u64>,
     pub number_concurrent_processing_tasks: Option<usize>,
+    pub db_pool_size: Option<u32>,
+    #[serde(default = "IndexerGrpcProcessorConfig::default_gap_detection_batch_size")]
+    pub gap_detection_batch_size: u64,
+    pub enable_verbose_logging: Option<bool>,
+    #[serde(default)]
+    pub transaction_filter: TransactionFilter,
+}
+
+impl IndexerGrpcProcessorConfig {
+    pub const fn default_gap_detection_batch_size() -> u64 {
+        DEFAULT_GAP_DETECTION_BATCH_SIZE
+    }
 }
 
 #[async_trait::async_trait]
@@ -35,6 +50,10 @@ impl RunnableConfig for IndexerGrpcProcessorConfig {
             self.starting_version,
             self.ending_version,
             self.number_concurrent_processing_tasks,
+            self.db_pool_size,
+            self.gap_detection_batch_size,
+            self.enable_verbose_logging,
+            self.transaction_filter.clone(),
         )
         .await
         .context("Failed to build worker")?;

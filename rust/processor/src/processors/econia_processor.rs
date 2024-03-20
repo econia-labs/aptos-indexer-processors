@@ -2,18 +2,17 @@ use super::{ProcessingResult, ProcessorTrait};
 use crate::{
     models::events_models::events::EventModel,
     utils::{
-        database::{execute_with_better_error, PgDbPool},
+        database::PgDbPool,
         util::parse_timestamp,
     },
 };
 use anyhow::anyhow;
-use aptos_indexer_protos::transaction::v1::{
-    transaction::TxnData, write_set_change::Change, Transaction,
-};
+use aptos_protos::transaction::v1::{transaction::TxnData, write_set_change::Change, Transaction};
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
-use diesel::{result::Error, PgConnection};
+use diesel::{result::Error, QueryResult};
+use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use econia_db::{
     models::{
         BalanceUpdate, CancelOrderEvent, ChangeOrderSizeEvent, FillEvent, MarketAccountHandle,
@@ -26,6 +25,7 @@ use econia_db::{
         place_market_order_events, place_swap_order_events, recognized_market_events,
     },
 };
+use diesel_async::scoped_futures::ScopedFutureExt;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -151,172 +151,152 @@ fn opt_value_to_i16(value: Option<&Value>) -> anyhow::Result<i16> {
 // version and event index, the second insertion will just be dropped
 // and lost to the wind. It will not return an error.
 
-fn insert_balance_updates(
-    conn: &mut PgConnection,
+async fn insert_balance_updates(
+    conn: &mut AsyncPgConnection,
     handles: Vec<BalanceUpdate>,
-) -> Result<(), diesel::result::Error> {
+) -> QueryResult<()> {
     let chunks = handles.chunks(MAX_EVENTS_PER_CHUNCK);
     for e in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(balance_updates_by_handle::table)
-                .values(e)
-                .on_conflict_do_nothing(),
-            None,
-        )?;
+        diesel::insert_into(balance_updates_by_handle::table)
+            .values(e)
+            .on_conflict_do_nothing()
+            .execute(conn)
+            .await?;
     }
     Ok(())
 }
 
-fn insert_cancel_order_events(
-    conn: &mut PgConnection,
+async fn insert_cancel_order_events(
+    conn: &mut AsyncPgConnection,
     events: Vec<CancelOrderEvent>,
 ) -> Result<(), diesel::result::Error> {
     let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
     for e in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(cancel_order_events::table)
-                .values(e)
-                .on_conflict_do_nothing(),
-            None,
-        )?;
+        diesel::insert_into(cancel_order_events::table)
+            .values(e)
+            .on_conflict_do_nothing()
+            .execute(conn)
+            .await?;
     }
     Ok(())
 }
 
-fn insert_change_order_size_events(
-    conn: &mut PgConnection,
+async fn insert_change_order_size_events(
+    conn: &mut AsyncPgConnection,
     events: Vec<ChangeOrderSizeEvent>,
 ) -> Result<(), diesel::result::Error> {
     let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
     for e in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(change_order_size_events::table)
-                .values(e)
-                .on_conflict_do_nothing(),
-            None,
-        )?;
+        diesel::insert_into(change_order_size_events::table)
+            .values(e)
+            .on_conflict_do_nothing()
+            .execute(conn)
+            .await?;
     }
     Ok(())
 }
 
-fn insert_fill_events(
-    conn: &mut PgConnection,
+async fn insert_fill_events(
+    conn: &mut AsyncPgConnection,
     events: Vec<FillEvent>,
 ) -> Result<(), diesel::result::Error> {
     let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
     for e in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(fill_events::table)
-                .values(e)
-                .on_conflict_do_nothing(),
-            None,
-        )?;
+        diesel::insert_into(fill_events::table)
+            .values(e)
+            .on_conflict_do_nothing()
+            .execute(conn)
+            .await?;
     }
     Ok(())
 }
 
-fn insert_market_account_handles(
-    conn: &mut PgConnection,
+async fn insert_market_account_handles(
+    conn: &mut AsyncPgConnection,
     handles: Vec<MarketAccountHandle>,
 ) -> Result<(), diesel::result::Error> {
     let chunks = handles.chunks(MAX_EVENTS_PER_CHUNCK);
     for e in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(market_account_handles::table)
-                .values(e)
-                .on_conflict_do_nothing(),
-            None,
-        )?;
+        diesel::insert_into(market_account_handles::table)
+            .values(e)
+            .on_conflict_do_nothing()
+            .execute(conn)
+            .await?;
     }
     Ok(())
 }
 
-fn insert_recognized_market_events(
-    conn: &mut PgConnection,
+async fn insert_recognized_market_events(
+    conn: &mut AsyncPgConnection,
     events: Vec<RecognizedMarketEvent>,
 ) -> Result<(), diesel::result::Error> {
     let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
     for e in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(recognized_market_events::table)
-                .values(e)
-                .on_conflict_do_nothing(),
-            None,
-        )?;
+        diesel::insert_into(recognized_market_events::table)
+            .values(e)
+            .on_conflict_do_nothing()
+            .execute(conn)
+            .await?;
     }
     Ok(())
 }
 
-fn insert_market_registration_events(
-    conn: &mut PgConnection,
+async fn insert_market_registration_events(
+    conn: &mut AsyncPgConnection,
     events: Vec<MarketRegistrationEvent>,
 ) -> Result<(), diesel::result::Error> {
     let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
     for e in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(market_registration_events::table)
-                .values(e)
-                .on_conflict_do_nothing(),
-            None,
-        )?;
+        diesel::insert_into(market_registration_events::table)
+            .values(e)
+            .on_conflict_do_nothing()
+            .execute(conn)
+            .await?;
     }
     Ok(())
 }
 
-fn insert_place_limit_order_events(
-    conn: &mut PgConnection,
+async fn insert_place_limit_order_events(
+    conn: &mut AsyncPgConnection,
     events: Vec<PlaceLimitOrderEvent>,
 ) -> Result<(), diesel::result::Error> {
     let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
     for e in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(place_limit_order_events::table)
-                .values(e)
-                .on_conflict_do_nothing(),
-            None,
-        )?;
+        diesel::insert_into(place_limit_order_events::table)
+            .values(e)
+            .on_conflict_do_nothing()
+            .execute(conn)
+            .await?;
     }
     Ok(())
 }
 
-fn insert_place_market_order_events(
-    conn: &mut PgConnection,
+async fn insert_place_market_order_events(
+    conn: &mut AsyncPgConnection,
     events: Vec<PlaceMarketOrderEvent>,
 ) -> Result<(), diesel::result::Error> {
     let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
     for e in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(place_market_order_events::table)
-                .values(e)
-                .on_conflict_do_nothing(),
-            None,
-        )?;
+        diesel::insert_into(place_market_order_events::table)
+            .values(e)
+            .on_conflict_do_nothing()
+            .execute(conn)
+            .await?;
     }
     Ok(())
 }
 
-fn insert_place_swap_order_events(
-    conn: &mut PgConnection,
+async fn insert_place_swap_order_events(
+    conn: &mut AsyncPgConnection,
     events: Vec<PlaceSwapOrderEvent>,
 ) -> Result<(), diesel::result::Error> {
     let chunks = events.chunks(MAX_EVENTS_PER_CHUNCK);
     for e in chunks {
-        execute_with_better_error(
-            conn,
-            diesel::insert_into(place_swap_order_events::table)
-                .values(e)
-                .on_conflict_do_nothing(),
-            None,
-        )?;
+        diesel::insert_into(place_swap_order_events::table)
+            .values(e)
+            .on_conflict_do_nothing()
+            .execute(conn)
+            .await?;
     }
     Ok(())
 }
@@ -702,7 +682,8 @@ impl ProcessorTrait for EconiaTransactionProcessor {
         end_version: u64,
         _: Option<u64>,
     ) -> anyhow::Result<ProcessingResult> {
-        let mut conn = self.get_conn();
+        let start_time = Utc::now();
+        let mut conn = self.get_conn().await;
 
         // Create a hashmap to store block_height to timestamp.
         let mut block_height_to_timestamp: HashMap<i64, DateTime<Utc>> = HashMap::new();
@@ -714,7 +695,7 @@ impl ProcessorTrait for EconiaTransactionProcessor {
             if let Some(TxnData::User(_)) = txn_data {
                 block_height_to_timestamp.insert(
                     block_height,
-                    DateTime::from_utc(
+                    DateTime::from_naive_utc_and_offset(
                         parse_timestamp(txn.timestamp.as_ref().unwrap(), txn_version),
                         Utc,
                     ),
@@ -843,9 +824,11 @@ impl ProcessorTrait for EconiaTransactionProcessor {
                     Change::WriteResource(resource) => {
                         let resource_type = resource.r#type.as_ref().expect("No resource type");
                         if let Ok(address) = strip_hex_number(resource_type.address.to_string()) {
-                            let resource_type = format!("{address}::{}::{}", resource_type.module, resource_type.name);
-                            if resource_type == market_accounts_type_string
-                            {
+                            let resource_type = format!(
+                                "{address}::{}::{}",
+                                resource_type.module, resource_type.name
+                            );
+                            if resource_type == market_accounts_type_string {
                                 let data: serde_json::Value = serde_json::from_str(&resource.data)
                                     .expect("Failed to parse MarketAccounts");
                                 let map_field = data.get("map").expect("No map field");
@@ -867,12 +850,12 @@ impl ProcessorTrait for EconiaTransactionProcessor {
                         };
                         if let Ok(address) = strip_hex_number(address.to_string()) {
                             let value_type = format!("{address}::{tail}");
-                            if value_type != market_account_type_string
-                            {
+                            if value_type != market_account_type_string {
                                 continue;
                             }
-                            let table_key: serde_json::Value = serde_json::from_str(&table_data.key)
-                                .expect("Failed to parse market account ID to JSON");
+                            let table_key: serde_json::Value =
+                                serde_json::from_str(&table_data.key)
+                                    .expect("Failed to parse market account ID to JSON");
                             let market_account_id = u128::from_str(
                                 &table_key
                                     .as_str()
@@ -888,10 +871,14 @@ impl ProcessorTrait for EconiaTransactionProcessor {
                                 custodian_id: ((market_account_id & HI_64) as u64).into(),
                                 time,
                                 base_total: opt_value_to_big_decimal(data.get("base_total"))?,
-                                base_available: opt_value_to_big_decimal(data.get("base_available"))?,
+                                base_available: opt_value_to_big_decimal(
+                                    data.get("base_available"),
+                                )?,
                                 base_ceiling: opt_value_to_big_decimal(data.get("base_ceiling"))?,
                                 quote_total: opt_value_to_big_decimal(data.get("quote_total"))?,
-                                quote_available: opt_value_to_big_decimal(data.get("quote_available"))?,
+                                quote_available: opt_value_to_big_decimal(
+                                    data.get("quote_available"),
+                                )?,
                                 quote_ceiling: opt_value_to_big_decimal(data.get("quote_ceiling"))?,
                             })
                         }
@@ -902,6 +889,7 @@ impl ProcessorTrait for EconiaTransactionProcessor {
         }
 
         // Insert to the database all events and write sets.
+        let db_start_time = Utc::now();
         let mut t = conn.build_transaction().serializable();
         for i in 0..MAX_TRANSACTION_RETRIES {
             let balance_updates = balance_updates.clone();
@@ -915,27 +903,46 @@ impl ProcessorTrait for EconiaTransactionProcessor {
             let place_swap_order_events = place_swap_order_events.clone();
             let recognized_market_events = recognized_market_events.clone();
             if t.run::<_, Error, _>(|pg_conn| {
-                    insert_balance_updates(pg_conn, balance_updates)?;
-                    insert_cancel_order_events(pg_conn, cancel_order_events)?;
-                    insert_change_order_size_events(pg_conn, change_order_size_events)?;
-                    insert_fill_events(pg_conn, fill_events)?;
-                    insert_market_account_handles(pg_conn, market_account_handles)?;
-                    insert_market_registration_events(pg_conn, market_registration_events)?;
-                    insert_place_limit_order_events(pg_conn, place_limit_order_events)?;
-                    insert_place_market_order_events(pg_conn, place_market_order_events)?;
-                    insert_place_swap_order_events(pg_conn, place_swap_order_events)?;
-                    insert_recognized_market_events(pg_conn, recognized_market_events)?;
+                async move {
+                    insert_balance_updates(pg_conn, balance_updates).await?;
+                    insert_cancel_order_events(pg_conn, cancel_order_events).await?;
+                    insert_change_order_size_events(pg_conn, change_order_size_events).await?;
+                    insert_fill_events(pg_conn, fill_events).await?;
+                    insert_market_account_handles(pg_conn, market_account_handles).await?;
+                    insert_market_registration_events(pg_conn, market_registration_events).await?;
+                    insert_place_limit_order_events(pg_conn, place_limit_order_events).await?;
+                    insert_place_market_order_events(pg_conn, place_market_order_events).await?;
+                    insert_place_swap_order_events(pg_conn, place_swap_order_events).await?;
+                    insert_recognized_market_events(pg_conn, recognized_market_events).await?;
                     Ok(())
-                }).is_ok() {
-                continue;
+                }
+                .scope_boxed()
+            }).await
+            .is_ok()
+            {
+                break;
             }
-            tracing::warn!("transaction error, retrying... (retries left: {})", MAX_TRANSACTION_RETRIES - i - 1);
+            tracing::warn!(
+                "transaction error, retrying... (retries left: {})",
+                MAX_TRANSACTION_RETRIES - i - 1
+            );
             if i == MAX_TRANSACTION_RETRIES - 1 {
                 return Err(anyhow!("could not run transaction, quitting"));
             }
         }
+        let db_end_time = Utc::now();
+        let db_time_delta = db_end_time.signed_duration_since(&db_start_time);
 
-        Ok((start_version, end_version))
+        let end_time = Utc::now();
+        let time_delta = end_time.signed_duration_since(&start_time);
+
+        Ok(ProcessingResult {
+            start_version,
+            end_version,
+            last_transaction_timstamp: transactions.last().map(|e| e.timestamp.clone()).flatten(),
+            processing_duration_in_secs: time_delta.num_milliseconds() as f64 / 1000f64,
+            db_insertion_duration_in_secs: db_time_delta.num_milliseconds() as f64 / 1000f64,
+        })
     }
 
     fn connection_pool(&self) -> &PgDbPool {

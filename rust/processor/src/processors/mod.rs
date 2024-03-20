@@ -4,29 +4,40 @@
 // Note: For enum_dispatch to work nicely, it is easiest to have the trait and the enum
 // in the same file (ProcessorTrait and Processor).
 
+// Note: For enum_dispatch to work nicely, it is easiest to have the trait and the enum
+// in the same file (ProcessorTrait and Processor).
+
+pub mod account_transactions_processor;
 pub mod ans_processor;
 pub mod coin_processor;
 pub mod default_processor;
 pub mod econia_processor;
 pub mod events_processor;
 pub mod fungible_asset_processor;
+pub mod monitoring_processor;
 pub mod nft_metadata_processor;
+pub mod objects_processor;
 pub mod stake_processor;
 pub mod token_processor;
 pub mod token_v2_processor;
+pub mod transaction_metadata_processor;
 pub mod user_transaction_processor;
 
 use self::{
+    account_transactions_processor::AccountTransactionsProcessor,
     ans_processor::{AnsProcessor, AnsProcessorConfig},
     coin_processor::CoinProcessor,
     default_processor::DefaultProcessor,
     econia_processor::{EconiaTransactionProcessor, EconiaProcessorConfig},
     events_processor::EventsProcessor,
     fungible_asset_processor::FungibleAssetProcessor,
+    monitoring_processor::MonitoringProcessor,
     nft_metadata_processor::{NftMetadataProcessor, NftMetadataProcessorConfig},
+    objects_processor::ObjectsProcessor,
     stake_processor::StakeProcessor,
     token_processor::{TokenProcessor, TokenProcessorConfig},
     token_v2_processor::TokenV2Processor,
+    transaction_metadata_processor::TransactionMetadataProcessor,
     user_transaction_processor::UserTransactionProcessor,
 };
 use crate::{
@@ -35,18 +46,26 @@ use crate::{
     utils::{
         counters::{GOT_CONNECTION_COUNT, UNABLE_TO_GET_CONNECTION_COUNT},
         database::{execute_with_better_error, PgDbPool, PgPoolConnection},
+        util::parse_timestamp,
     },
 };
-use aptos_indexer_protos::transaction::v1::Transaction as ProtoTransaction;
+use aptos_protos::transaction::v1::Transaction as ProtoTransaction;
 use async_trait::async_trait;
-use diesel::{pg::upsert::excluded, prelude::*};
+use diesel::{upsert::excluded, ExpressionMethods};
 use enum_dispatch::enum_dispatch;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 type StartVersion = u64;
 type EndVersion = u64;
-pub type ProcessingResult = (StartVersion, EndVersion);
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ProcessingResult {
+    pub start_version: StartVersion,
+    pub end_version: EndVersion,
+    pub last_transaction_timstamp: Option<aptos_protos::util::timestamp::Timestamp>,
+    pub processing_duration_in_secs: f64,
+    pub db_insertion_duration_in_secs: f64,
+}
 
 /// Base trait for all processors
 #[async_trait]
@@ -69,12 +88,18 @@ pub trait ProcessorTrait: Send + Sync + Debug {
 
     //* Below are helper methods that don't need to be implemented *//
 
+    /// Gets an instance of the connection pool
+    fn get_pool(&self) -> PgDbPool {
+        let pool = self.connection_pool();
+        pool.clone()
+    }
+
     /// Gets the connection.
     /// If it was unable to do so (default timeout: 30s), it will keep retrying until it can.
-    fn get_conn(&self) -> PgPoolConnection {
+    async fn get_conn(&self) -> PgPoolConnection {
         let pool = self.connection_pool();
         loop {
-            match pool.get() {
+            match pool.get().await {
                 Ok(conn) => {
                     GOT_CONNECTION_COUNT.inc();
                     return conn;
@@ -82,8 +107,10 @@ pub trait ProcessorTrait: Send + Sync + Debug {
                 Err(err) => {
                     UNABLE_TO_GET_CONNECTION_COUNT.inc();
                     tracing::error!(
-                        "Could not get DB connection from pool, will retry in {:?}. Err: {:?}",
-                        pool.connection_timeout(),
+                        // todo bb8 doesn't let you read the connection timeout.
+                        //"Could not get DB connection from pool, will retry in {:?}. Err: {:?}",
+                        //pool.connection_timeout(),
+                        "Could not get DB connection from pool, will retry. Err: {:?}",
                         err
                     );
                 },
@@ -93,14 +120,19 @@ pub trait ProcessorTrait: Send + Sync + Debug {
 
     /// Store last processed version from database. We can assume that all previously processed
     /// versions are successful because any gap would cause the processor to panic
-    async fn update_last_processed_version(&self, version: u64) -> anyhow::Result<()> {
-        let mut conn = self.get_conn();
+    async fn update_last_processed_version(
+        &self,
+        version: u64,
+        last_transaction_timestamp: Option<aptos_protos::util::timestamp::Timestamp>,
+    ) -> anyhow::Result<()> {
+        let timestamp = last_transaction_timestamp.map(|t| parse_timestamp(&t, version as i64));
         let status = ProcessorStatus {
             processor: self.name().to_string(),
             last_success_version: version as i64,
+            last_transaction_timestamp: timestamp,
         };
         execute_with_better_error(
-            &mut conn,
+            self.get_pool(),
             diesel::insert_into(processor_status::table)
                 .values(&status)
                 .on_conflict(processor_status::processor)
@@ -109,9 +141,12 @@ pub trait ProcessorTrait: Send + Sync + Debug {
                     processor_status::last_success_version
                         .eq(excluded(processor_status::last_success_version)),
                     processor_status::last_updated.eq(excluded(processor_status::last_updated)),
+                    processor_status::last_transaction_timestamp
+                        .eq(excluded(processor_status::last_transaction_timestamp)),
                 )),
             Some(" WHERE processor_status.last_success_version <= EXCLUDED.last_success_version "),
-        )?;
+        )
+        .await?;
         Ok(())
     }
 }
@@ -148,16 +183,20 @@ pub trait ProcessorTrait: Send + Sync + Debug {
     strum(serialize_all = "snake_case")
 )]
 pub enum ProcessorConfig {
+    AccountTransactionsProcessor,
     AnsProcessor(AnsProcessorConfig),
     CoinProcessor,
     DefaultProcessor,
     EconiaTransactionProcessor(EconiaProcessorConfig),
     EventsProcessor,
     FungibleAssetProcessor,
+    MonitoringProcessor,
     NftMetadataProcessor(NftMetadataProcessorConfig),
+    ObjectsProcessor,
     StakeProcessor,
     TokenProcessor(TokenProcessorConfig),
     TokenV2Processor,
+    TransactionMetadataProcessor,
     UserTransactionProcessor,
 }
 
@@ -187,16 +226,20 @@ impl ProcessorConfig {
     )
 )]
 pub enum Processor {
+    AccountTransactionsProcessor,
     AnsProcessor,
     CoinProcessor,
     DefaultProcessor,
     EconiaTransactionProcessor,
     EventsProcessor,
     FungibleAssetProcessor,
+    MonitoringProcessor,
     NftMetadataProcessor,
+    ObjectsProcessor,
     StakeProcessor,
     TokenProcessor,
     TokenV2Processor,
+    TransactionMetadataProcessor,
     UserTransactionProcessor,
 }
 

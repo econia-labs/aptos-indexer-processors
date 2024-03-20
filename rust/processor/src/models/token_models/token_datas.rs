@@ -7,12 +7,12 @@
 
 use super::token_utils::TokenWriteSet;
 use crate::schema::{current_token_datas, token_datas};
-use aptos_indexer_protos::transaction::v1::WriteTableItem;
+use aptos_protos::transaction::v1::WriteTableItem;
 use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
+#[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(token_data_id_hash, transaction_version))]
 #[diesel(table_name = token_datas)]
 pub struct TokenData {
@@ -39,7 +39,7 @@ pub struct TokenData {
     pub description: String,
 }
 
-#[derive(Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
+#[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(token_data_id_hash))]
 #[diesel(table_name = current_token_datas)]
 pub struct CurrentTokenData {

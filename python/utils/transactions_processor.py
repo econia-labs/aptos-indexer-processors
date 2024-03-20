@@ -4,7 +4,7 @@ import json
 
 from dataclasses import dataclass
 from utils.models.general_models import NextVersionToProcess
-from aptos_indexer_protos.aptos.transaction.v1 import transaction_pb2
+from aptos_protos.aptos.transaction.v1 import transaction_pb2
 from utils.config import Config
 from utils.models.general_models import Base
 from utils.session import Session
@@ -16,6 +16,8 @@ from sqlalchemy.dialects.postgresql import insert
 class ProcessingResult:
     start_version: int
     end_version: int
+    processing_duration_in_secs: float
+    db_insertion_duration_in_secs: float
 
 
 class TransactionsProcessor(ABC):

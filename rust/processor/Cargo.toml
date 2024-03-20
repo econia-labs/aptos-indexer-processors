@@ -15,9 +15,10 @@ rust-version = { workspace = true }
 [dependencies]
 econia_db = { package = "dbv2", path = "../../../../dbv2" }
 
+ahash = { workspace = true }
 anyhow = { workspace = true }
-aptos-indexer-protos = { workspace = true }
 aptos-moving-average = { workspace = true }
+aptos-protos = { workspace = true }
 async-trait = { workspace = true }
 base64 = { workspace = true }
 bcs = { workspace = true }
@@ -25,6 +26,8 @@ bigdecimal = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true }
 diesel = { workspace = true }
+diesel-async = { workspace = true }
+diesel_async_migrations = { workspace = true }
 diesel_migrations = { workspace = true }
 enum_dispatch = { workspace = true }
 field_count = { workspace = true }
@@ -34,6 +37,8 @@ gcloud-sdk = { workspace = true }
 google-cloud-googleapis = { workspace = true }
 google-cloud-pubsub = { workspace = true }
 hex = { workspace = true }
+kanal = { workspace = true }
+num_cpus = { workspace = true }
 once_cell = { workspace = true }
 prometheus = { workspace = true }
 prost = { workspace = true }
@@ -50,3 +55,8 @@ tonic = { workspace = true }
 tracing = { workspace = true }
 unescape = { workspace = true }
 url = { workspace = true }
+
+# Postgres SSL support
+native-tls = { workspace = true }
+postgres-native-tls = { workspace = true }
+tokio-postgres = { workspace = true }

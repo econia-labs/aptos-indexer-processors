@@ -10,7 +10,7 @@ use crate::{
     processors::coin_processor::APTOS_COIN_TYPE_STR, schema::coin_supply, utils::util::hash_str,
 };
 use anyhow::Context;
-use aptos_indexer_protos::transaction::v1::WriteTableItem;
+use aptos_protos::transaction::v1::WriteTableItem;
 use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ const APTOS_COIN_SUPPLY_TABLE_HANDLE: &str =
 const APTOS_COIN_SUPPLY_TABLE_KEY: &str =
     "0x619dc29a0aac8fa146714058e8dd6d2d0f3bdf5f6331907bf91f3acd81e6935";
 
-#[derive(Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
+#[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(transaction_version, coin_type_hash))]
 #[diesel(table_name = coin_supply)]
 pub struct CoinSupply {

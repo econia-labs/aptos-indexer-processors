@@ -1,7 +1,7 @@
 import json
 
 from typing import Dict, List
-from aptos_indexer_protos.aptos.transaction.v1 import transaction_pb2
+from aptos_protos.aptos.transaction.v1 import transaction_pb2
 from processors.nft_orderbooks.nft_marketplace_enums import MarketplaceName
 from processors.nft_marketplace_v2.nft_marketplace_models import (
     CurrentNFTMarketplaceListing,
@@ -54,15 +54,21 @@ from utils.token_utils import TokenStandard
 from utils.models.schema_names import NFT_MARKETPLACE_V2_SCHEMA_NAME
 from utils.session import Session
 from sqlalchemy.dialects.postgresql import insert
-from utils.config import Config
+from utils.config import NFTMarketplaceV2Config
+from time import perf_counter
 
 
 class NFTMarketplaceV2Processor(TransactionsProcessor):
+    config: NFTMarketplaceV2Config
+
     def name(self) -> str:
         return ProcessorName.NFT_MARKETPLACE_V2_PROCESSOR.value
 
     def schema(self) -> str:
         return NFT_MARKETPLACE_V2_SCHEMA_NAME
+
+    def __init__(self, nft_marketplace_v2_config: NFTMarketplaceV2Config):
+        self.config = nft_marketplace_v2_config
 
     def process_transactions(
         self,
@@ -70,12 +76,11 @@ class NFTMarketplaceV2Processor(TransactionsProcessor):
         start_version: int,
         end_version: int,
     ) -> ProcessingResult:
-        assert self.config.custom_config, "Custom config must be set for this processor"
-        marketplace_contract_address = str(
-            self.config.custom_config["marketplace_contract_address"]
-        )
-
+        marketplace_contract_address = str(self.config.marketplace_contract_address)
+        processing_duration_in_secs = 0.0
+        db_insertion_duration_in_secs = 0.0
         for transaction in transactions:
+            start_time = perf_counter()
             user_transaction = transaction_utils.get_user_transaction(transaction)
 
             if not user_transaction:
@@ -977,15 +982,22 @@ class NFTMarketplaceV2Processor(TransactionsProcessor):
                         )
                         current_collection_offers.append(current_collection_offer)
 
+            processing_duration_in_secs += perf_counter() - start_time
+
+            start_time = perf_counter()
             self.insert_nft_activities(nft_marketplace_activities)
             self.insert_nft_listings(current_nft_marketplace_listings)
             self.insert_nft_token_offers(current_token_offers)
             self.insert_nft_collection_offers(current_collection_offers)
             self.insert_nft_auctions(current_auctions)
 
+            db_insertion_duration_in_secs += perf_counter() - start_time
+
         return ProcessingResult(
             start_version=start_version,
             end_version=end_version,
+            processing_duration_in_secs=processing_duration_in_secs,
+            db_insertion_duration_in_secs=db_insertion_duration_in_secs,
         )
 
     def insert_nft_activities(

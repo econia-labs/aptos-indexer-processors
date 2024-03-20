@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![allow(clippy::extra_unused_lifetimes)]
+
 use super::{
     move_modules::MoveModule,
     move_resources::MoveResource,
@@ -9,14 +10,16 @@ use super::{
     transactions::Transaction,
 };
 use crate::{schema::write_set_changes, utils::util::standardize_address};
-use aptos_indexer_protos::transaction::v1::{
+use aptos_protos::transaction::v1::{
     write_set_change::{Change as WriteSetChangeEnum, Type as WriteSetChangeTypeEnum},
     WriteSetChange as WriteSetChangePB,
 };
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
-#[derive(Associations, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
+#[derive(
+    Associations, Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize,
+)]
 #[diesel(belongs_to(Transaction, foreign_key = transaction_version))]
 #[diesel(primary_key(transaction_version, index))]
 #[diesel(table_name = write_set_changes)]
@@ -185,7 +188,7 @@ impl WriteSetChange {
     }
 
     fn get_write_set_change_type(t: &WriteSetChangePB) -> String {
-        match WriteSetChangeTypeEnum::from_i32(t.r#type)
+        match WriteSetChangeTypeEnum::try_from(t.r#type)
             .expect("WriteSetChange must have a valid type.")
         {
             WriteSetChangeTypeEnum::DeleteModule => "delete_module".to_string(),

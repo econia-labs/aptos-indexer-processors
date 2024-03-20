@@ -7,12 +7,12 @@
 
 use super::{token_utils::TokenWriteSet, tokens::TableHandleToOwner};
 use crate::{schema::current_token_pending_claims, utils::util::standardize_address};
-use aptos_indexer_protos::transaction::v1::{DeleteTableItem, WriteTableItem};
+use aptos_protos::transaction::v1::{DeleteTableItem, WriteTableItem};
 use bigdecimal::{BigDecimal, Zero};
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
+#[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(token_data_id_hash, property_version, from_address, to_address))]
 #[diesel(table_name = current_token_pending_claims)]
 pub struct CurrentTokenPendingClaim {
