@@ -834,7 +834,7 @@ impl ProcessorTrait for EconiaTransactionProcessor {
                                 let map_field = data.get("map").expect("No map field");
                                 market_account_handles.push(MarketAccountHandle {
                                     user: strip_hex_number(resource.address.clone())?,
-                                    handle: opt_value_to_string(map_field.get("handle"))?,
+                                    handle: strip_hex_number(opt_value_to_string(map_field.get("handle"))?)?,
                                     creation_time: time,
                                 })
                             }
@@ -866,7 +866,7 @@ impl ProcessorTrait for EconiaTransactionProcessor {
                                 .expect("Failed to parse MarketAccount");
                             balance_updates.push(BalanceUpdate {
                                 txn_version: txn_version.into(),
-                                handle: write.handle.to_string(),
+                                handle: strip_hex_number(write.handle.to_string())?,
                                 market_id: ((market_account_id >> SHIFT_MARKET_ID) as u64).into(),
                                 custodian_id: ((market_account_id & HI_64) as u64).into(),
                                 time,
