@@ -939,7 +939,7 @@ impl ProcessorTrait for EconiaTransactionProcessor {
         Ok(ProcessingResult {
             start_version,
             end_version,
-            last_transaction_timstamp: transactions.last().map(|e| e.timestamp.clone()).flatten(),
+            last_transaction_timestamp: transactions.last().map(|e| e.timestamp.clone()).flatten(),
             processing_duration_in_secs: time_delta.num_milliseconds() as f64 / 1000f64,
             db_insertion_duration_in_secs: db_time_delta.num_milliseconds() as f64 / 1000f64,
         })
