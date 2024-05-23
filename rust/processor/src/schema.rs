@@ -44,6 +44,7 @@ diesel::table! {
         token_name -> Varchar,
         is_deleted -> Bool,
         inserted_at -> Timestamp,
+        subdomain_expiration_policy -> Nullable<Int8>,
     }
 }
 
@@ -263,6 +264,7 @@ diesel::table! {
         last_transaction_version -> Int8,
         is_deleted -> Bool,
         inserted_at -> Timestamp,
+        subdomain_expiration_policy -> Nullable<Int8>,
     }
 }
 
@@ -523,7 +525,7 @@ diesel::table! {
         #[max_length = 128]
         token_name -> Varchar,
         maximum -> Nullable<Numeric>,
-        supply -> Numeric,
+        supply -> Nullable<Numeric>,
         largest_property_version_v1 -> Nullable<Numeric>,
         #[max_length = 512]
         token_uri -> Varchar,
@@ -535,7 +537,8 @@ diesel::table! {
         last_transaction_version -> Int8,
         last_transaction_timestamp -> Timestamp,
         inserted_at -> Timestamp,
-        decimals -> Int8,
+        decimals -> Nullable<Int8>,
+        is_deleted_v2 -> Nullable<Bool>,
     }
 }
 
@@ -790,6 +793,8 @@ diesel::table! {
         token_standard -> Varchar,
         inserted_at -> Timestamp,
         is_token_v2 -> Nullable<Bool>,
+        supply_v2 -> Nullable<Numeric>,
+        maximum_v2 -> Nullable<Numeric>,
     }
 }
 
@@ -1060,7 +1065,7 @@ diesel::table! {
         #[max_length = 128]
         token_name -> Varchar,
         maximum -> Nullable<Numeric>,
-        supply -> Numeric,
+        supply -> Nullable<Numeric>,
         largest_property_version_v1 -> Nullable<Numeric>,
         #[max_length = 512]
         token_uri -> Varchar,
@@ -1071,7 +1076,8 @@ diesel::table! {
         is_fungible_v2 -> Nullable<Bool>,
         transaction_timestamp -> Timestamp,
         inserted_at -> Timestamp,
-        decimals -> Int8,
+        decimals -> Nullable<Int8>,
+        is_deleted_v2 -> Nullable<Bool>,
     }
 }
 

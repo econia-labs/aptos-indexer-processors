@@ -17,6 +17,7 @@ use crate::{
         database::{PgDbPool, PgPoolConnection},
         util::{parse_timestamp, remove_null_bytes, standardize_address},
     },
+    IndexerGrpcProcessorConfig,
 };
 use ahash::AHashMap;
 use aptos_protos::transaction::v1::{write_set_change::Change, Transaction};
@@ -38,6 +39,10 @@ pub const CHUNK_SIZE: usize = 1000;
 pub struct NftMetadataProcessorConfig {
     pub pubsub_topic_name: String,
     pub google_application_credentials: Option<String>,
+    #[serde(default = "IndexerGrpcProcessorConfig::default_query_retries")]
+    pub query_retries: u32,
+    #[serde(default = "IndexerGrpcProcessorConfig::default_query_retry_delay_ms")]
+    pub query_retry_delay_ms: u64,
 }
 
 pub struct NftMetadataProcessor {
@@ -93,7 +98,12 @@ impl ProcessorTrait for NftMetadataProcessor {
         db_chain_id: Option<u64>,
     ) -> anyhow::Result<ProcessingResult> {
         let processing_start = std::time::Instant::now();
+        let last_transaction_timestamp = transactions.last().unwrap().timestamp.clone();
+
         let mut conn = self.get_conn().await;
+        let query_retries = self.config.query_retries;
+        let query_retry_delay_ms = self.config.query_retry_delay_ms;
+
         let db_chain_id = db_chain_id.unwrap_or_else(|| {
             error!("[NFT Metadata Crawler] db_chain_id must not be null");
             panic!();
@@ -112,8 +122,14 @@ impl ProcessorTrait for NftMetadataProcessor {
         let ordering_key = get_current_timestamp();
 
         // Publish CurrentTokenDataV2 and CurrentCollectionV2 from transactions
-        let (token_datas, collections) =
-            parse_v2_token(&transactions, &table_handle_to_owner, &mut conn).await;
+        let (token_datas, collections) = parse_v2_token(
+            &transactions,
+            &table_handle_to_owner,
+            &mut conn,
+            query_retries,
+            query_retry_delay_ms,
+        )
+        .await;
         let mut pubsub_messages: Vec<PubsubMessage> =
             Vec::with_capacity(token_datas.len() + collections.len());
 
@@ -166,7 +182,7 @@ impl ProcessorTrait for NftMetadataProcessor {
             end_version,
             processing_duration_in_secs,
             db_insertion_duration_in_secs,
-            last_transaction_timstamp: transactions.last().unwrap().timestamp.clone(),
+            last_transaction_timestamp,
         })
     }
 
@@ -202,6 +218,8 @@ async fn parse_v2_token(
     transactions: &[Transaction],
     table_handle_to_owner: &TableHandleToOwner,
     conn: &mut PgPoolConnection<'_>,
+    query_retries: u32,
+    query_retry_delay_ms: u64,
 ) -> (Vec<CurrentTokenDataV2>, Vec<CurrentCollectionV2>) {
     let mut current_token_datas_v2: AHashMap<CurrentTokenDataV2PK, CurrentTokenDataV2> =
         AHashMap::new();
@@ -264,6 +282,8 @@ async fn parse_v2_token(
                             txn_timestamp,
                             table_handle_to_owner,
                             conn,
+                            query_retries,
+                            query_retry_delay_ms,
                         )
                         .await
                         .unwrap()

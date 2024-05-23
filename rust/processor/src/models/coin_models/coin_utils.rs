@@ -11,6 +11,7 @@ use crate::{
 use anyhow::{Context, Result};
 use aptos_protos::transaction::v1::{move_type::Content, MoveType, WriteResource};
 use bigdecimal::BigDecimal;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tracing::error;
@@ -157,10 +158,33 @@ pub struct DepositCoinEvent {
     pub amount: BigDecimal,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct WithdrawCoinEventV2 {
+    pub account: String,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub amount: BigDecimal,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DepositCoinEventV2 {
+    pub account: String,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub amount: BigDecimal,
+}
+
 pub struct CoinInfoType {
     coin_type: String,
     creator_address: String,
 }
+
+static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(<(.*)>)").unwrap());
+
+static COIN_RESOURCES: Lazy<[String; 2]> = Lazy::new(|| {
+    [
+        format!("{}::coin::CoinInfo", COIN_ADDR),
+        format!("{}::coin::CoinStore", COIN_ADDR),
+    ]
+});
 
 impl CoinInfoType {
     /// get creator address from move_type, and get coin type from move_type_str
@@ -168,9 +192,7 @@ impl CoinInfoType {
     /// regex to extract T.
     pub fn from_move_type(move_type: &MoveType, move_type_str: &str, txn_version: i64) -> Self {
         if let Content::Struct(struct_tag) = move_type.content.as_ref().unwrap() {
-            let re = Regex::new(r"(<(.*)>)").unwrap();
-
-            let matched = re.captures(move_type_str).unwrap_or_else(|| {
+            let matched = RE.captures(move_type_str).unwrap_or_else(|| {
                 error!(
                     txn_version = txn_version,
                     move_type_str = move_type_str,
@@ -225,11 +247,7 @@ pub enum CoinResource {
 
 impl CoinResource {
     pub fn is_resource_supported(data_type: &str) -> bool {
-        [
-            format!("{}::coin::CoinInfo", COIN_ADDR),
-            format!("{}::coin::CoinStore", COIN_ADDR),
-        ]
-        .contains(&data_type.to_string())
+        COIN_RESOURCES.contains(&data_type.to_string())
     }
 
     pub fn from_resource(
@@ -284,16 +302,38 @@ impl CoinResource {
 pub enum CoinEvent {
     WithdrawCoinEvent(WithdrawCoinEvent),
     DepositCoinEvent(DepositCoinEvent),
+    WithdrawCoinEventV2(WithdrawCoinEventV2),
+    DepositCoinEventV2(DepositCoinEventV2),
 }
 
 impl CoinEvent {
-    pub fn from_event(data_type: &str, data: &str, txn_version: i64) -> Result<Option<CoinEvent>> {
+    pub fn from_event(
+        data_type: &str,
+        data: &str,
+        txn_version: i64,
+    ) -> Result<Option<(CoinEvent, Option<String>)>> {
         match data_type {
-            "0x1::coin::WithdrawEvent" => {
-                serde_json::from_str(data).map(|inner| Some(CoinEvent::WithdrawCoinEvent(inner)))
+            "0x1::coin::WithdrawEvent" => serde_json::from_str(data)
+                .map(|inner| Some((CoinEvent::WithdrawCoinEvent(inner), None))),
+            "0x1::coin::DepositEvent" => serde_json::from_str(data)
+                .map(|inner| Some((CoinEvent::WithdrawCoinEvent(inner), None))),
+            t if t.starts_with("0x1::coin::Withdraw") => {
+                let inner_type_start = t.find('<').unwrap();
+                serde_json::from_str(data).map(|inner| {
+                    Some((
+                        CoinEvent::WithdrawCoinEventV2(inner),
+                        Some(t[inner_type_start + 1..t.len() - 1].into()),
+                    ))
+                })
             },
-            "0x1::coin::DepositEvent" => {
-                serde_json::from_str(data).map(|inner| Some(CoinEvent::DepositCoinEvent(inner)))
+            t if t.starts_with("0x1::coin::Deposit") => {
+                let inner_type_start = t.find('<').unwrap();
+                serde_json::from_str(data).map(|inner| {
+                    Some((
+                        CoinEvent::WithdrawCoinEventV2(inner),
+                        Some(t[inner_type_start + 1..t.len() - 1].into()),
+                    ))
+                })
             },
             _ => Ok(None),
         }
