@@ -38,7 +38,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         netcat \
         libdw-dev \
         libpq-dev \
-        curl
+        curl \
+        postgresql-client
 
 ENV RUST_LOG_FORMAT=json
 

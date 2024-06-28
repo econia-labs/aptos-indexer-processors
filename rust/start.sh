@@ -1,5 +1,13 @@
 #!/bin/sh
 
+psql "$DATABASE_URL" -c '\copy processor_status to /processor_status.csv csv'
+
+if [ -s "/processor_status.csv" ];then
+    export STARTING_VERSION="$(cut -d, -f2 /processor_status.csv)"
+fi
+
+rm /processor_status.csv
+
 echo "health_check_port: 8084
 server_config:
   processor_config:
