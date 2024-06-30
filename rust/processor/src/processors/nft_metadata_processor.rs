@@ -1,9 +1,9 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{ProcessingResult, ProcessorName, ProcessorTrait};
+use super::{DefaultProcessingResult, ProcessorName, ProcessorTrait};
 use crate::{
-    models::{
+    db::common::models::{
         object_models::v2_object_utils::{
             ObjectAggregatedData, ObjectAggregatedDataMapping, ObjectWithMetadata,
         },
@@ -13,8 +13,9 @@ use crate::{
             v2_token_datas::{CurrentTokenDataV2, CurrentTokenDataV2PK, TokenDataV2},
         },
     },
+    gap_detectors::ProcessingResult,
     utils::{
-        database::{PgDbPool, PgPoolConnection},
+        database::{ArcDbPool, DbPoolConnection},
         util::{parse_timestamp, remove_null_bytes, standardize_address},
     },
     IndexerGrpcProcessorConfig,
@@ -46,13 +47,13 @@ pub struct NftMetadataProcessorConfig {
 }
 
 pub struct NftMetadataProcessor {
-    connection_pool: PgDbPool,
+    connection_pool: ArcDbPool,
     chain_id: u8,
     config: NftMetadataProcessorConfig,
 }
 
 impl NftMetadataProcessor {
-    pub fn new(connection_pool: PgDbPool, config: NftMetadataProcessorConfig) -> Self {
+    pub fn new(connection_pool: ArcDbPool, config: NftMetadataProcessorConfig) -> Self {
         tracing::info!("init NftMetadataProcessor");
 
         // Crate reads from authentication from file specified in
@@ -177,16 +178,18 @@ impl ProcessorTrait for NftMetadataProcessor {
 
         let db_insertion_duration_in_secs = db_insertion_start.elapsed().as_secs_f64();
 
-        Ok(ProcessingResult {
-            start_version,
-            end_version,
-            processing_duration_in_secs,
-            db_insertion_duration_in_secs,
-            last_transaction_timestamp,
-        })
+        Ok(ProcessingResult::DefaultProcessingResult(
+            DefaultProcessingResult {
+                start_version,
+                end_version,
+                processing_duration_in_secs,
+                db_insertion_duration_in_secs,
+                last_transaction_timestamp,
+            },
+        ))
     }
 
-    fn connection_pool(&self) -> &PgDbPool {
+    fn connection_pool(&self) -> &ArcDbPool {
         &self.connection_pool
     }
 }
@@ -217,7 +220,7 @@ fn clean_collection_pubsub_message(cc: CurrentCollectionV2, db_chain_id: u64) ->
 async fn parse_v2_token(
     transactions: &[Transaction],
     table_handle_to_owner: &TableHandleToOwner,
-    conn: &mut PgPoolConnection<'_>,
+    conn: &mut DbPoolConnection<'_>,
     query_retries: u32,
     query_retry_delay_ms: u64,
 ) -> (Vec<CurrentTokenDataV2>, Vec<CurrentCollectionV2>) {
@@ -247,9 +250,12 @@ async fn parse_v2_token(
                             unlimited_supply: None,
                             property_map: None,
                             transfer_events: vec![],
+                            untransferable: None,
                             token: None,
                             fungible_asset_metadata: None,
                             fungible_asset_supply: None,
+                            concurrent_fungible_asset_supply: None,
+                            concurrent_fungible_asset_balance: None,
                             fungible_asset_store: None,
                             token_identifier: None,
                         },

@@ -1,14 +1,15 @@
 // Copyright © Aptos Foundation
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{ProcessingResult, ProcessorName, ProcessorTrait};
+use super::{DefaultProcessingResult, ProcessorName, ProcessorTrait};
 use crate::{
-    models::transaction_metadata_model::{
+    db::common::models::transaction_metadata_model::{
         event_size_info::EventSize, transaction_size_info::TransactionSize,
         write_set_size_info::WriteSetSize,
     },
+    gap_detectors::ProcessingResult,
     schema,
-    utils::database::{execute_in_chunks, get_config_table_chunk_size, PgDbPool},
+    utils::database::{execute_in_chunks, get_config_table_chunk_size, ArcDbPool},
 };
 use ahash::AHashMap;
 use anyhow::bail;
@@ -19,12 +20,12 @@ use std::fmt::Debug;
 use tracing::{error, warn};
 
 pub struct TransactionMetadataProcessor {
-    connection_pool: PgDbPool,
+    connection_pool: ArcDbPool,
     per_table_chunk_sizes: AHashMap<String, usize>,
 }
 
 impl TransactionMetadataProcessor {
-    pub fn new(connection_pool: PgDbPool, per_table_chunk_sizes: AHashMap<String, usize>) -> Self {
+    pub fn new(connection_pool: ArcDbPool, per_table_chunk_sizes: AHashMap<String, usize>) -> Self {
         Self {
             connection_pool,
             per_table_chunk_sizes,
@@ -44,7 +45,7 @@ impl Debug for TransactionMetadataProcessor {
 }
 
 async fn insert_to_db(
-    conn: PgDbPool,
+    conn: ArcDbPool,
     name: &'static str,
     start_version: u64,
     end_version: u64,
@@ -198,13 +199,15 @@ impl ProcessorTrait for TransactionMetadataProcessor {
         .await;
         let db_insertion_duration_in_secs = db_insertion_start.elapsed().as_secs_f64();
         match tx_result {
-            Ok(_) => Ok(ProcessingResult {
-                start_version,
-                end_version,
-                processing_duration_in_secs,
-                db_insertion_duration_in_secs,
-                last_transaction_timestamp: transactions.last().unwrap().timestamp.clone(),
-            }),
+            Ok(_) => Ok(ProcessingResult::DefaultProcessingResult(
+                DefaultProcessingResult {
+                    start_version,
+                    end_version,
+                    processing_duration_in_secs,
+                    db_insertion_duration_in_secs,
+                    last_transaction_timestamp: transactions.last().unwrap().timestamp.clone(),
+                },
+            )),
             Err(e) => {
                 error!(
                     start_version = start_version,
@@ -218,7 +221,7 @@ impl ProcessorTrait for TransactionMetadataProcessor {
         }
     }
 
-    fn connection_pool(&self) -> &PgDbPool {
+    fn connection_pool(&self) -> &ArcDbPool {
         &self.connection_pool
     }
 }
