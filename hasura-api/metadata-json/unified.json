@@ -1,5 +1,5 @@
 {
-  "resource_version": 399,
+  "resource_version": 333,
   "metadata": {
     "version": 3,
     "sources": [
@@ -7,6 +7,32 @@
         "name": "indexer-v2",
         "kind": "postgres",
         "tables": [
+          {
+            "table": {
+              "name": "move_resources",
+              "schema": "legacy_migration_v1"
+            },
+            "configuration": {
+              "column_config": {},
+              "custom_column_names": {},
+              "custom_name": "move_resources",
+              "custom_root_fields": {}
+            },
+            "select_permissions": [
+              {
+                "role": "anonymous",
+                "permission": {
+                  "columns": [
+                    "address",
+                    "transaction_version"
+                  ],
+                  "filter": {},
+                  "limit": 100,
+                  "allow_aggregations": true
+                }
+              }
+            ]
+          },
           {
             "table": {
               "name": "parsed_asset_uris",
@@ -66,7 +92,7 @@
                     "insertion_order": null,
                     "remote_table": {
                       "name": "coin_activities",
-                      "schema": "public"
+                      "schema": "legacy_migration_v1"
                     }
                   }
                 }
@@ -111,7 +137,7 @@
                     "insertion_order": null,
                     "remote_table": {
                       "name": "token_activities",
-                      "schema": "public"
+                      "schema": "legacy_migration_v1"
                     }
                   }
                 }
@@ -200,7 +226,7 @@
                     "insertion_order": null,
                     "remote_table": {
                       "name": "coin_activities",
-                      "schema": "public"
+                      "schema": "legacy_migration_v1"
                     }
                   }
                 }
@@ -230,7 +256,7 @@
                     "insertion_order": null,
                     "remote_table": {
                       "name": "token_activities",
-                      "schema": "public"
+                      "schema": "legacy_migration_v1"
                     }
                   }
                 }
@@ -269,7 +295,13 @@
           {
             "table": {
               "name": "address_version_from_move_resources",
-              "schema": "public"
+              "schema": "legacy_migration_v1"
+            },
+            "configuration": {
+              "column_config": {},
+              "custom_column_names": {},
+              "custom_name": "address_version_from_move_resources",
+              "custom_root_fields": {}
             },
             "array_relationships": [
               {
@@ -282,7 +314,7 @@
                     "insertion_order": null,
                     "remote_table": {
                       "name": "coin_activities",
-                      "schema": "public"
+                      "schema": "legacy_migration_v1"
                     }
                   }
                 }
@@ -312,7 +344,7 @@
                     "insertion_order": null,
                     "remote_table": {
                       "name": "token_activities",
-                      "schema": "public"
+                      "schema": "legacy_migration_v1"
                     }
                   }
                 }
@@ -377,7 +409,13 @@
           {
             "table": {
               "name": "coin_activities",
-              "schema": "public"
+              "schema": "legacy_migration_v1"
+            },
+            "configuration": {
+              "column_config": {},
+              "custom_column_names": {},
+              "custom_name": "coin_activities",
+              "custom_root_fields": {}
             },
             "object_relationships": [
               {
@@ -390,7 +428,7 @@
                     "insertion_order": null,
                     "remote_table": {
                       "name": "coin_infos",
-                      "schema": "public"
+                      "schema": "legacy_migration_v1"
                     }
                   }
                 }
@@ -444,7 +482,13 @@
           {
             "table": {
               "name": "coin_balances",
-              "schema": "public"
+              "schema": "legacy_migration_v1"
+            },
+            "configuration": {
+              "column_config": {},
+              "custom_column_names": {},
+              "custom_name": "coin_balances",
+              "custom_root_fields": {}
             },
             "select_permissions": [
               {
@@ -467,7 +511,13 @@
           {
             "table": {
               "name": "coin_infos",
-              "schema": "public"
+              "schema": "legacy_migration_v1"
+            },
+            "configuration": {
+              "column_config": {},
+              "custom_column_names": {},
+              "custom_name": "coin_infos",
+              "custom_root_fields": {}
             },
             "select_permissions": [
               {
@@ -517,7 +567,13 @@
           {
             "table": {
               "name": "collection_datas",
-              "schema": "public"
+              "schema": "legacy_migration_v1"
+            },
+            "configuration": {
+              "column_config": {},
+              "custom_column_names": {},
+              "custom_name": "collection_datas",
+              "custom_root_fields": {}
             },
             "select_permissions": [
               {
@@ -547,7 +603,13 @@
           {
             "table": {
               "name": "current_ans_lookup",
-              "schema": "public"
+              "schema": "legacy_migration_v1"
+            },
+            "configuration": {
+              "column_config": {},
+              "custom_column_names": {},
+              "custom_name": "current_ans_lookup",
+              "custom_root_fields": {}
             },
             "array_relationships": [
               {
@@ -560,7 +622,7 @@
                     "insertion_order": null,
                     "remote_table": {
                       "name": "current_token_ownerships",
-                      "schema": "public"
+                      "schema": "legacy_migration_v1"
                     }
                   }
                 }
@@ -664,7 +726,13 @@
           {
             "table": {
               "name": "current_coin_balances",
-              "schema": "public"
+              "schema": "legacy_migration_v1"
+            },
+            "configuration": {
+              "column_config": {},
+              "custom_column_names": {},
+              "custom_name": "current_coin_balances",
+              "custom_root_fields": {}
             },
             "object_relationships": [
               {
@@ -677,7 +745,7 @@
                     "insertion_order": null,
                     "remote_table": {
                       "name": "coin_infos",
-                      "schema": "public"
+                      "schema": "legacy_migration_v1"
                     }
                   }
                 }
@@ -1060,7 +1128,13 @@
           {
             "table": {
               "name": "current_token_datas",
-              "schema": "public"
+              "schema": "legacy_migration_v1"
+            },
+            "configuration": {
+              "column_config": {},
+              "custom_column_names": {},
+              "custom_name": "current_token_datas",
+              "custom_root_fields": {}
             },
             "object_relationships": [
               {
@@ -1211,7 +1285,13 @@
           {
             "table": {
               "name": "current_token_ownerships",
-              "schema": "public"
+              "schema": "legacy_migration_v1"
+            },
+            "configuration": {
+              "column_config": {},
+              "custom_column_names": {},
+              "custom_name": "current_token_ownerships",
+              "custom_root_fields": {}
             },
             "object_relationships": [
               {
@@ -1254,7 +1334,7 @@
                     "insertion_order": null,
                     "remote_table": {
                       "name": "current_token_datas",
-                      "schema": "public"
+                      "schema": "legacy_migration_v1"
                     }
                   }
                 }
@@ -1396,7 +1476,7 @@
                     "insertion_order": null,
                     "remote_table": {
                       "name": "current_token_datas",
-                      "schema": "public"
+                      "schema": "legacy_migration_v1"
                     }
                   }
                 }
@@ -1428,7 +1508,7 @@
                     "insertion_order": null,
                     "remote_table": {
                       "name": "tokens",
-                      "schema": "public"
+                      "schema": "legacy_migration_v1"
                     }
                   }
                 }
@@ -1457,6 +1537,50 @@
                   "filter": {},
                   "limit": 100
                 }
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "current_unified_fungible_asset_balances_to_be_renamed",
+              "schema": "public"
+            },
+            "object_relationships": [
+              {
+                "name": "metadata",
+                "using": {
+                  "manual_configuration": {
+                    "column_mapping": {
+                      "asset_type": "asset_type"
+                    },
+                    "insertion_order": null,
+                    "remote_table": {
+                      "name": "fungible_asset_metadata",
+                      "schema": "public"
+                    }
+                  }
+                }
+              }
+            ],
+            "select_permissions": [
+              {
+                "role": "anonymous",
+                "permission": {
+                  "columns": [
+                    "amount",
+                    "asset_type",
+                    "is_frozen",
+                    "is_primary",
+                    "last_transaction_timestamp",
+                    "last_transaction_version",
+                    "owner_address",
+                    "storage_id"
+                  ],
+                  "filter": {},
+                  "limit": 100,
+                  "allow_aggregations": true
+                },
+                "comment": ""
               }
             ]
           },
@@ -1706,10 +1830,12 @@
                     "icon_uri",
                     "last_transaction_timestamp",
                     "last_transaction_version",
+                    "maximum_v2",
                     "name",
                     "project_uri",
                     "supply_aggregator_table_handle_v1",
                     "supply_aggregator_table_key_v1",
+                    "supply_v2",
                     "symbol",
                     "token_standard"
                   ],
@@ -1751,26 +1877,6 @@
                     "chain_id"
                   ],
                   "filter": {}
-                }
-              }
-            ]
-          },
-          {
-            "table": {
-              "name": "move_resources",
-              "schema": "public"
-            },
-            "select_permissions": [
-              {
-                "role": "anonymous",
-                "permission": {
-                  "columns": [
-                    "address",
-                    "transaction_version"
-                  ],
-                  "filter": {},
-                  "limit": 100,
-                  "allow_aggregations": true
                 }
               }
             ]
@@ -1915,7 +2021,13 @@
           {
             "table": {
               "name": "token_activities",
-              "schema": "public"
+              "schema": "legacy_migration_v1"
+            },
+            "configuration": {
+              "column_config": {},
+              "custom_column_names": {},
+              "custom_name": "token_activities",
+              "custom_root_fields": {}
             },
             "object_relationships": [
               {
@@ -1928,7 +2040,7 @@
                     "insertion_order": null,
                     "remote_table": {
                       "name": "current_token_datas",
-                      "schema": "public"
+                      "schema": "legacy_migration_v1"
                     }
                   }
                 }
@@ -2082,7 +2194,13 @@
           {
             "table": {
               "name": "token_datas",
-              "schema": "public"
+              "schema": "legacy_migration_v1"
+            },
+            "configuration": {
+              "column_config": {},
+              "custom_column_names": {},
+              "custom_name": "token_datas",
+              "custom_root_fields": {}
             },
             "select_permissions": [
               {
@@ -2120,7 +2238,13 @@
           {
             "table": {
               "name": "token_ownerships",
-              "schema": "public"
+              "schema": "legacy_migration_v1"
+            },
+            "configuration": {
+              "column_config": {},
+              "custom_column_names": {},
+              "custom_name": "token_ownerships",
+              "custom_root_fields": {}
             },
             "select_permissions": [
               {
@@ -2149,7 +2273,13 @@
           {
             "table": {
               "name": "tokens",
-              "schema": "public"
+              "schema": "legacy_migration_v1"
+            },
+            "configuration": {
+              "column_config": {},
+              "custom_column_names": {},
+              "custom_name": "tokens",
+              "custom_root_fields": {}
             },
             "select_permissions": [
               {
