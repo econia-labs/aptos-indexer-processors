@@ -4,9 +4,6 @@
 // Note: For enum_dispatch to work nicely, it is easiest to have the trait and the enum
 // in the same file (ProcessorTrait and Processor).
 
-// Note: For enum_dispatch to work nicely, it is easiest to have the trait and the enum
-// in the same file (ProcessorTrait and Processor).
-
 pub mod account_transactions_processor;
 pub mod ans_processor;
 pub mod coin_processor;
@@ -16,6 +13,7 @@ pub mod fungible_asset_processor;
 pub mod monitoring_processor;
 pub mod nft_metadata_processor;
 pub mod objects_processor;
+pub mod parquet_default_processor;
 pub mod stake_processor;
 pub mod token_processor;
 pub mod token_v2_processor;
@@ -32,6 +30,7 @@ use self::{
     monitoring_processor::MonitoringProcessor,
     nft_metadata_processor::{NftMetadataProcessor, NftMetadataProcessorConfig},
     objects_processor::{ObjectsProcessor, ObjectsProcessorConfig},
+    parquet_default_processor::DefaultParquetProcessorConfig,
     stake_processor::{StakeProcessor, StakeProcessorConfig},
     token_processor::{TokenProcessor, TokenProcessorConfig},
     token_v2_processor::{TokenV2Processor, TokenV2ProcessorConfig},
@@ -39,11 +38,13 @@ use self::{
     user_transaction_processor::UserTransactionProcessor,
 };
 use crate::{
-    models::processor_status::ProcessorStatus,
+    db::common::models::processor_status::ProcessorStatus,
+    gap_detectors::ProcessingResult,
+    processors::parquet_default_processor::DefaultParquetProcessor,
     schema::processor_status,
     utils::{
         counters::{GOT_CONNECTION_COUNT, UNABLE_TO_GET_CONNECTION_COUNT},
-        database::{execute_with_better_error, PgDbPool, PgPoolConnection},
+        database::{execute_with_better_error, ArcDbPool, DbPoolConnection},
         util::parse_timestamp,
     },
 };
@@ -55,7 +56,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct ProcessingResult {
+pub struct DefaultProcessingResult {
     pub start_version: u64,
     pub end_version: u64,
     pub last_transaction_timestamp: Option<aptos_protos::util::timestamp::Timestamp>,
@@ -80,19 +81,19 @@ pub trait ProcessorTrait: Send + Sync + Debug {
 
     /// Gets a reference to the connection pool
     /// This is used by the `get_conn()` helper below
-    fn connection_pool(&self) -> &PgDbPool;
+    fn connection_pool(&self) -> &ArcDbPool;
 
     //* Below are helper methods that don't need to be implemented *//
 
     /// Gets an instance of the connection pool
-    fn get_pool(&self) -> PgDbPool {
+    fn get_pool(&self) -> ArcDbPool {
         let pool = self.connection_pool();
         pool.clone()
     }
 
     /// Gets the connection.
     /// If it was unable to do so (default timeout: 30s), it will keep retrying until it can.
-    async fn get_conn(&self) -> PgPoolConnection {
+    async fn get_conn(&self) -> DbPoolConnection {
         let pool = self.connection_pool();
         loop {
             match pool.get().await {
@@ -193,6 +194,7 @@ pub enum ProcessorConfig {
     TokenV2Processor(TokenV2ProcessorConfig),
     TransactionMetadataProcessor,
     UserTransactionProcessor,
+    DefaultParquetProcessor(DefaultParquetProcessorConfig),
 }
 
 impl ProcessorConfig {
@@ -200,6 +202,10 @@ impl ProcessorConfig {
     /// method to access the derived functionality implemented by strum::IntoStaticStr.
     pub fn name(&self) -> &'static str {
         self.into()
+    }
+
+    pub fn is_parquet_processor(&self) -> bool {
+        matches!(self, ProcessorConfig::DefaultParquetProcessor(_))
     }
 }
 
@@ -235,6 +241,7 @@ pub enum Processor {
     TokenV2Processor,
     TransactionMetadataProcessor,
     UserTransactionProcessor,
+    DefaultParquetProcessor,
 }
 
 #[cfg(test)]
