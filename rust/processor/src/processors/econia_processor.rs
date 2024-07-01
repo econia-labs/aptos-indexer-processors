@@ -1,10 +1,9 @@
-use super::{ProcessingResult, ProcessorTrait};
+use super::{ProcessingResult, ProcessorTrait, DefaultProcessingResult};
 use crate::{
-    models::events_models::events::EventModel,
     utils::{
-        database::PgDbPool,
+        database::DbPool,
         util::parse_timestamp,
-    },
+    }, db::common::models::events_models::events::EventModel,
 };
 use anyhow::anyhow;
 use aptos_protos::transaction::v1::{transaction::TxnData, write_set_change::Change, Transaction};
@@ -29,7 +28,7 @@ use diesel_async::scoped_futures::ScopedFutureExt;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, fmt::Debug, str::FromStr};
+use std::{collections::HashMap, fmt::Debug, str::FromStr, sync::Arc};
 
 pub const NAME: &str = "econia_processor";
 
@@ -59,12 +58,12 @@ pub struct EconiaProcessorConfig {
 }
 
 pub struct EconiaTransactionProcessor {
-    connection_pool: PgDbPool,
+    connection_pool: Arc<DbPool>,
     config: EconiaProcessorConfig,
 }
 
 impl EconiaTransactionProcessor {
-    pub fn new(connection_pool: PgDbPool, config: EconiaProcessorConfig) -> Self {
+    pub fn new(connection_pool: Arc<DbPool>, config: EconiaProcessorConfig) -> Self {
         Self {
             connection_pool,
             config,
@@ -936,16 +935,16 @@ impl ProcessorTrait for EconiaTransactionProcessor {
         let end_time = Utc::now();
         let time_delta = end_time.signed_duration_since(&start_time);
 
-        Ok(ProcessingResult {
+        Ok(ProcessingResult::DefaultProcessingResult(DefaultProcessingResult {
             start_version,
             end_version,
             last_transaction_timestamp: transactions.last().map(|e| e.timestamp.clone()).flatten(),
             processing_duration_in_secs: time_delta.num_milliseconds() as f64 / 1000f64,
             db_insertion_duration_in_secs: db_time_delta.num_milliseconds() as f64 / 1000f64,
-        })
+        }))
     }
 
-    fn connection_pool(&self) -> &PgDbPool {
+    fn connection_pool(&self) -> &Arc<DbPool> {
         &self.connection_pool
     }
 }
