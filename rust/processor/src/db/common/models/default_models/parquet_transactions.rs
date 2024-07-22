@@ -10,7 +10,7 @@ use super::{
     parquet_write_set_changes::{WriteSetChangeDetail, WriteSetChangeModel},
 };
 use crate::{
-    bq_analytics::generic_parquet_processor::{HasVersion, NamedTable},
+    bq_analytics::generic_parquet_processor::{GetTimeStamp, HasVersion, NamedTable},
     utils::{
         counters::PROCESSOR_UNKNOWN_TYPE_COUNT,
         util::{get_clean_payload, get_clean_writeset, get_payload_type, standardize_address},
@@ -20,7 +20,7 @@ use ahash::AHashMap;
 use allocative_derive::Allocative;
 use aptos_protos::transaction::v1::{
     transaction::{TransactionType, TxnData},
-    Transaction as TransactionPB, TransactionInfo,
+    Transaction as TransactionPB, TransactionInfo, TransactionSizeInfo,
 };
 use field_count::FieldCount;
 use parquet_derive::ParquetRecordWriter;
@@ -46,6 +46,7 @@ pub struct Transaction {
     pub event_root_hash: String,
     pub state_checkpoint_hash: Option<String>,
     pub accumulator_root_hash: String,
+    pub txn_total_bytes: i64,
     #[allocative(skip)]
     pub block_timestamp: chrono::NaiveDateTime,
 }
@@ -57,6 +58,12 @@ impl NamedTable for Transaction {
 impl HasVersion for Transaction {
     fn version(&self) -> i64 {
         self.txn_version
+    }
+}
+
+impl GetTimeStamp for Transaction {
+    fn get_timestamp(&self) -> chrono::NaiveDateTime {
+        self.block_timestamp
     }
 }
 
@@ -103,6 +110,7 @@ impl Transaction {
         block_height: i64,
         epoch: i64,
         block_timestamp: chrono::NaiveDateTime,
+        txn_size_info: Option<&TransactionSizeInfo>,
     ) -> Self {
         Self {
             txn_type,
@@ -130,6 +138,8 @@ impl Transaction {
             num_write_set_changes: info.changes.len() as i64,
             epoch,
             payload_type,
+            txn_total_bytes: txn_size_info
+                .map_or(0, |size_info| size_info.transaction_bytes as i64),
             block_timestamp,
         }
     }
@@ -179,6 +189,9 @@ impl Transaction {
         #[allow(deprecated)]
         let block_timestamp = chrono::NaiveDateTime::from_timestamp_opt(timestamp.seconds, 0)
             .expect("Txn Timestamp is invalid!");
+
+        let txn_size_info = transaction.size_info.as_ref();
+
         match txn_data {
             TxnData::User(user_txn) => {
                 let (wsc, wsc_detail) = WriteSetChangeModel::from_write_set_changes(
@@ -187,30 +200,33 @@ impl Transaction {
                     block_height,
                     block_timestamp,
                 );
-                let payload = user_txn
+                let request = &user_txn
                     .request
                     .as_ref()
-                    .expect("Getting user request failed.")
-                    .payload
-                    .as_ref()
-                    .expect("Getting payload failed.");
-                let payload_cleaned = get_clean_payload(payload, txn_version);
-                let payload_type = get_payload_type(payload);
+                    .expect("Getting user request failed.");
 
-                // let serialized_payload = serde_json::to_string(&payload_cleaned).unwrap(); // Handle errors as needed)
+                let (payload_cleaned, payload_type) = match request.payload.as_ref() {
+                    Some(payload) => {
+                        let payload_cleaned = get_clean_payload(payload, txn_version);
+                        (payload_cleaned, Some(get_payload_type(payload)))
+                    },
+                    None => (None, None),
+                };
+
                 let serialized_payload =
                     payload_cleaned.map(|payload| canonical_json::to_string(&payload).unwrap());
                 (
                     Self::from_transaction_info_with_data(
                         transaction_info,
                         serialized_payload,
-                        Some(payload_type),
+                        payload_type,
                         txn_version,
                         transaction_type,
                         user_txn.events.len() as i64,
                         block_height,
                         epoch,
                         block_timestamp,
+                        txn_size_info,
                     ),
                     None,
                     wsc,
@@ -243,6 +259,7 @@ impl Transaction {
                         block_height,
                         epoch,
                         block_timestamp,
+                        txn_size_info,
                     ),
                     None,
                     wsc,
@@ -267,6 +284,7 @@ impl Transaction {
                         block_height,
                         epoch,
                         block_timestamp,
+                        txn_size_info,
                     ),
                     Some(BlockMetadataTransaction::from_transaction(
                         block_metadata_txn,
@@ -290,27 +308,37 @@ impl Transaction {
                     block_height,
                     epoch,
                     block_timestamp,
+                    txn_size_info,
                 ),
                 None,
                 vec![],
                 vec![],
             ),
-            TxnData::Validator(_) => (
-                Self::from_transaction_info_with_data(
-                    transaction_info,
-                    None,
-                    None,
+            TxnData::Validator(inner) => {
+                let (wsc, wsc_detail) = WriteSetChangeModel::from_write_set_changes(
+                    &transaction_info.changes,
                     txn_version,
-                    transaction_type,
-                    0,
                     block_height,
-                    epoch,
                     block_timestamp,
-                ),
-                None,
-                vec![],
-                vec![],
-            ),
+                );
+                (
+                    Self::from_transaction_info_with_data(
+                        transaction_info,
+                        None,
+                        None,
+                        txn_version,
+                        transaction_type,
+                        inner.events.len() as i64,
+                        block_height,
+                        epoch,
+                        block_timestamp,
+                        txn_size_info,
+                    ),
+                    None,
+                    wsc,
+                    wsc_detail,
+                )
+            },
             TxnData::BlockEpilogue(_) => (
                 Self::from_transaction_info_with_data(
                     transaction_info,
@@ -322,6 +350,7 @@ impl Transaction {
                     block_height,
                     epoch,
                     block_timestamp,
+                    txn_size_info,
                 ),
                 None,
                 vec![],
