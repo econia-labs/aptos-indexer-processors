@@ -4,7 +4,7 @@
 #![allow(clippy::extra_unused_lifetimes)]
 
 use crate::{
-    bq_analytics::generic_parquet_processor::{HasVersion, NamedTable},
+    bq_analytics::generic_parquet_processor::{GetTimeStamp, HasVersion, NamedTable},
     utils::util::{hash_str, standardize_address},
 };
 use allocative_derive::Allocative;
@@ -38,6 +38,13 @@ impl HasVersion for TableItem {
         self.txn_version
     }
 }
+
+impl GetTimeStamp for TableItem {
+    fn get_timestamp(&self) -> chrono::NaiveDateTime {
+        self.block_timestamp
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, FieldCount, Serialize)]
 pub struct CurrentTableItem {
     pub table_handle: String,
@@ -48,11 +55,31 @@ pub struct CurrentTableItem {
     pub last_transaction_version: i64,
     pub is_deleted: bool,
 }
-#[derive(Clone, Debug, Deserialize, FieldCount, Serialize)]
+
+#[derive(
+    Allocative, Clone, Debug, Default, Deserialize, FieldCount, Serialize, ParquetRecordWriter,
+)]
 pub struct TableMetadata {
     pub handle: String,
     pub key_type: String,
     pub value_type: String,
+}
+
+impl NamedTable for TableMetadata {
+    const TABLE_NAME: &'static str = "table_metadatas";
+}
+
+impl HasVersion for TableMetadata {
+    fn version(&self) -> i64 {
+        0 // This is a placeholder value to avoid a compile error
+    }
+}
+
+impl GetTimeStamp for TableMetadata {
+    fn get_timestamp(&self) -> chrono::NaiveDateTime {
+        #[warn(deprecated)]
+        chrono::NaiveDateTime::default()
+    }
 }
 
 impl TableItem {

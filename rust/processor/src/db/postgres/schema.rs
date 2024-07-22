@@ -228,6 +228,7 @@ diesel::table! {
         token_standard -> Varchar,
         transaction_timestamp -> Timestamp,
         inserted_at -> Timestamp,
+        collection_properties -> Nullable<Jsonb>,
     }
 }
 
@@ -364,6 +365,7 @@ diesel::table! {
         last_transaction_version -> Int8,
         last_transaction_timestamp -> Timestamp,
         inserted_at -> Timestamp,
+        collection_properties -> Nullable<Jsonb>,
     }
 }
 
@@ -673,6 +675,8 @@ diesel::table! {
         inserted_at -> Timestamp,
         #[max_length = 1000]
         asset_type -> Nullable<Varchar>,
+        #[max_length = 10]
+        token_standard -> Nullable<Varchar>,
     }
 }
 
@@ -767,11 +771,11 @@ diesel::table! {
         transaction_version -> Int8,
         event_index -> Int8,
         #[max_length = 66]
-        owner_address -> Varchar,
+        owner_address -> Nullable<Varchar>,
         #[max_length = 66]
         storage_id -> Varchar,
         #[max_length = 1000]
-        asset_type -> Varchar,
+        asset_type -> Nullable<Varchar>,
         is_frozen -> Nullable<Bool>,
         amount -> Nullable<Numeric>,
         #[sql_name = "type"]
