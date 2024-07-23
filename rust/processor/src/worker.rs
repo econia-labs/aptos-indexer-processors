@@ -4,20 +4,32 @@
 use crate::{
     config::IndexerGrpcHttp2Config,
     db::common::models::{ledger_info::LedgerInfo, processor_status::ProcessorStatusQuery},
-    gap_detectors::{create_gap_detector_status_tracker_loop, ProcessingResult},
+    gap_detectors::{
+        create_gap_detector_status_tracker_loop, gap_detector::DefaultGapDetector,
+        parquet_gap_detector::ParquetFileGapDetector, GapDetector, ProcessingResult,
+    },
     grpc_stream::TransactionsPBResponse,
     processors::{
-        account_transactions_processor::AccountTransactionsProcessor, ans_processor::AnsProcessor,
-        coin_processor::CoinProcessor, default_processor::DefaultProcessor,
+        account_transactions_processor::AccountTransactionsProcessor,
+        ans_processor::AnsProcessor,
+        coin_processor::CoinProcessor,
         econia_processor::EconiaTransactionProcessor,
-        events_processor::EventsProcessor, fungible_asset_processor::FungibleAssetProcessor,
-        monitoring_processor::MonitoringProcessor, nft_metadata_processor::NftMetadataProcessor,
-        objects_processor::ObjectsProcessor, parquet_default_processor::DefaultParquetProcessor,
-        stake_processor::StakeProcessor, token_processor::TokenProcessor,
+        default_processor::DefaultProcessor,
+        events_processor::EventsProcessor,
+        fungible_asset_processor::FungibleAssetProcessor,
+        monitoring_processor::MonitoringProcessor,
+        nft_metadata_processor::NftMetadataProcessor,
+        objects_processor::ObjectsProcessor,
+        parquet_processors::{
+            parquet_default_processor::ParquetDefaultProcessor,
+            parquet_fungible_asset_processor::ParquetFungibleAssetProcessor,
+        },
+        stake_processor::StakeProcessor,
+        token_processor::TokenProcessor,
         token_v2_processor::TokenV2Processor,
         transaction_metadata_processor::TransactionMetadataProcessor,
-        user_transaction_processor::UserTransactionProcessor, DefaultProcessingResult, Processor,
-        ProcessorConfig, ProcessorTrait,
+        user_transaction_processor::UserTransactionProcessor,
+        DefaultProcessingResult, Processor, ProcessorConfig, ProcessorTrait,
     },
     schema::ledger_infos,
     transaction_filter::TransactionFilter,
@@ -51,17 +63,48 @@ use url::Url;
 // of 50 means that we could potentially have at least 4.8GB of data in memory at any given time and that we should provision
 // machines accordingly.
 
-// TODO: Make this configurable
 pub const BUFFER_SIZE: usize = 300;
 pub const PROCESSOR_SERVICE_TYPE: &str = "processor";
 
 bitflags! {
     #[derive(Debug, Clone, Copy)]
     pub struct TableFlags: u64 {
-        const TRANSACTIONS = 1;
-        const WRITE_SET_CHANGES = 2;
-        const MOVE_RESOURCES = 4;
-        const TABLE_ITEMS = 8;
+        const TRANSACTIONS = 1 << 0;
+        const WRITE_SET_CHANGES = 1 << 1;
+        const MOVE_RESOURCES = 1 << 2;
+        const TABLE_ITEMS = 1 << 3;
+        const TABLE_METADATAS = 1 << 4;
+        const MOVE_MODULES = 1 << 5;
+
+        // Fungible asset
+        const FUNGIBLE_ASSET_BALANCES = 1 << 6;
+        const CURRENT_FUNGIBLE_ASSET_BALANCES = 1 << 7;
+        const COIN_SUPPLY = 1 << 8;
+
+        // Objects
+        const OBJECTS = 1 << 9;
+
+        // Ans
+        const CURRENT_ANS_LOOKUP = 1 << 10;
+        const CURRENT_ANS_PRIMARY_NAME = 1 << 11;
+        const ANS_PRIMARY_NAME_V2 = 1 << 12;
+        const ANS_LOOKUP = 1 << 13;
+        const ANS_PRIMARY_NAME = 1 << 14;
+
+        // Coin
+        const COIN_ACTIVITIES = 1 << 15;
+        const COIN_BALANCES = 1 << 16;
+        const CURRENT_COIN_BALANCES = 1 << 17;
+        const COIN_INFOS = 1 << 18;
+
+        // Token_v2 processor flags
+        const TOKEN_OWNERSHIPS_V2 = 1 << 19;
+        const TOKEN_DATAS_V2 = 1 << 20;
+        const COLLECTIONS_V2 = 1 << 21;
+        const CURRENT_TOKEN_V2_METADATA = 1 << 22;
+
+        // User transaction
+        const SIGNATURES = 1 << 23;
     }
 }
 
@@ -267,44 +310,35 @@ impl Worker {
         // Create a gap detector task that will panic if there is a gap in the processing
         let (gap_detector_sender, gap_detector_receiver) =
             kanal::bounded_async::<ProcessingResult>(BUFFER_SIZE);
-        let (processor, gap_detection_batch_size, gap_detector_sender) =
-            if self.processor_config.is_parquet_processor() {
-                let processor = build_processor(
-                    &self.processor_config,
-                    self.per_table_chunk_sizes.clone(),
-                    self.deprecated_tables,
-                    self.db_pool.clone(),
-                    Some(gap_detector_sender.clone()),
-                );
-                let gap_detection_batch_size: u64 = self.parquet_gap_detection_batch_size;
 
-                (
-                    processor,
-                    gap_detection_batch_size,
-                    Some(gap_detector_sender),
-                )
-            } else {
-                let processor = build_processor(
-                    &self.processor_config,
-                    self.per_table_chunk_sizes.clone(),
-                    self.deprecated_tables,
-                    self.db_pool.clone(),
-                    None,
-                );
-                let gap_detection_batch_size = self.gap_detection_batch_size;
+        let is_parquet_processor = self.processor_config.is_parquet_processor();
+        let (maybe_gap_detector_sender, gap_detection_batch_size) = if is_parquet_processor {
+            let gap_detection_batch_size: u64 = self.parquet_gap_detection_batch_size;
+            (Some(gap_detector_sender.clone()), gap_detection_batch_size)
+        } else {
+            let gap_detection_batch_size = self.gap_detection_batch_size;
+            (None, gap_detection_batch_size)
+        };
 
-                (
-                    processor,
-                    gap_detection_batch_size,
-                    Some(gap_detector_sender),
-                )
-            };
+        let processor = build_processor(
+            &self.processor_config,
+            self.per_table_chunk_sizes.clone(),
+            self.deprecated_tables,
+            self.db_pool.clone(),
+            maybe_gap_detector_sender,
+        );
+
+        let gap_detector = if is_parquet_processor {
+            GapDetector::ParquetFileGapDetector(ParquetFileGapDetector::new(starting_version))
+        } else {
+            GapDetector::DefaultGapDetector(DefaultGapDetector::new(starting_version))
+        };
 
         tokio::spawn(async move {
             create_gap_detector_status_tracker_loop(
+                gap_detector,
                 gap_detector_receiver,
                 processor,
-                starting_version,
                 gap_detection_batch_size,
             )
             .await;
@@ -351,7 +385,7 @@ impl Worker {
         &self,
         task_index: usize,
         receiver: kanal::AsyncReceiver<TransactionsPBResponse>,
-        gap_detector_sender: Option<AsyncSender<ProcessingResult>>,
+        gap_detector_sender: AsyncSender<ProcessingResult>,
     ) -> JoinHandle<()> {
         let processor_name = self.processor_config.name();
         let stream_address = self.indexer_grpc_data_service_address.to_string();
@@ -359,13 +393,23 @@ impl Worker {
         let auth_token = self.auth_token.clone();
 
         // Build the processor based on the config.
-        let processor = build_processor(
-            &self.processor_config,
-            self.per_table_chunk_sizes.clone(),
-            self.deprecated_tables,
-            self.db_pool.clone(),
-            gap_detector_sender.clone(),
-        );
+        let processor = if self.processor_config.is_parquet_processor() {
+            build_processor(
+                &self.processor_config,
+                self.per_table_chunk_sizes.clone(),
+                self.deprecated_tables,
+                self.db_pool.clone(),
+                Some(gap_detector_sender.clone()),
+            )
+        } else {
+            build_processor(
+                &self.processor_config,
+                self.per_table_chunk_sizes.clone(),
+                self.deprecated_tables,
+                self.db_pool.clone(),
+                None,
+            )
+        };
 
         let concurrent_tasks = self.number_concurrent_processing_tasks;
 
@@ -581,8 +625,6 @@ impl Worker {
                                     .set(processing_result.db_insertion_duration_in_secs);
 
                                 gap_detector_sender
-                                    .as_ref()
-                                    .unwrap()
                                     .send(ProcessingResult::DefaultProcessingResult(
                                         processing_result,
                                     ))
@@ -823,6 +865,7 @@ pub fn build_processor(
             db_pool,
             config.clone(),
             per_table_chunk_sizes,
+            deprecated_tables,
         )),
         ProcessorConfig::CoinProcessor => {
             Processor::from(CoinProcessor::new(db_pool, per_table_chunk_sizes))
@@ -839,9 +882,11 @@ pub fn build_processor(
         ProcessorConfig::EventsProcessor => {
             Processor::from(EventsProcessor::new(db_pool, per_table_chunk_sizes))
         },
-        ProcessorConfig::FungibleAssetProcessor => {
-            Processor::from(FungibleAssetProcessor::new(db_pool, per_table_chunk_sizes))
-        },
+        ProcessorConfig::FungibleAssetProcessor => Processor::from(FungibleAssetProcessor::new(
+            db_pool,
+            per_table_chunk_sizes,
+            deprecated_tables,
+        )),
         ProcessorConfig::MonitoringProcessor => Processor::from(MonitoringProcessor::new(db_pool)),
         ProcessorConfig::NftMetadataProcessor(config) => {
             Processor::from(NftMetadataProcessor::new(db_pool, config.clone()))
@@ -850,6 +895,7 @@ pub fn build_processor(
             db_pool,
             config.clone(),
             per_table_chunk_sizes,
+            deprecated_tables,
         )),
         ProcessorConfig::StakeProcessor(config) => Processor::from(StakeProcessor::new(
             db_pool,
@@ -865,15 +911,23 @@ pub fn build_processor(
             db_pool,
             config.clone(),
             per_table_chunk_sizes,
+            deprecated_tables,
         )),
         ProcessorConfig::TransactionMetadataProcessor => Processor::from(
             TransactionMetadataProcessor::new(db_pool, per_table_chunk_sizes),
         ),
         ProcessorConfig::UserTransactionProcessor => Processor::from(
-            UserTransactionProcessor::new(db_pool, per_table_chunk_sizes),
+            UserTransactionProcessor::new(db_pool, per_table_chunk_sizes, deprecated_tables),
         ),
-        ProcessorConfig::DefaultParquetProcessor(config) => {
-            Processor::from(DefaultParquetProcessor::new(
+        ProcessorConfig::ParquetDefaultProcessor(config) => {
+            Processor::from(ParquetDefaultProcessor::new(
+                db_pool,
+                config.clone(),
+                gap_detector_sender.expect("Parquet processor requires a gap detector sender"),
+            ))
+        },
+        ProcessorConfig::ParquetFungibleAssetProcessor(config) => {
+            Processor::from(ParquetFungibleAssetProcessor::new(
                 db_pool,
                 config.clone(),
                 gap_detector_sender.expect("Parquet processor requires a gap detector sender"),
