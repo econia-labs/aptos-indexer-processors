@@ -4,15 +4,16 @@
 #![allow(clippy::extra_unused_lifetimes)]
 
 use super::{
-    move_modules::MoveModule,
+    parquet_move_modules::MoveModule,
     parquet_move_resources::MoveResource,
     parquet_move_tables::{CurrentTableItem, TableItem, TableMetadata},
 };
 use crate::{
-    bq_analytics::generic_parquet_processor::{HasVersion, NamedTable},
-    utils::util::standardize_address,
+    bq_analytics::generic_parquet_processor::{GetTimeStamp, HasVersion, NamedTable},
+    utils::util::{standardize_address, standardize_address_from_bytes},
 };
 use allocative_derive::Allocative;
+use anyhow::Context;
 use aptos_protos::transaction::v1::{
     write_set_change::{Change as WriteSetChangeEnum, Type as WriteSetChangeTypeEnum},
     WriteSetChange as WriteSetChangePB,
@@ -21,7 +22,9 @@ use field_count::FieldCount;
 use parquet_derive::ParquetRecordWriter;
 use serde::{Deserialize, Serialize};
 
-#[derive(Allocative, Clone, Debug, Deserialize, FieldCount, Serialize, ParquetRecordWriter)]
+#[derive(
+    Allocative, Clone, Debug, Default, Deserialize, FieldCount, Serialize, ParquetRecordWriter,
+)]
 pub struct WriteSetChange {
     pub txn_version: i64,
     pub write_set_change_index: i64,
@@ -43,18 +46,9 @@ impl HasVersion for WriteSetChange {
     }
 }
 
-impl Default for WriteSetChange {
-    fn default() -> Self {
-        Self {
-            txn_version: 0,
-            write_set_change_index: 0,
-            state_key_hash: "".to_string(),
-            change_type: "".to_string(),
-            resource_address: "".to_string(),
-            block_height: 0,
-            #[allow(deprecated)]
-            block_timestamp: chrono::NaiveDateTime::from_timestamp(0, 0),
-        }
+impl GetTimeStamp for WriteSetChange {
+    fn get_timestamp(&self) -> chrono::NaiveDateTime {
+        self.block_timestamp
     }
 }
 
@@ -65,14 +59,14 @@ impl WriteSetChange {
         txn_version: i64,
         block_height: i64,
         block_timestamp: chrono::NaiveDateTime,
-    ) -> (Self, WriteSetChangeDetail) {
+    ) -> anyhow::Result<Option<(Self, WriteSetChangeDetail)>> {
         let change_type = Self::get_write_set_change_type(write_set_change);
         let change = write_set_change
             .change
             .as_ref()
             .expect("WriteSetChange must have a change");
         match change {
-            WriteSetChangeEnum::WriteModule(inner) => (
+            WriteSetChangeEnum::WriteModule(inner) => Ok(Some((
                 Self {
                     txn_version,
                     state_key_hash: standardize_address(
@@ -80,7 +74,7 @@ impl WriteSetChange {
                     ),
                     block_height,
                     change_type,
-                    resource_address: standardize_address(&inner.address.to_string()),
+                    resource_address: standardize_address(&inner.address),
                     write_set_change_index,
                     block_timestamp,
                 },
@@ -89,9 +83,10 @@ impl WriteSetChange {
                     write_set_change_index,
                     txn_version,
                     block_height,
+                    block_timestamp,
                 )),
-            ),
-            WriteSetChangeEnum::DeleteModule(inner) => (
+            ))),
+            WriteSetChangeEnum::DeleteModule(inner) => Ok(Some((
                 Self {
                     txn_version,
                     state_key_hash: standardize_address(
@@ -99,7 +94,7 @@ impl WriteSetChange {
                     ),
                     block_height,
                     change_type,
-                    resource_address: standardize_address(&inner.address.to_string()),
+                    resource_address: standardize_address(&inner.address),
                     write_set_change_index,
                     block_timestamp,
                 },
@@ -108,48 +103,73 @@ impl WriteSetChange {
                     write_set_change_index,
                     txn_version,
                     block_height,
-                )),
-            ),
-            WriteSetChangeEnum::WriteResource(inner) => (
-                Self {
-                    txn_version,
-                    state_key_hash: standardize_address(
-                        hex::encode(inner.state_key_hash.as_slice()).as_str(),
-                    ),
-                    block_height,
-                    change_type,
-                    resource_address: standardize_address(&inner.address.to_string()),
-                    write_set_change_index,
                     block_timestamp,
-                },
-                WriteSetChangeDetail::Resource(MoveResource::from_write_resource(
+                )),
+            ))),
+            WriteSetChangeEnum::WriteResource(inner) => {
+                let resource_option = MoveResource::from_write_resource(
                     inner,
                     write_set_change_index,
                     txn_version,
                     block_height,
                     block_timestamp,
-                )),
-            ),
-            WriteSetChangeEnum::DeleteResource(inner) => (
-                Self {
-                    txn_version,
-                    state_key_hash: standardize_address(
-                        hex::encode(inner.state_key_hash.as_slice()).as_str(),
-                    ),
-                    block_height,
-                    change_type,
-                    resource_address: standardize_address(&inner.address.to_string()),
-                    write_set_change_index,
-                    block_timestamp,
-                },
-                WriteSetChangeDetail::Resource(MoveResource::from_delete_resource(
+                );
+
+                resource_option
+                    .unwrap()
+                    .context(format!(
+                        "Failed to parse move resource, version {}",
+                        txn_version
+                    ))
+                    .map(|resource| {
+                        Some((
+                            Self {
+                                txn_version,
+                                state_key_hash: standardize_address_from_bytes(
+                                    inner.state_key_hash.as_slice(),
+                                ),
+                                block_height,
+                                change_type,
+                                resource_address: standardize_address(&inner.address),
+                                write_set_change_index,
+                                block_timestamp,
+                            },
+                            WriteSetChangeDetail::Resource(resource),
+                        ))
+                    })
+            },
+            WriteSetChangeEnum::DeleteResource(inner) => {
+                let resource_option = MoveResource::from_delete_resource(
                     inner,
                     write_set_change_index,
                     txn_version,
                     block_height,
                     block_timestamp,
-                )),
-            ),
+                );
+
+                resource_option
+                    .unwrap()
+                    .context(format!(
+                        "Failed to parse move resource, version {}",
+                        txn_version
+                    ))
+                    .map(|resource| {
+                        Some((
+                            Self {
+                                txn_version,
+                                state_key_hash: standardize_address_from_bytes(
+                                    inner.state_key_hash.as_slice(),
+                                ),
+                                block_height,
+                                change_type,
+                                resource_address: standardize_address(&inner.address),
+                                write_set_change_index,
+                                block_timestamp,
+                            },
+                            WriteSetChangeDetail::Resource(resource),
+                        ))
+                    })
+            },
             WriteSetChangeEnum::WriteTableItem(inner) => {
                 let (ti, cti) = TableItem::from_write_table_item(
                     inner,
@@ -158,7 +178,7 @@ impl WriteSetChange {
                     block_height,
                     block_timestamp,
                 );
-                (
+                Ok(Some((
                     Self {
                         txn_version,
                         state_key_hash: standardize_address(
@@ -175,7 +195,7 @@ impl WriteSetChange {
                         cti,
                         Some(TableMetadata::from_write_table_item(inner)),
                     ),
-                )
+                )))
             },
             WriteSetChangeEnum::DeleteTableItem(inner) => {
                 let (ti, cti) = TableItem::from_delete_table_item(
@@ -185,7 +205,7 @@ impl WriteSetChange {
                     block_height,
                     block_timestamp,
                 );
-                (
+                Ok(Some((
                     Self {
                         txn_version,
                         state_key_hash: standardize_address(
@@ -198,7 +218,7 @@ impl WriteSetChange {
                         block_timestamp,
                     },
                     WriteSetChangeDetail::Table(ti, cti, None),
-                )
+                )))
             },
         }
     }
@@ -212,14 +232,25 @@ impl WriteSetChange {
         write_set_changes
             .iter()
             .enumerate()
-            .map(|(write_set_change_index, write_set_change)| {
-                Self::from_write_set_change(
+            .filter_map(|(write_set_change_index, write_set_change)| {
+                match Self::from_write_set_change(
                     write_set_change,
                     write_set_change_index as i64,
                     txn_version,
                     block_height,
                     timestamp,
-                )
+                ) {
+                    Ok(Some((change, detail))) => Some((change, detail)),
+                    Ok(None) => None,
+                    Err(e) => {
+                        tracing::error!(
+                            "Failed to convert write set change: {:?} with error: {:?}",
+                            write_set_change,
+                            e
+                        );
+                        panic!("Failed to convert write set change.")
+                    },
+                }
             })
             .collect::<Vec<(Self, WriteSetChangeDetail)>>()
             .into_iter()
