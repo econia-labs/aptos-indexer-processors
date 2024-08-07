@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    gap_detectors::DEFAULT_GAP_DETECTION_BATCH_SIZE, processors::ProcessorConfig,
-    transaction_filter::TransactionFilter, worker::Worker,
+    db::common::models::events_models::events::Event, gap_detectors::DEFAULT_GAP_DETECTION_BATCH_SIZE, processors::ProcessorConfig, transaction_filter::TransactionFilter, worker::Worker, ws_server
 };
 use ahash::AHashMap;
 use anyhow::{Context, Result};
@@ -85,6 +84,7 @@ impl IndexerGrpcProcessorConfig {
 #[async_trait::async_trait]
 impl RunnableConfig for IndexerGrpcProcessorConfig {
     async fn run(&self) -> Result<()> {
+        let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let mut worker = Worker::new(
             self.processor_config.clone(),
             self.postgres_connection_string.clone(),
@@ -103,10 +103,18 @@ impl RunnableConfig for IndexerGrpcProcessorConfig {
             self.transaction_filter.clone(),
             self.grpc_response_item_timeout_in_secs,
             self.deprecated_tables.clone(),
+            sender,
         )
         .await
         .context("Failed to build worker")?;
-        worker.run().await;
+        tokio::select! {
+            _ = worker.run() => {
+                tracing::error!("Worker error.")
+            }
+            _ = ws_server::start(receiver) => {
+                tracing::error!("WebSocket server error")
+            }
+        };
         Ok(())
     }
 

@@ -3,7 +3,7 @@
 
 use super::{DefaultProcessingResult, ProcessorName, ProcessorTrait};
 use crate::{
-    db::common::models::events_models::events::EventModel,
+    db::common::models::events_models::events::{Event, EventModel},
     gap_detectors::ProcessingResult,
     schema,
     utils::{
@@ -21,6 +21,7 @@ use diesel::{
     ExpressionMethods,
 };
 use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc::UnboundedSender;
 use std::fmt::Debug;
 use tracing::error;
 
@@ -34,14 +35,16 @@ pub struct EventsProcessor {
     config: EventsProcessorConfig,
     connection_pool: ArcDbPool,
     per_table_chunk_sizes: AHashMap<String, usize>,
+    notif_sender: UnboundedSender<Event>,
 }
 
 impl EventsProcessor {
-    pub fn new(connection_pool: ArcDbPool, config: EventsProcessorConfig, per_table_chunk_sizes: AHashMap<String, usize>) -> Self {
+    pub fn new(connection_pool: ArcDbPool, config: EventsProcessorConfig, per_table_chunk_sizes: AHashMap<String, usize>, notif_sender: UnboundedSender<Event>) -> Self {
         Self {
             connection_pool,
             config,
             per_table_chunk_sizes,
+            notif_sender,
         }
     }
 }
@@ -150,6 +153,12 @@ impl ProcessorTrait for EventsProcessor {
                 .collect();
 
             events.extend(txn_events);
+        }
+
+        for event in &events {
+            let _ = self.notif_sender
+                .send(event.clone())
+                .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
         }
 
         let processing_duration_in_secs = processing_start.elapsed().as_secs_f64();
