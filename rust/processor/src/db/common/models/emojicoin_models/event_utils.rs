@@ -1,11 +1,9 @@
 use super::db_types::{
     periodic_state_events_model::PeriodicStateEventModel, state_bumps_model::StateBumpModel,
 };
-use super::helper_types::{FlattenedLastSwap, SharedMetadata};
 use super::json_types::{
     BumpEvent, BumpGroup, EventWithMarket, PeriodicStateEvent, StateEvent, TxnInfo,
 };
-use super::utils::micros_to_naive_datetime;
 use std::cmp::Ordering;
 
 impl EventWithMarket {
@@ -141,22 +139,6 @@ impl BumpGroupBuilder {
 }
 
 impl BumpGroup {
-    pub fn to_shared_metadata(&self) -> SharedMetadata {
-        SharedMetadata {
-            transaction_version: self.txn_info.version,
-            sender: self.txn_info.sender.clone(),
-            entry_function: self.txn_info.entry_function.clone(),
-            market_id: self.market_id,
-            symbol_bytes: self.state_event.market_metadata.emoji_bytes.clone(),
-            bump_and_emit_time: micros_to_naive_datetime(
-                self.state_event.state_metadata.bump_time,
-                "state_event.state_metadata.bump_time",
-            ),
-            market_nonce: self.market_nonce,
-            trigger: self.state_event.state_metadata.trigger,
-        }
-    }
-
     pub fn to_db_rows(&self) -> (StateBumpModel, Vec<PeriodicStateEventModel>) {
         // Market registration & Swap data.
         // let integrator = self.state_event.state_metadata.integrator.clone();
@@ -164,18 +146,5 @@ impl BumpGroup {
         let bump_event = self.bump_event.to_db_row();
         let state_event = self.state_event.to_db_row();
         (bump_event, state_event)
-    }
-}
-
-impl StateEvent {
-    pub fn flatten_last_swap(&self) -> FlattenedLastSwap {
-        FlattenedLastSwap {
-            last_swap_is_sell: self.last_swap.is_sell,
-            last_swap_avg_execution_price_q64: self.last_swap.avg_execution_price_q64.clone(),
-            last_swap_base_volume: self.last_swap.base_volume,
-            last_swap_quote_volume: self.last_swap.quote_volume,
-            last_swap_nonce: self.last_swap.nonce,
-            last_swap_time: micros_to_naive_datetime(self.last_swap.time, "last_swap.time"),
-        }
     }
 }

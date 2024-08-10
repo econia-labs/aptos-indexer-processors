@@ -137,15 +137,15 @@ CREATE TABLE IF NOT EXISTS state_bumps (
   cumulative_n_swaps BIGINT NOT NULL,
   cumulative_n_chat_messages BIGINT NOT NULL,
   instantaneous_stats_total_quote_locked BIGINT NOT NULL,
-  instantaneous_total_value_locked NUMERIC NOT NULL,
-  instantaneous_market_cap NUMERIC NOT NULL,
-  instantaneous_fully_diluted_value NUMERIC NOT NULL,
+  instantaneous_stats_total_value_locked NUMERIC NOT NULL,
+  instantaneous_stats_market_cap NUMERIC NOT NULL,
+  instantaneous_stats_fully_diluted_value NUMERIC NOT NULL,
 
   -- Last swap data. If the triggering event is a swap, this data is exactly the same as the swap data.
   last_swap_is_sell BOOLEAN NOT NULL,
   last_swap_avg_execution_price_q64 NUMERIC NOT NULL,
-  last_swap_base_volume NUMERIC NOT NULL,
-  last_swap_quote_volume NUMERIC NOT NULL,
+  last_swap_base_volume BIGINT NOT NULL,
+  last_swap_quote_volume BIGINT NOT NULL,
   last_swap_nonce BIGINT NOT NULL,
   last_swap_time TIMESTAMP NOT NULL,
 

@@ -89,7 +89,7 @@ pub struct CumulativeStats {
     #[serde(deserialize_with = "deserialize_from_string")]
     pub n_swaps: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
-    pub n_chat_messages: u64,
+    pub n_chat_messages: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -97,11 +97,11 @@ pub struct InstantaneousStats {
     #[serde(deserialize_with = "deserialize_from_string")]
     pub total_quote_locked: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
-    pub total_value_locked: i64,
+    pub total_value_locked: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
-    pub market_cap: i64,
+    pub market_cap: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
-    pub fully_diluted_value: i64,
+    pub fully_diluted_value: BigDecimal,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

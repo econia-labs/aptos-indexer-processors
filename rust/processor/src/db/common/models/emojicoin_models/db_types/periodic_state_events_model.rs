@@ -1,7 +1,7 @@
 use super::super::enums::{PeriodicStateResolution, StateTrigger};
-use super::super::helper_types::{FlattenedLastSwap, SharedMetadata};
 use super::super::json_types::BumpGroup;
 use super::super::utils::micros_to_naive_datetime;
+use crate::db::common::models::emojicoin_models::json_types::StateEvent;
 use crate::schema::periodic_state_events;
 use bigdecimal::BigDecimal;
 use field_count::FieldCount;
@@ -110,61 +110,58 @@ pub struct PeriodicStateEventModelQuery {
 // Converting from our strongly typed, previously JSON data to the database model.
 impl PeriodicStateEventModel {
     pub fn from_bump_group(bump_group: BumpGroup) -> Vec<PeriodicStateEventModel> {
-        let SharedMetadata {
-            transaction_version,
-            sender,
-            entry_function,
-            market_id,
-            symbol_bytes,
-            bump_and_emit_time,
-            market_nonce,
-            trigger,
-        } = bump_group.to_shared_metadata();
-        let FlattenedLastSwap {
-            last_swap_is_sell,
-            last_swap_avg_execution_price_q64,
-            last_swap_base_volume,
-            last_swap_quote_volume,
-            last_swap_nonce,
-            last_swap_time,
-        } = bump_group.state_event.flatten_last_swap();
+        let txn_info = bump_group.txn_info;
+        let StateEvent {
+            state_metadata,
+            market_metadata,
+            clamm_virtual_reserves: clamm,
+            cpamm_real_reserves: cpamm,
+            lp_coin_supply,
+            cumulative_stats: c_stats,
+            instantaneous_stats: i_stats,
+            last_swap,
+            ..
+        } = bump_group.state_event;
         bump_group
             .periodic_state_events
             .iter()
             .map(|ps_event| PeriodicStateEventModel {
-                transaction_version,
-                sender,
-                entry_function,
-                market_id,
-                symbol_bytes,
-                emit_time: bump_and_emit_time,
-                market_nonce,
-                trigger,
-                last_swap_is_sell,
-                last_swap_avg_execution_price_q64,
-                last_swap_base_volume,
-                last_swap_quote_volume,
-                last_swap_nonce,
-                last_swap_time,
+                transaction_version: txn_info.version,
+                sender: txn_info.sender.clone(),
+                entry_function: txn_info.entry_function.clone(),
+                market_id: market_metadata.market_id,
+                symbol_bytes: market_metadata.emoji_bytes.clone(),
+                emit_time: micros_to_naive_datetime(
+                    state_metadata.bump_time,
+                    "state_metadata.bump_time",
+                ),
+                market_nonce: state_metadata.market_nonce,
+                trigger: state_metadata.trigger,
+                last_swap_is_sell: last_swap.is_sell,
+                last_swap_avg_execution_price_q64: last_swap.avg_execution_price_q64.clone(),
+                last_swap_base_volume: last_swap.base_volume,
+                last_swap_quote_volume: last_swap.quote_volume,
+                last_swap_nonce: last_swap.nonce,
+                last_swap_time: micros_to_naive_datetime(last_swap.time, "last_swap.time"),
                 resolution: ps_event.periodic_state_metadata.period,
                 start_time: micros_to_naive_datetime(
                     ps_event.periodic_state_metadata.start_time,
                     "periodic_state_metadata.start_time",
                 ),
-                open_price_q64: ps_event.open_price_q64,
-                high_price_q64: ps_event.high_price_q64,
-                low_price_q64: ps_event.low_price_q64,
-                close_price_q64: ps_event.close_price_q64,
-                volume_base: ps_event.volume_base,
-                volume_quote: ps_event.volume_quote,
-                integrator_fees: ps_event.integrator_fees,
-                pool_fees_base: ps_event.pool_fees_base,
-                pool_fees_quote: ps_event.pool_fees_quote,
+                open_price_q64: ps_event.open_price_q64.clone(),
+                high_price_q64: ps_event.high_price_q64.clone(),
+                low_price_q64: ps_event.low_price_q64.clone(),
+                close_price_q64: ps_event.close_price_q64.clone(),
+                volume_base: ps_event.volume_base.clone(),
+                volume_quote: ps_event.volume_quote.clone(),
+                integrator_fees: ps_event.integrator_fees.clone(),
+                pool_fees_base: ps_event.pool_fees_base.clone(),
+                pool_fees_quote: ps_event.pool_fees_quote.clone(),
                 n_swaps: ps_event.n_swaps,
                 n_chat_messages: ps_event.n_chat_messages,
                 starts_in_bonding_curve: ps_event.starts_in_bonding_curve,
                 ends_in_bonding_curve: ps_event.ends_in_bonding_curve,
-                tvl_per_lp_coin_growth_q64: ps_event.tvl_per_lp_coin_growth_q64,
+                tvl_per_lp_coin_growth_q64: ps_event.tvl_per_lp_coin_growth_q64.clone(),
             })
             .collect()
     }
