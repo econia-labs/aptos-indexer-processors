@@ -1,5 +1,15 @@
 // @generated automatically by Diesel CLI.
 
+pub mod sql_types {
+    #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "periodic_state_resolution"))]
+    pub struct PeriodicStateResolution;
+
+    #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "state_trigger"))]
+    pub struct StateTrigger;
+}
+
 diesel::table! {
     account_transactions (account_address, transaction_version) {
         transaction_version -> Int8,
@@ -845,6 +855,31 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::StateTrigger;
+
+    global_state_events (registry_nonce) {
+        transaction_version -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        inserted_at -> Timestamp,
+        emit_time -> Timestamp,
+        registry_nonce -> Int8,
+        trigger -> StateTrigger,
+        cumulative_quote_volume -> Numeric,
+        total_quote_locked -> Numeric,
+        total_value_locked -> Numeric,
+        market_cap -> Numeric,
+        fully_diluted_value -> Numeric,
+        cumulative_integrator_fees -> Numeric,
+        cumulative_swaps -> Int8,
+        cumulative_chat_messages -> Int8,
+    }
+}
+
+diesel::table! {
     indexer_status (db) {
         #[max_length = 50]
         db -> Varchar,
@@ -928,6 +963,48 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::StateTrigger;
+    use super::sql_types::PeriodicStateResolution;
+
+    periodic_state_events (market_id, resolution, market_nonce) {
+        transaction_version -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        inserted_at -> Timestamp,
+        market_id -> Int8,
+        symbol_bytes -> Bytea,
+        emit_time -> Timestamp,
+        market_nonce -> Int8,
+        trigger -> StateTrigger,
+        last_swap_is_sell -> Bool,
+        last_swap_avg_execution_price_q64 -> Numeric,
+        last_swap_base_volume -> Numeric,
+        last_swap_quote_volume -> Numeric,
+        last_swap_nonce -> Int8,
+        last_swap_emit_time -> Timestamp,
+        resolution -> PeriodicStateResolution,
+        start_time -> Timestamp,
+        open_price_q64 -> Numeric,
+        high_price_q64 -> Numeric,
+        low_price_q64 -> Numeric,
+        close_price_q64 -> Numeric,
+        volume_base -> Numeric,
+        volume_quote -> Numeric,
+        integrator_fees -> Numeric,
+        pool_fees_base -> Numeric,
+        pool_fees_quote -> Numeric,
+        n_swaps -> Int8,
+        n_chat_messages -> Int8,
+        starts_in_bonding_curve -> Bool,
+        ends_in_bonding_curve -> Bool,
+        tvl_per_lp_coin_growth_q64 -> Numeric,
+    }
+}
+
+diesel::table! {
     processor_status (processor) {
         #[max_length = 50]
         processor -> Varchar,
@@ -978,6 +1055,70 @@ diesel::table! {
         asset -> Varchar,
         is_spam -> Bool,
         last_updated -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::StateTrigger;
+
+    state_events (market_id, market_nonce) {
+        transaction_version -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        inserted_at -> Timestamp,
+        market_id -> Int8,
+        symbol_bytes -> Bytea,
+        bump_time -> Timestamp,
+        market_nonce -> Int8,
+        trigger -> StateTrigger,
+        clamm_virtual_reserves_base -> Int8,
+        clamm_virtual_reserves_quote -> Int8,
+        cpamm_real_reserves_base -> Int8,
+        cpamm_real_reserves_quote -> Int8,
+        lp_coin_supply -> Numeric,
+        cumulative_base_volume -> Numeric,
+        cumulative_quote_volume -> Numeric,
+        cumulative_integrator_fees -> Numeric,
+        cumulative_pool_fees_base -> Numeric,
+        cumulative_pool_fees_quote -> Numeric,
+        cumulative_n_swaps -> Int8,
+        cumulative_n_chat_messages -> Int8,
+        instantaneous_stats_total_quote_locked -> Int8,
+        instantaneous_total_value_locked -> Numeric,
+        instantaneous_market_cap -> Numeric,
+        instantaneous_fully_diluted_value -> Numeric,
+        last_swap_is_sell -> Bool,
+        last_swap_avg_execution_price_q64 -> Numeric,
+        last_swap_base_volume -> Numeric,
+        last_swap_quote_volume -> Numeric,
+        last_swap_nonce -> Int8,
+        last_swap_emit_time -> Timestamp,
+        #[max_length = 66]
+        integrator -> Nullable<Varchar>,
+        integrator_fee -> Nullable<Int8>,
+        input_amount -> Nullable<Int8>,
+        is_sell -> Nullable<Bool>,
+        integrator_fee_rate_bps -> Nullable<Int2>,
+        net_proceeds -> Nullable<Int8>,
+        base_volume -> Nullable<Int8>,
+        quote_volume -> Nullable<Int8>,
+        avg_execution_price_q64 -> Nullable<Numeric>,
+        pool_fee -> Nullable<Int8>,
+        starts_in_bonding_curve -> Nullable<Bool>,
+        results_in_state_transition -> Nullable<Bool>,
+        base_amount -> Nullable<Int8>,
+        quote_amount -> Nullable<Int8>,
+        lp_coin_amount -> Nullable<Int8>,
+        liquidity_provided -> Nullable<Bool>,
+        pro_rata_base_donation_claim_amount -> Nullable<Int8>,
+        pro_rata_quote_donation_claim_amount -> Nullable<Int8>,
+        message -> Nullable<Text>,
+        user_emojicoin_balance -> Nullable<Int8>,
+        circulating_supply -> Nullable<Int8>,
+        balance_as_fraction_of_circulating_supply_q64 -> Nullable<Numeric>,
     }
 }
 
@@ -1324,16 +1465,19 @@ diesel::allow_tables_to_appear_in_same_query!(
     fungible_asset_activities,
     fungible_asset_balances,
     fungible_asset_metadata,
+    global_state_events,
     indexer_status,
     ledger_infos,
     move_modules,
     move_resources,
     nft_points,
     objects,
+    periodic_state_events,
     processor_status,
     proposal_votes,
     signatures,
     spam_assets,
+    state_events,
     table_items,
     table_metadatas,
     token_activities,

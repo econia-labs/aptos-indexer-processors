@@ -10,8 +10,8 @@
 -- in the case of a multi-sig/governance script. Noting it here as a reminder to check during the review.
 -- In any case, we use the `sender` field to store the following: the `registrant`, the `swapper`, the `user`, and the `provider`.
 
-DO && BEGIN
-  CREATE TYPE trigger_type AS ENUM (
+DO $$ BEGIN
+  CREATE TYPE state_trigger AS ENUM (
     'PACKAGE_PUBLICATION', -- Emitted a single time alongside a Global State event.
     'MARKET_REGISTRATION',
     'SWAP_BUY',
@@ -22,9 +22,9 @@ DO && BEGIN
   );
 EXCEPTION
   WHEN duplicate_object THEN NULL;
-END;
+END $$;
 
-DO && BEGIN
+DO $$ BEGIN
   CREATE TYPE periodic_state_resolution AS ENUM (
     '1m',  --     60_000_000 == 1 minute.
     '5m',  --    300_000_000 == 5 minutes.
@@ -36,13 +36,36 @@ DO && BEGIN
   );
 EXCEPTION
   WHEN duplicate_object THEN NULL;
-END;
+END $$;
+
+CREATE TABLE IF NOT EXISTS global_state_events (
+  -- Transaction metadata.
+  transaction_version BIGINT NOT NULL,
+  sender VARCHAR(66) NOT NULL, -- See note 2.
+  entry_function VARCHAR(200),
+  inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+  -- Global state event data.
+  emit_time TIMESTAMP NOT NULL,
+  registry_nonce BIGINT NOT NULL,
+  trigger state_trigger NOT NULL,
+  cumulative_quote_volume NUMERIC NOT NULL,
+  total_quote_locked NUMERIC NOT NULL,
+  total_value_locked NUMERIC NOT NULL,
+  market_cap NUMERIC NOT NULL,
+  fully_diluted_value NUMERIC NOT NULL,
+  cumulative_integrator_fees NUMERIC NOT NULL,
+  cumulative_swaps BIGINT NOT NULL,
+  cumulative_chat_messages BIGINT NOT NULL,
+
+  PRIMARY KEY (registry_nonce)
+);
 
 CREATE TABLE IF NOT EXISTS periodic_state_events (
   -- Transaction metadata.
   transaction_version BIGINT NOT NULL,
   sender VARCHAR(66) NOT NULL, -- See note 2.
-  entry_function_id_str text, -- NULL when called by a script.
+  entry_function VARCHAR(200),
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
   -- Market metadata.
@@ -52,7 +75,7 @@ CREATE TABLE IF NOT EXISTS periodic_state_events (
   -- State metadata.
   emit_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
-  trigger trigger_type NOT NULL,
+  trigger state_trigger NOT NULL,
 
   -- Last swap data. The last swap can also be the event that triggered the periodic state event.
   last_swap_is_sell BOOLEAN NOT NULL,
@@ -88,7 +111,7 @@ CREATE TABLE IF NOT EXISTS state_events (
   -- Transaction metadata.
   transaction_version BIGINT NOT NULL,
   sender VARCHAR(66) NOT NULL, -- See note 2.
-  entry_function_id_str text, -- NULL when called by a script.
+  entry_function VARCHAR(200),
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
   -- Market metadata.
@@ -98,7 +121,7 @@ CREATE TABLE IF NOT EXISTS state_events (
   -- State metadata.
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
-  trigger trigger_type NOT NULL,
+  trigger state_trigger NOT NULL,
 
   -- State event data.
   clamm_virtual_reserves_base BIGINT NOT NULL,
