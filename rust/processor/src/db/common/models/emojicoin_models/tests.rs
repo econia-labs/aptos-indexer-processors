@@ -10,7 +10,7 @@
 #[cfg(test)]
 mod tests {
     use crate::db::common::models::emojicoin_models::{
-        enums::StateTrigger, event_types::EventWithMarket,
+        enums::StateTrigger, json_types::EventWithMarket,
     };
 
     #[test]

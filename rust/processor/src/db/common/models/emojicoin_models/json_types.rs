@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use aptos_protos::transaction::v1::{transaction::TxnData, Event};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -7,10 +6,7 @@ use crate::{
     db::common::models::emojicoin_models::enums::{
         deserialize_periodic_state_resolution, deserialize_state_trigger,
     },
-    utils::util::{
-        deserialize_from_string, get_entry_function_from_user_request, hex_to_raw_bytes,
-        standardize_address,
-    },
+    utils::util::{deserialize_from_string, hex_to_raw_bytes, standardize_address},
 };
 
 use super::enums::{EmojicoinTypeTag, PeriodicStateResolution, StateTrigger};
@@ -110,17 +106,17 @@ pub struct InstantaneousStats {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LastSwap {
-    is_sell: bool,
+    pub is_sell: bool,
     #[serde(deserialize_with = "deserialize_from_string")]
-    avg_execution_price_q64: BigDecimal,
+    pub avg_execution_price_q64: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
-    base_volume: i64,
+    pub base_volume: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
-    quote_volume: i64,
+    pub quote_volume: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
-    nonce: i64,
+    pub nonce: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
-    time: i64,
+    pub time: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -302,33 +298,42 @@ impl From<EventWithMarket> for EmojicoinEvent {
     }
 }
 
-impl EmojicoinEvent {
+impl From<PeriodicStateEvent> for EventWithMarket {
+    fn from(event: PeriodicStateEvent) -> Self {
+        EventWithMarket::PeriodicState(event)
+    }
+}
+
+impl From<StateEvent> for EventWithMarket {
+    fn from(event: StateEvent) -> Self {
+        EventWithMarket::State(event)
+    }
+}
+
+impl EventWithMarket {
     pub fn from_event_type(
         event_type: &str,
         data: &str,
         txn_version: i64,
-    ) -> Result<Option<EmojicoinEvent>> {
+    ) -> Result<Option<EventWithMarket>> {
         match EmojicoinTypeTag::from_str(event_type) {
-            Some(EmojicoinTypeTag::PeriodicState) => serde_json::from_str(data)
-                .map(|v| Some(EventWithMarket::PeriodicState(v)))
-                .map(|opt| opt.map(EmojicoinEvent::from)),
-            Some(EmojicoinTypeTag::State) => serde_json::from_str(data)
-                .map(|v| Some(EventWithMarket::State(v)))
-                .map(|opt| opt.map(EmojicoinEvent::from)),
-            Some(EmojicoinTypeTag::Swap) => serde_json::from_str(data)
-                .map(|v| Some(EventWithMarket::Swap(v)))
-                .map(|opt| opt.map(EmojicoinEvent::from)),
-            Some(EmojicoinTypeTag::Chat) => serde_json::from_str(data)
-                .map(|v| Some(EventWithMarket::Chat(v)))
-                .map(|opt| opt.map(EmojicoinEvent::from)),
-            Some(EmojicoinTypeTag::MarketRegistration) => serde_json::from_str(data)
-                .map(|v| Some(EventWithMarket::MarketRegistration(v)))
-                .map(|opt| opt.map(EmojicoinEvent::from)),
-            Some(EmojicoinTypeTag::Liquidity) => serde_json::from_str(data)
-                .map(|v| Some(EventWithMarket::Liquidity(v)))
-                .map(|opt| opt.map(EmojicoinEvent::from)),
-            Some(EmojicoinTypeTag::GlobalState) => {
-                serde_json::from_str(data).map(|v| Some(EmojicoinEvent::GlobalState(v)))
+            Some(EmojicoinTypeTag::PeriodicState) => {
+                serde_json::from_str(data).map(|v| Some(EventWithMarket::PeriodicState(v)))
+            },
+            Some(EmojicoinTypeTag::State) => {
+                serde_json::from_str(data).map(|v| Some(EventWithMarket::State(v)))
+            },
+            Some(EmojicoinTypeTag::Swap) => {
+                serde_json::from_str(data).map(|v| Some(EventWithMarket::Swap(v)))
+            },
+            Some(EmojicoinTypeTag::Chat) => {
+                serde_json::from_str(data).map(|v| Some(EventWithMarket::Chat(v)))
+            },
+            Some(EmojicoinTypeTag::MarketRegistration) => {
+                serde_json::from_str(data).map(|v| Some(EventWithMarket::MarketRegistration(v)))
+            },
+            Some(EmojicoinTypeTag::Liquidity) => {
+                serde_json::from_str(data).map(|v| Some(EventWithMarket::Liquidity(v)))
             },
             _ => Ok(None),
         }
@@ -337,13 +342,25 @@ impl EmojicoinEvent {
             txn_version, event_type, data,
         ))
     }
+}
 
-    pub fn maybe_from_event(event: &Event, txn_version: i64) -> Result<Option<EmojicoinEvent>> {
-        Self::from_event_type(
-            &event.type_str.as_str(),
-            &event.data.to_string(),
-            txn_version,
-        )
+impl EmojicoinEvent {
+    pub fn from_event_type(
+        event_type: &str,
+        data: &str,
+        txn_version: i64,
+    ) -> Result<Option<EmojicoinEvent>> {
+        match EmojicoinTypeTag::from_str(event_type) {
+            Some(EmojicoinTypeTag::GlobalState) => serde_json::from_str(data)
+                .map(|v| Some(EmojicoinEvent::GlobalState(v)))
+                .map_err(anyhow::Error::from),
+            _ => EventWithMarket::from_event_type(event_type, data, txn_version)
+                .map(|v| v.map(EmojicoinEvent::EventWithMarket)),
+        }
+        .context(format!(
+            "version {} failed! Failed to parse type {}, with data: {:?}",
+            txn_version, event_type, data,
+        ))
     }
 }
 
@@ -354,95 +371,31 @@ pub enum BumpEvent {
     Chat(ChatEvent),
     Liquidity(LiquidityEvent),
 }
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct EmojicoinEventAndTxnInfo {
-    event: EmojicoinEvent,
-    txn_info: TxnInfo,
-}
-
-impl EmojicoinEventAndTxnInfo {
-    pub fn maybe_from_event(event: &Event, txn_info: TxnInfo) -> Option<Self> {
-        EmojicoinEvent::maybe_from_event(event, txn_info.version)
-            .ok()?
-            .map(|event| Self { event, txn_info })
-    }
-
-    pub fn from_transaction(txn_version: i64, txn_data: &TxnData) -> Vec<Self> {
-        let mut emojicoin_events = vec![];
-        if let TxnData::User(user_txn) = txn_data {
-            let user_request = user_txn
-                .request
-                .as_ref()
-                .expect("User request info is not present in the user transaction.");
-            let entry_function = get_entry_function_from_user_request(user_request);
-            let txn_info = TxnInfo {
-                version: txn_version,
-                sender: standardize_address(user_request.sender.as_ref()),
-                entry_function,
-            };
-
-            for event in user_txn.events.iter() {
-                if let Some(emojicoin_event) = Self::maybe_from_event(event, txn_info.clone()) {
-                    emojicoin_events.push(emojicoin_event);
-                }
-            }
-        }
-        emojicoin_events
-    }
-}
-
 // A subset of the transaction info that comes in from the GRPC stream.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TxnInfo {
-    version: i64,
-    sender: String,
-    entry_function: Option<String>,
+    pub version: i64,
+    pub sender: String,
+    pub entry_function: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BumpGroup {
-    market_id: i64,
-    market_nonce: i64,
-    bump_event: BumpEvent,
-    state_event: StateEvent,
-    periodic_state_events: Vec<PeriodicStateEvent>,
-    txn_info: TxnInfo,
+    pub market_id: i64,
+    pub market_nonce: i64,
+    pub bump_event: BumpEvent,
+    pub state_event: StateEvent,
+    pub periodic_state_events: Vec<PeriodicStateEvent>,
+    pub txn_info: TxnInfo,
 }
 
-// For grouping all events in a single transaction into the various types:
-// Each state event has a unique bump nonce, we can use that to group non-state events with state events.
-// The following groupings are possible:
-// -- Market-ID specific State Events
-//    - ONE State Event
-//    - ONE of the following:
-//       - Market Registration
-//       - Chat
-//       - Swap
-//       - Liquidity
-//    - ZERO to SIX of the following:
-//       - Periodic State Events
-// Note that we have no (easy) way of knowing which state event triggered a GlobalStateEvent, because it doesn't emit
-//  the market_id or bump_nonce. We can only know that it was triggered by a state event. This means we can't group
-//  GlobalStateEvents with StateEvents in a BumpGroup.
-//  This is totally fine, because we can just insert the GlobalStateEvent into the global_state_events table separately.
-//  Note that there will only ever be one GlobalStateEvent per transaction, because it takes an entire day to emit
-//   a GlobalStateEvent since the last one. Thus we just have an `Option<GlobalStateEvent>` for each transaction that
-//   we possibly insert into the global_state_events table after event processing.
-
-// We can collect all events into a big vector of events.
-// Sort the vector by market_id first, then the bump_nonce. Note we don't need to even check the StateTrigger type because haveint the same market_id and bump_nonce means
-// there will definitively *only* be one StateTrigger type.
-// We can actually panic if we somehow don't fill the bump event by the end of the transaction event iteration.
-//   It should literally never happen unless the processor was written incorrectly.
-// So:
-//    1. Create a vector of all events
-//    2. Sort the vector by market_id, then bump_nonce
-//    3. Iterate over the sorted vector. You MUST be able to place EVERY single event into a BumpGroup.
-//    4. Use the BumpGroup to insert each event into its corresponding table:
-//       - state_events
-//       - periodic_state_events
-//       - global_state_events
-// Try to keep in mind that we will eventually query for the rolling 24-hour volume as well.
-//   - This will be a query right before the insert. We will find the earliest row in `state_events` with a `last_swap` event time that was at least 24 hours ago.
-//   - Then we use that to subtract the current total/cumulative volume from the total/cumulative volume at that time, which will give us the 24-hour volume.
+impl From<BumpEvent> for EventWithMarket {
+    fn from(event: BumpEvent) -> Self {
+        match event {
+            BumpEvent::MarketRegistration(event) => EventWithMarket::MarketRegistration(event),
+            BumpEvent::Swap(event) => EventWithMarket::Swap(event),
+            BumpEvent::Chat(event) => EventWithMarket::Chat(event),
+            BumpEvent::Liquidity(event) => EventWithMarket::Liquidity(event),
+        }
+    }
+}

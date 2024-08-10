@@ -981,10 +981,10 @@ diesel::table! {
         trigger -> StateTrigger,
         last_swap_is_sell -> Bool,
         last_swap_avg_execution_price_q64 -> Numeric,
-        last_swap_base_volume -> Numeric,
-        last_swap_quote_volume -> Numeric,
+        last_swap_base_volume -> Int8,
+        last_swap_quote_volume -> Int8,
         last_swap_nonce -> Int8,
-        last_swap_emit_time -> Timestamp,
+        last_swap_time -> Timestamp,
         resolution -> PeriodicStateResolution,
         start_time -> Timestamp,
         open_price_q64 -> Numeric,
@@ -1062,7 +1062,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::StateTrigger;
 
-    state_events (market_id, market_nonce) {
+    state_bumps (market_id, market_nonce) {
         transaction_version -> Int8,
         #[max_length = 66]
         sender -> Varchar,
@@ -1095,7 +1095,7 @@ diesel::table! {
         last_swap_base_volume -> Numeric,
         last_swap_quote_volume -> Numeric,
         last_swap_nonce -> Int8,
-        last_swap_emit_time -> Timestamp,
+        last_swap_time -> Timestamp,
         #[max_length = 66]
         integrator -> Nullable<Varchar>,
         integrator_fee -> Nullable<Int8>,
@@ -1477,7 +1477,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     proposal_votes,
     signatures,
     spam_assets,
-    state_events,
+    state_bumps,
     table_items,
     table_metadatas,
     token_activities,

@@ -80,10 +80,10 @@ CREATE TABLE IF NOT EXISTS periodic_state_events (
   -- Last swap data. The last swap can also be the event that triggered the periodic state event.
   last_swap_is_sell BOOLEAN NOT NULL,
   last_swap_avg_execution_price_q64 NUMERIC NOT NULL,
-  last_swap_base_volume NUMERIC NOT NULL,
-  last_swap_quote_volume NUMERIC NOT NULL,
+  last_swap_base_volume BIGINT NOT NULL,
+  last_swap_quote_volume BIGINT NOT NULL,
   last_swap_nonce BIGINT NOT NULL,
-  last_swap_emit_time TIMESTAMP NOT NULL,
+  last_swap_time TIMESTAMP NOT NULL,
 
   -- Periodic state metadata.
   resolution periodic_state_resolution NOT NULL,
@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS periodic_state_events (
   PRIMARY KEY (market_id, resolution, market_nonce)
 );
 
-CREATE TABLE IF NOT EXISTS state_events (
+CREATE TABLE IF NOT EXISTS state_bumps (
   -- Transaction metadata.
   transaction_version BIGINT NOT NULL,
   sender VARCHAR(66) NOT NULL, -- See note 2.
@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS state_events (
   last_swap_base_volume NUMERIC NOT NULL,
   last_swap_quote_volume NUMERIC NOT NULL,
   last_swap_nonce BIGINT NOT NULL,
-  last_swap_emit_time TIMESTAMP NOT NULL,
+  last_swap_time TIMESTAMP NOT NULL,
 
   -------- Duplicated data --------
   -- Market registration & Swap data.
@@ -184,6 +184,6 @@ CREATE TABLE IF NOT EXISTS state_events (
   PRIMARY KEY (market_id, market_nonce)
 );
 
-CREATE INDEX IF NOT EXISTS st_evts_mkt_bytes_index ON state_events (market_id, symbol_bytes);
-CREATE INDEX IF NOT EXISTS st_evts_trgr_mkt_btime_index ON state_events (trigger, market_id, bump_time DESC);
+CREATE INDEX IF NOT EXISTS st_bmps_mkt_bytes_index ON state_bumps (market_id, symbol_bytes);
+CREATE INDEX IF NOT EXISTS st_bmps_trgr_mkt_btime_index ON state_bumps (trigger, market_id, bump_time DESC);
 CREATE INDEX IF NOT EXISTS pe_evts_mkt_res_etime_index ON periodic_state_events (market_id, resolution, emit_time DESC);
