@@ -2,7 +2,6 @@ use super::constants::{
     CHAT_EVENT, GLOBAL_STATE_EVENT, LIQUIDITY_EVENT, MARKET_REGISTRATION_EVENT,
     PERIODIC_STATE_EVENT, STATE_EVENT, SWAP_EVENT,
 };
-use crate::utils::util::standardize_address;
 use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(
@@ -106,8 +105,8 @@ pub enum EmojicoinTypeTag {
 }
 
 impl EmojicoinTypeTag {
-    pub fn from_str(s: &str) -> Option<Self> {
-        match standardize_address(s).as_str() {
+    pub fn from_type_str(type_str: &str) -> Option<Self> {
+        match type_str {
             SWAP_EVENT => Some(Self::Swap),
             CHAT_EVENT => Some(Self::Chat),
             MARKET_REGISTRATION_EVENT => Some(Self::MarketRegistration),

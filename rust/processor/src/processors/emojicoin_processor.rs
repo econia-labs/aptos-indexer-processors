@@ -5,7 +5,7 @@ use super::{DefaultProcessingResult, ProcessorName, ProcessorTrait};
 use crate::{
     db::common::models::emojicoin_models::{
         db_types::{
-            global_state_events_model::GlobalStateEventModel,
+            global_state_events_model::{GlobalStateEventModel, GlobalStateEventModelQuery},
             periodic_state_events_model::PeriodicStateEventModel,
             state_bumps_model::StateBumpModel,
         },
@@ -13,6 +13,7 @@ use crate::{
         json_types::{BumpGroup, EventWithMarket, GlobalStateEvent, TxnInfo},
     },
     gap_detectors::ProcessingResult,
+    schema::global_state_events,
     utils::{
         counters::PROCESSOR_UNKNOWN_TYPE_COUNT,
         database::{execute_in_chunks, get_config_table_chunk_size, ArcDbPool},
@@ -241,6 +242,24 @@ impl ProcessorTrait for EmojicoinProcessor {
                     let type_str = event.type_str.as_str();
                     let data = event.data.as_str();
 
+                    match EventWithMarket::from_event_type(type_str, data, txn_version) {
+                        Ok(Some(event_with_market)) => {
+                            txn_non_global_state_events.push(event_with_market);
+                        },
+                        Ok(None) => {
+                            match GlobalStateEvent::from_event_type(type_str, data, txn_version) {
+                                Ok(Some(global_event)) => {
+                                    global_state_events.push(GlobalStateEventModel::new(
+                                        global_event,
+                                        txn_info.clone(),
+                                    ));
+                                },
+                                _ => (),
+                            }
+                        },
+                        _ => (),
+                    }
+
                     if let Ok(Some(event_with_market)) =
                         EventWithMarket::from_event_type(type_str, data, txn_version)
                     {
@@ -248,6 +267,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                     } else if let Ok(Some(global_event)) =
                         GlobalStateEvent::from_event_type(type_str, data, txn_version)
                     {
+                        println!("Global Event: {:?}", global_event);
                         global_state_events
                             .push(GlobalStateEventModel::new(global_event, txn_info.clone()));
                     }
@@ -309,6 +329,24 @@ impl ProcessorTrait for EmojicoinProcessor {
             &self.per_table_chunk_sizes,
         )
         .await;
+
+        let res = GlobalStateEventModelQuery::get(self.get_pool()).await?;
+        println!("Global State Events: {:?}", res);
+
+        // debug_query(query)
+        // {
+        //     use self::global_state_events::dsl::*;
+        //     use diesel::{ExpressionMethods, QueryDsl};
+        //     use diesel_async::RunQueryDsl;
+
+        //     let (nonce, swaps, chats) = global_state_events
+        //         .select((registry_nonce, cumulative_swaps, cumulative_chat_messages))
+        //         .first::<(i64, i64, i64)>(&mut self.get_pool().clone())
+        //         .order_by(registry_nonce.desc())
+        //         .await;
+        //     // let query_str = debug_query::<Pg, _>(&query).to_string();
+        //     println!("Nonce, swaps, chats: {:?}, {:?}, {:?}", nonce, swaps, chats);
+        // }
 
         let db_insertion_duration_in_secs = db_insertion_start.elapsed().as_secs_f64();
         match tx_result {

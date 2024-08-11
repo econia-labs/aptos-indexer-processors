@@ -39,6 +39,7 @@ pub struct GlobalStateEventModelQuery {
     pub transaction_version: i64,
     pub sender: String,
     pub entry_function: Option<String>,
+    pub inserted_at: chrono::NaiveDateTime,
     pub emit_time: chrono::NaiveDateTime,
     pub registry_nonce: i64,
     pub trigger: StateTrigger,
@@ -50,9 +51,6 @@ pub struct GlobalStateEventModelQuery {
     pub cumulative_integrator_fees: BigDecimal,
     pub cumulative_swaps: i64,
     pub cumulative_chat_messages: i64,
-
-    // Database metadata.
-    pub inserted_at: chrono::NaiveDateTime,
 }
 
 // Converting from our strongly typed, previously JSON data to the database model.

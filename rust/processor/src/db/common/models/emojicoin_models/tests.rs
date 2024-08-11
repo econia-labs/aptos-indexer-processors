@@ -10,7 +10,8 @@
 #[cfg(test)]
 mod tests {
     use crate::db::common::models::emojicoin_models::{
-        enums::StateTrigger, json_types::EventWithMarket,
+        enums::StateTrigger,
+        json_types::{EventWithMarket, GlobalStateEvent},
     };
 
     #[test]
@@ -241,7 +242,6 @@ mod tests {
                 e.market_metadata.emoji_bytes,
                 [240, 159, 152, 141, 240, 159, 152, 156]
             );
-            println!("{:?}", e.market_metadata.emoji_bytes);
             assert_eq!(
                 e.market_metadata.market_address,
                 "0xd3cbef2c5d489228ae5304f39d94bd794847b5c0e9d7968ab0391999926d3679"
@@ -254,6 +254,76 @@ mod tests {
             assert_eq!(e.time, 1723253654764692);
         } else {
             panic!("Failed to parse periodic state event");
+        }
+    }
+
+    #[test]
+    fn test_global_state_json() {
+        let global_state_json = r#"
+          {
+            "cumulative_chat_messages": {
+              "value": "16891"
+            },
+            "cumulative_integrator_fees": {
+              "value": "249444000000"
+            },
+            "cumulative_quote_volume": {
+              "value": "200576291031"
+            },
+            "cumulative_swaps": {
+              "value": "14209"
+            },
+            "emit_time": "1723350357240102",
+            "fully_diluted_value": {
+              "value": "912838434139348"
+            },
+            "market_cap": {
+              "value": "213923864245"
+            },
+            "registry_nonce": {
+              "value": "33586"
+            },
+            "total_quote_locked": {
+              "value": "165704422193"
+            },
+            "total_value_locked": {
+              "value": "5075928984264"
+            },
+            "trigger": 1
+          }
+        "#;
+        match serde_json::from_str::<GlobalStateEvent>(global_state_json) {
+            Ok(global_state_event) => {
+                assert_eq!(global_state_event.cumulative_chat_messages, 16891);
+                assert_eq!(
+                    global_state_event.cumulative_integrator_fees,
+                    (249444000000 as i64).into()
+                );
+                assert_eq!(
+                    global_state_event.cumulative_quote_volume,
+                    (200576291031 as i64).into()
+                );
+                assert_eq!(global_state_event.cumulative_swaps, 14209);
+                assert_eq!(global_state_event.emit_time, 1723350357240102);
+                assert_eq!(
+                    global_state_event.fully_diluted_value,
+                    (912838434139348 as i64).into()
+                );
+                assert_eq!(global_state_event.market_cap, (213923864245 as i64).into());
+                assert_eq!(global_state_event.registry_nonce, 33586);
+                assert_eq!(
+                    global_state_event.total_quote_locked,
+                    (165704422193 as i64).into()
+                );
+                assert_eq!(
+                    global_state_event.total_value_locked,
+                    (5075928984264 as i64).into()
+                );
+                assert_eq!(global_state_event.trigger, StateTrigger::MarketRegistration);
+            },
+            Err(e) => {
+                panic!("Failed to parse global state event: {:?}", e);
+            },
         }
     }
 }

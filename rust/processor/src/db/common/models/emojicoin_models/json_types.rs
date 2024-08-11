@@ -6,7 +6,9 @@ use crate::{
     db::common::models::emojicoin_models::enums::{
         deserialize_periodic_state_resolution, deserialize_state_trigger,
     },
-    utils::util::{deserialize_from_string, hex_to_raw_bytes, standardize_address},
+    utils::util::{
+        deserialize_from_string, hex_to_raw_bytes, standardize_address, AggregatorSnapshot,
+    },
 };
 
 use super::enums::{EmojicoinTypeTag, PeriodicStateResolution, StateTrigger};
@@ -30,6 +32,32 @@ where
 {
     let s = <String>::deserialize(deserializer)?;
     Ok(standardize_address(&s))
+}
+
+pub fn deserialize_aggregator_snapshot_u128<'de, D>(
+    deserializer: D,
+) -> core::result::Result<BigDecimal, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let aggregator_snapshot = <AggregatorSnapshot>::deserialize(deserializer)?;
+    Ok(aggregator_snapshot.value)
+}
+
+pub fn deserialize_aggregator_snapshot_u64<'de, D>(
+    deserializer: D,
+) -> core::result::Result<i64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let aggregator_snapshot = <AggregatorSnapshotI64>::deserialize(deserializer)?;
+    Ok(aggregator_snapshot.value)
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AggregatorSnapshotI64 {
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub value: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -231,25 +259,25 @@ pub struct StateEvent {
 pub struct GlobalStateEvent {
     #[serde(deserialize_with = "deserialize_from_string")]
     pub emit_time: i64,
-    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(deserialize_with = "deserialize_aggregator_snapshot_u64")]
     pub registry_nonce: i64,
     #[serde(deserialize_with = "deserialize_state_trigger")]
     pub trigger: StateTrigger,
-    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]
     pub cumulative_quote_volume: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]
     pub total_quote_locked: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]
     pub total_value_locked: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]
     pub market_cap: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]
     pub fully_diluted_value: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]
     pub cumulative_integrator_fees: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(deserialize_with = "deserialize_aggregator_snapshot_u64")]
     pub cumulative_swaps: i64,
-    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(deserialize_with = "deserialize_aggregator_snapshot_u64")]
     pub cumulative_chat_messages: i64,
 }
 
@@ -304,7 +332,7 @@ impl EventWithMarket {
         data: &str,
         txn_version: i64,
     ) -> Result<Option<EventWithMarket>> {
-        match EmojicoinTypeTag::from_str(event_type) {
+        match EmojicoinTypeTag::from_type_str(event_type) {
             Some(EmojicoinTypeTag::PeriodicState) => {
                 serde_json::from_str(data).map(|v| Some(EventWithMarket::PeriodicState(v)))
             },
@@ -338,7 +366,7 @@ impl GlobalStateEvent {
         data: &str,
         txn_version: i64,
     ) -> Result<Option<GlobalStateEvent>> {
-        match EmojicoinTypeTag::from_str(event_type) {
+        match EmojicoinTypeTag::from_type_str(event_type) {
             Some(EmojicoinTypeTag::GlobalState) => {
                 serde_json::from_str::<GlobalStateEvent>(data).map(Some)
             },

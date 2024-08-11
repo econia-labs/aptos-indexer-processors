@@ -98,6 +98,7 @@ pub struct StateBumpModelQuery {
     pub transaction_version: i64,
     pub sender: String,
     pub entry_function: Option<String>,
+    pub inserted_at: chrono::NaiveDateTime,
 
     // Market metadata.
     pub market_id: i64,
@@ -163,9 +164,6 @@ pub struct StateBumpModelQuery {
     pub user_emojicoin_balance: Option<i64>,
     pub circulating_supply: Option<i64>,
     pub balance_as_fraction_of_circulating_supply_q64: Option<BigDecimal>,
-
-    // Database metadata.
-    pub inserted_at: chrono::NaiveDateTime,
 }
 
 // Converting from our strongly typed, previously JSON data to the database model.

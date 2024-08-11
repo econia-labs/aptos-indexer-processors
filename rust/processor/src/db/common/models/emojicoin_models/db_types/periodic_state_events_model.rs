@@ -66,6 +66,7 @@ pub struct PeriodicStateEventModelQuery {
     pub transaction_version: i64,
     pub sender: String,
     pub entry_function: Option<String>,
+    pub inserted_at: chrono::NaiveDateTime,
 
     // Market metadata.
     pub market_id: i64,
@@ -103,9 +104,6 @@ pub struct PeriodicStateEventModelQuery {
     pub starts_in_bonding_curve: bool,
     pub ends_in_bonding_curve: bool,
     pub tvl_per_lp_coin_growth_q64: BigDecimal,
-
-    // Database metadata.
-    pub inserted_at: chrono::NaiveDateTime,
 }
 
 // Converting from our strongly typed, previously JSON data to the database model.
