@@ -80,15 +80,19 @@ pub struct BumpGroupBuilder {
     pub txn_info: TxnInfo,
 }
 impl BumpGroupBuilder {
-    pub fn new(market_id: i64, market_nonce: i64, txn_info: TxnInfo) -> Self {
-        Self {
-            market_id,
-            market_nonce,
+    pub fn new(event: EventWithMarket, txn_info: TxnInfo) -> Self {
+        let mut builder = Self {
+            market_id: event.get_market_id(),
+            market_nonce: event.get_market_nonce(),
             bump_event: None,
             state_event: None,
             periodic_state_events: vec![],
             txn_info,
-        }
+        };
+
+        builder.add_event(event);
+
+        builder
     }
 
     pub fn add_event(&mut self, event: EventWithMarket) {
@@ -139,12 +143,24 @@ impl BumpGroupBuilder {
 }
 
 impl BumpGroup {
-    pub fn to_db_rows(&self) -> (StateBumpModel, Vec<PeriodicStateEventModel>) {
-        // Market registration & Swap data.
-        // let integrator = self.state_event.state_metadata.integrator.clone();
+    pub fn to_db_models(self) -> (StateBumpModel, Vec<PeriodicStateEventModel>) {
+        let BumpGroup {
+            bump_event,
+            state_event,
+            periodic_state_events,
+            txn_info,
+            ..
+        } = self;
 
-        let bump_event = self.bump_event.to_db_row();
-        let state_event = self.state_event.to_db_row();
-        (bump_event, state_event)
+        let periodic_events_model = PeriodicStateEventModel::from_periodic_events(
+            txn_info.clone(),
+            periodic_state_events,
+            state_event.last_swap.clone(),
+        );
+
+        let state_bump_model =
+            StateBumpModel::from_bump_and_state_event(txn_info, bump_event, state_event);
+
+        (state_bump_model, periodic_events_model)
     }
 }

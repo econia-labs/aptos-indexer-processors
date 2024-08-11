@@ -277,12 +277,6 @@ pub struct LiquidityEvent {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum EmojicoinEvent {
-    EventWithMarket(EventWithMarket),
-    GlobalState(GlobalStateEvent),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum EventWithMarket {
     PeriodicState(PeriodicStateEvent),
     State(StateEvent),
@@ -290,12 +284,6 @@ pub enum EventWithMarket {
     Chat(ChatEvent),
     Liquidity(LiquidityEvent),
     MarketRegistration(MarketRegistrationEvent),
-}
-
-impl From<EventWithMarket> for EmojicoinEvent {
-    fn from(event: EventWithMarket) -> Self {
-        EmojicoinEvent::EventWithMarket(event)
-    }
 }
 
 impl From<PeriodicStateEvent> for EventWithMarket {
@@ -344,18 +332,17 @@ impl EventWithMarket {
     }
 }
 
-impl EmojicoinEvent {
+impl GlobalStateEvent {
     pub fn from_event_type(
         event_type: &str,
         data: &str,
         txn_version: i64,
-    ) -> Result<Option<EmojicoinEvent>> {
+    ) -> Result<Option<GlobalStateEvent>> {
         match EmojicoinTypeTag::from_str(event_type) {
-            Some(EmojicoinTypeTag::GlobalState) => serde_json::from_str(data)
-                .map(|v| Some(EmojicoinEvent::GlobalState(v)))
-                .map_err(anyhow::Error::from),
-            _ => EventWithMarket::from_event_type(event_type, data, txn_version)
-                .map(|v| v.map(EmojicoinEvent::EventWithMarket)),
+            Some(EmojicoinTypeTag::GlobalState) => {
+                serde_json::from_str::<GlobalStateEvent>(data).map(Some)
+            },
+            _ => Ok(None),
         }
         .context(format!(
             "version {} failed! Failed to parse type {}, with data: {:?}",

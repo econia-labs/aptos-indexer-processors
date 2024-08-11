@@ -1,8 +1,7 @@
 use std::borrow::Borrow;
 
 use super::super::enums::StateTrigger;
-use super::super::json_types::BumpGroup;
-use crate::db::common::models::emojicoin_models::json_types::{BumpEvent, StateEvent};
+use crate::db::common::models::emojicoin_models::json_types::{BumpEvent, StateEvent, TxnInfo};
 use crate::db::common::models::emojicoin_models::utils::micros_to_naive_datetime;
 use crate::schema::state_bumps;
 use bigdecimal::BigDecimal;
@@ -171,8 +170,11 @@ pub struct StateBumpModelQuery {
 
 // Converting from our strongly typed, previously JSON data to the database model.
 impl StateBumpModel {
-    pub fn from_bump_group(bump_group: BumpGroup) -> StateBumpModel {
-        let txn_info = bump_group.txn_info;
+    pub fn from_bump_and_state_event(
+        txn_info: TxnInfo,
+        bump_event: BumpEvent,
+        state_event: StateEvent,
+    ) -> StateBumpModel {
         let StateEvent {
             state_metadata,
             market_metadata,
@@ -183,9 +185,9 @@ impl StateBumpModel {
             instantaneous_stats: i_stats,
             last_swap,
             ..
-        } = bump_group.state_event;
+        } = state_event;
 
-        let (integrator, integrator_fee) = match bump_group.bump_event.borrow() {
+        let (integrator, integrator_fee) = match bump_event.borrow() {
             BumpEvent::Swap(e) => (Some(e.integrator.clone()), Some(e.integrator_fee)),
             BumpEvent::MarketRegistration(e) => {
                 (Some(e.integrator.clone()), Some(e.integrator_fee))
@@ -204,7 +206,7 @@ impl StateBumpModel {
             pool_fee,
             starts_in_bonding_curve,
             results_in_state_transition,
-        ) = match bump_group.bump_event.borrow() {
+        ) = match bump_event.borrow() {
             BumpEvent::Swap(e) => (
                 Some(e.input_amount),
                 Some(e.is_sell),
@@ -227,7 +229,7 @@ impl StateBumpModel {
             liquidity_provided,
             pro_rata_base_donation_claim_amount,
             pro_rata_quote_donation_claim_amount,
-        ) = match bump_group.bump_event.borrow() {
+        ) = match bump_event.borrow() {
             BumpEvent::Liquidity(e) => (
                 Some(e.base_amount),
                 Some(e.quote_amount),
@@ -244,7 +246,7 @@ impl StateBumpModel {
             user_emojicoin_balance,
             circulating_supply,
             balance_as_fraction_of_circulating_supply_q64,
-        ) = match bump_group.bump_event.borrow() {
+        ) = match bump_event.borrow() {
             BumpEvent::Chat(e) => (
                 Some(e.message.clone()),
                 Some(e.user_emojicoin_balance),

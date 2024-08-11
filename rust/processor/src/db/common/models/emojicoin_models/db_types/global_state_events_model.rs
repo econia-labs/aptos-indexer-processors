@@ -57,10 +57,7 @@ pub struct GlobalStateEventModelQuery {
 
 // Converting from our strongly typed, previously JSON data to the database model.
 impl GlobalStateEventModel {
-    pub fn from_bump_group(
-        global_state_event: GlobalStateEvent,
-        txn_info: TxnInfo,
-    ) -> GlobalStateEventModel {
+    pub fn new(global_state_event: GlobalStateEvent, txn_info: TxnInfo) -> Self {
         GlobalStateEventModel {
             transaction_version: txn_info.version,
             sender: txn_info.sender,

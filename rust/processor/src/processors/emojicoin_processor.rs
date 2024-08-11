@@ -3,15 +3,16 @@
 
 use super::{DefaultProcessingResult, ProcessorName, ProcessorTrait};
 use crate::{
-    db::common::models::{
-        emojicoin_models::{
-            event_utils::BumpGroupBuilder,
-            json_types::{EmojicoinEvent, EventWithMarket, TxnInfo},
+    db::common::models::emojicoin_models::{
+        db_types::{
+            global_state_events_model::GlobalStateEventModel,
+            periodic_state_events_model::PeriodicStateEventModel,
+            state_bumps_model::StateBumpModel,
         },
-        events_models::events::EventModel,
+        event_utils::BumpGroupBuilder,
+        json_types::{BumpGroup, EventWithMarket, GlobalStateEvent, TxnInfo},
     },
     gap_detectors::ProcessingResult,
-    schema,
     utils::{
         counters::PROCESSOR_UNKNOWN_TYPE_COUNT,
         database::{execute_in_chunks, get_config_table_chunk_size, ArcDbPool},
@@ -22,11 +23,7 @@ use ahash::AHashMap;
 use anyhow::bail;
 use aptos_protos::transaction::v1::{transaction::TxnData, Transaction};
 use async_trait::async_trait;
-use diesel::{
-    pg::{upsert::excluded, Pg},
-    query_builder::QueryFragment,
-    ExpressionMethods,
-};
+use diesel::{pg::Pg, query_builder::QueryFragment};
 use std::fmt::Debug;
 use tracing::error;
 
@@ -60,7 +57,9 @@ async fn insert_to_db(
     name: &'static str,
     start_version: u64,
     end_version: u64,
-    events: &[EventModel],
+    global_state_events: &[GlobalStateEventModel],
+    periodic_state_events: &[PeriodicStateEventModel],
+    state_bumps: &[StateBumpModel],
     per_table_chunk_sizes: &AHashMap<String, usize>,
 ) -> Result<(), diesel::result::Error> {
     tracing::trace!(
@@ -69,35 +68,91 @@ async fn insert_to_db(
         end_version = end_version,
         "Inserting to db",
     );
-    execute_in_chunks(
-        conn,
-        insert_events_query,
-        events,
-        get_config_table_chunk_size::<EventModel>("events", per_table_chunk_sizes),
-    )
-    .await?;
+    let bump = execute_in_chunks(
+        conn.clone(),
+        insert_state_bumps_query,
+        state_bumps,
+        get_config_table_chunk_size::<StateBumpModel>("state_bumps", per_table_chunk_sizes),
+    );
+    let periodic = execute_in_chunks(
+        conn.clone(),
+        insert_periodic_state_events_query,
+        periodic_state_events,
+        get_config_table_chunk_size::<PeriodicStateEventModel>(
+            "periodic_state_events",
+            per_table_chunk_sizes,
+        ),
+    );
+    let global = execute_in_chunks(
+        conn.clone(),
+        insert_global_events,
+        global_state_events,
+        get_config_table_chunk_size::<GlobalStateEventModel>(
+            "global_state_events",
+            per_table_chunk_sizes,
+        ),
+    );
+
+    let (b, p, g) = tokio::join!(bump, periodic, global);
+    for res in [b, p, g] {
+        res?;
+    }
+
     Ok(())
 }
 
-fn insert_events_query(
-    items_to_insert: Vec<EventModel>,
+fn insert_state_bumps_query(
+    items_to_insert: Vec<StateBumpModel>,
 ) -> (
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::events::dsl::*;
+    use crate::schema::state_bumps;
     (
-        diesel::insert_into(schema::events::table)
+        diesel::insert_into(state_bumps::table)
             .values(items_to_insert)
-            .on_conflict((transaction_version, event_index))
-            .do_update()
-            .set((
-                inserted_at.eq(excluded(inserted_at)),
-                indexed_type.eq(excluded(indexed_type)),
-            )),
+            .on_conflict((state_bumps::market_id, state_bumps::market_nonce))
+            .do_nothing(),
         None,
     )
 }
+
+fn insert_periodic_state_events_query(
+    items_to_insert: Vec<PeriodicStateEventModel>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use crate::schema::periodic_state_events;
+    (
+        diesel::insert_into(periodic_state_events::table)
+            .values(items_to_insert)
+            .on_conflict((
+                periodic_state_events::market_id,
+                periodic_state_events::resolution,
+                periodic_state_events::market_nonce,
+            ))
+            .do_nothing(),
+        None,
+    )
+}
+
+fn insert_global_events(
+    items_to_insert: Vec<GlobalStateEventModel>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use crate::schema::global_state_events;
+    (
+        diesel::insert_into(global_state_events::table)
+            .values(items_to_insert)
+            .on_conflict(global_state_events::registry_nonce)
+            .do_nothing(),
+        None,
+    )
+}
+
 // For grouping all events in a single transaction into the various types:
 // Each state event has a unique bump nonce, we can use that to group non-state events with state events.
 // The following groupings are possible:
@@ -149,8 +204,9 @@ impl ProcessorTrait for EmojicoinProcessor {
         let processing_start = std::time::Instant::now();
         let last_transaction_timestamp = transactions.last().unwrap().timestamp.clone();
 
-        // let mut events = vec![];
-        let events = vec![];
+        let mut state_bumps = vec![];
+        let mut periodic_state_events = vec![];
+        let mut global_state_events = vec![];
         for txn in &transactions {
             let txn_version = txn.version as i64;
             let txn_data = match txn.txn_data.as_ref() {
@@ -167,8 +223,6 @@ impl ProcessorTrait for EmojicoinProcessor {
                 },
             };
 
-            let mut non_global_events = vec![];
-            let mut global_state_events = vec![];
             if let TxnData::User(user_txn) = txn_data {
                 let user_request = user_txn
                     .request
@@ -181,6 +235,8 @@ impl ProcessorTrait for EmojicoinProcessor {
                     entry_function,
                 };
 
+                // Push global events directly to the vector we use for insertion.
+                let mut txn_non_global_state_events = vec![];
                 for event in user_txn.events.iter() {
                     let type_str = event.type_str.as_str();
                     let data = event.data.as_str();
@@ -188,57 +244,53 @@ impl ProcessorTrait for EmojicoinProcessor {
                     if let Ok(Some(event_with_market)) =
                         EventWithMarket::from_event_type(type_str, data, txn_version)
                     {
-                        non_global_events.push(event_with_market);
+                        txn_non_global_state_events.push(event_with_market);
                     } else if let Ok(Some(global_event)) =
-                        EmojicoinEvent::from_event_type(type_str, data, txn_version)
+                        GlobalStateEvent::from_event_type(type_str, data, txn_version)
                     {
-                        debug_assert!(matches!(global_event, EmojicoinEvent::GlobalState(_)));
-                        global_state_events.push(global_event);
+                        global_state_events
+                            .push(GlobalStateEventModel::new(global_event, txn_info.clone()));
                     }
                 }
 
-                // Sort and group all events that have the same market ID together.
-                // Note that we implemented the Ord trait for EventWithMarket with a specific order.
-                non_global_events.sort();
+                // Sort and group all events according to EventWithMarket's custom `Ord` implementation.
+                txn_non_global_state_events.sort();
 
-                let mut bump_groups = vec![];
-                // Build the bump group as long as the market ID and nonce are the same as the current group.
-                // Once we encounter a new market ID or nonce, we build the current group and start a new one.
+                // Initialize a bump group if there are any non-global state events in this transaction.
+                // Continue to add to the current bump group as long as the market ID and nonce of each incoming event continue to match.
+                // Once we encounter a new market ID or nonce, we call `build` on the current group and instantiate a new one with the
+                // new market ID and nonce.
                 // If the data is sorted incorrectly, the builder function will panic.
-                let first = non_global_events.first().cloned();
-
+                let mut bump_groups = vec![];
+                let first = txn_non_global_state_events.first().cloned();
                 if let Some(first) = first {
-                    let market_id = (EventWithMarket::from(first.clone())).get_market_id();
-                    let nonce = (EventWithMarket::from(first.clone())).get_market_nonce();
-                    let mut group = BumpGroupBuilder::new(market_id, nonce, txn_info.clone());
-                    let mut building: bool = false;
+                    let mut group = BumpGroupBuilder::new(first, txn_info.clone());
 
-                    group.add_event(first);
-
-                    for evt in non_global_events.drain(1..) {
-                        if evt.get_market_id() == market_id && evt.get_market_nonce() == nonce {
+                    for evt in txn_non_global_state_events.drain(1..) {
+                        if evt.get_market_id() == group.market_id
+                            && evt.get_market_nonce() == group.market_nonce
+                        {
                             group.add_event(evt);
-                            building = true;
                         } else {
                             bump_groups.push(group.build());
-                            group = BumpGroupBuilder::new(
-                                evt.get_market_id(),
-                                evt.get_market_nonce(),
-                                txn_info.clone(),
-                            );
-                            group.add_event(evt);
-                            building = false;
+                            group = BumpGroupBuilder::new(evt, txn_info.clone());
                         }
                     }
 
-                    // We need to push the last group if it was not pushed in the loop- this can happen
-                    // if all events are for the same market and the get to the end of the non global events.
-                    if building {
-                        bump_groups.push(group.build());
-                    }
+                    // By virtue of being in this loop control scope, we know that there is at least one
+                    // bump group to build. Because we only call `build` when a market ID or nonce changes,
+                    // the last group will be fully formed but not built yet, so we call `build` here.
+                    bump_groups.push(group.build());
                 }
-            }
 
+                for group in bump_groups {
+                    let (bump, periodics) = BumpGroup::to_db_models(group);
+                    state_bumps.push(bump);
+                    periodic_state_events.extend(periodics);
+                }
+
+                // Insert the global state events into the global_state_events table.
+            }
             // REMEMBER! You can avoid querying when the last swap nonce is 0 or last swap time is > 24 h ago.
             // Because the 24h rolling volume is just the current state metadata's cumulative volume in both cases.
         }
@@ -251,7 +303,9 @@ impl ProcessorTrait for EmojicoinProcessor {
             self.name(),
             start_version,
             end_version,
-            &events,
+            &global_state_events,
+            &periodic_state_events,
+            &state_bumps,
             &self.per_table_chunk_sizes,
         )
         .await;
