@@ -12,13 +12,13 @@
 
 DO $$ BEGIN
   CREATE TYPE state_trigger AS ENUM (
-    'PACKAGE_PUBLICATION', -- Emitted a single time alongside a Global State event.
-    'MARKET_REGISTRATION',
-    'SWAP_BUY',
-    'SWAP_SELL',
-    'PROVIDE_LIQUIDITY',
-    'REMOVE_LIQUIDITY',
-    'CHAT'
+    'package_publication', -- Emitted a single time alongside a Global State event.
+    'market_registration',
+    'swap_buy',
+    'swap_sell',
+    'provide_liquidity',
+    'remove_liquidity',
+    'chat'
   );
 EXCEPTION
   WHEN duplicate_object THEN NULL;
