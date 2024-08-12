@@ -1,11 +1,9 @@
-use super::super::enums::Trigger;
-use crate::{
-    db::common::models::emojicoin_models::{
-        json_types::{GlobalStateEvent, TxnInfo},
-        utils::micros_to_naive_datetime,
-    },
-    schema::global_state_events,
+use crate::db::common::models::emojicoin_models::{
+    enums,
+    json_types::{GlobalStateEvent, TxnInfo},
+    utils::micros_to_naive_datetime,
 };
+use crate::schema::global_state_events;
 use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
@@ -20,7 +18,7 @@ pub struct GlobalStateEventModel {
     pub transaction_timestamp: chrono::NaiveDateTime,
     pub emit_time: chrono::NaiveDateTime,
     pub registry_nonce: i64,
-    pub trigger: Trigger,
+    pub trigger: enums::Triggers,
     pub cumulative_quote_volume: BigDecimal,
     pub total_quote_locked: BigDecimal,
     pub total_value_locked: BigDecimal,
@@ -44,7 +42,7 @@ pub struct GlobalStateEventModelQuery {
     pub inserted_at: chrono::NaiveDateTime,
     pub emit_time: chrono::NaiveDateTime,
     pub registry_nonce: i64,
-    pub trigger: Trigger,
+    pub trigger: enums::Triggers,
     pub cumulative_quote_volume: BigDecimal,
     pub total_quote_locked: BigDecimal,
     pub total_value_locked: BigDecimal,

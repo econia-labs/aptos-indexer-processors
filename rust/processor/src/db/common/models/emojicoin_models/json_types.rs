@@ -11,7 +11,7 @@ use crate::{
     },
 };
 
-use super::enums::{EmojicoinTypeTag, PeriodType, Trigger};
+use super::enums::{EmojicoinTypeTag, Periods, Triggers};
 
 pub fn deserialize_bytes_from_hex_string<'de, D>(
     deserializer: D,
@@ -83,13 +83,13 @@ pub struct PeriodicStateMetadata {
     #[serde(deserialize_with = "deserialize_from_string")]
     pub start_time: i64,
     #[serde(deserialize_with = "deserialize_state_period")]
-    pub period: PeriodType,
+    pub period: Periods,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub emit_time: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub emit_market_nonce: i64,
     #[serde(deserialize_with = "deserialize_state_trigger")]
-    pub trigger: Trigger,
+    pub trigger: Triggers,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -99,7 +99,7 @@ pub struct StateMetadata {
     #[serde(deserialize_with = "deserialize_from_string")]
     pub bump_time: i64,
     #[serde(deserialize_with = "deserialize_state_trigger")]
-    pub trigger: Trigger,
+    pub trigger: Triggers,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -262,7 +262,7 @@ pub struct GlobalStateEvent {
     #[serde(deserialize_with = "deserialize_aggregator_snapshot_u64")]
     pub registry_nonce: i64,
     #[serde(deserialize_with = "deserialize_state_trigger")]
-    pub trigger: Trigger,
+    pub trigger: Triggers,
     #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]
     pub cumulative_quote_volume: BigDecimal,
     #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]

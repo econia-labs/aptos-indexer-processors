@@ -1,17 +1,22 @@
 -- This file should undo anything in `up.sql`
-DROP VIEW IF EXISTS periodic_events_1d;
-DROP VIEW IF EXISTS periodic_events_4h;
-DROP VIEW IF EXISTS periodic_events_1h;
-DROP VIEW IF EXISTS periodic_events_30m;
-DROP VIEW IF EXISTS periodic_events_15m;
-DROP VIEW IF EXISTS periodic_events_5m;
-DROP VIEW IF EXISTS periodic_events_1m;
-DROP INDEX IF EXISTS bump_time_idx;
-DROP INDEX IF EXISTS prdc_evts_mkt_strt_idx;
-DROP INDEX IF EXISTS bump_evts_trgr_mkt_btime_idx;
-DROP INDEX IF EXISTS bump_evts_mkt_bytes_idx;
-DROP TABLE IF EXISTS bump_events;
-DROP TABLE IF EXISTS periodic_state_events;
-DROP TABLE IF EXISTS global_state_events;
-DROP TYPE IF EXISTS period_type;
-DROP TYPE IF EXISTS trigger_type;
+DROP VIEW chat_events;
+DROP VIEW swap_events;
+DROP VIEW market_registration_events;
+
+DROP INDEX user_lp_idx;
+DROP INDEX all_time_volume_idx;
+DROP INDEX mkt_cap_idx;
+DROP INDEX latest_bump_idx;
+DROP INDEX mkts_with_pool_idx;
+DROP INDEX prdc_evts_by_res_idx;
+DROP INDEX chats_by_mkt_and_time_idx;
+DROP INDEX swaps_by_mkt_and_time_idx;
+DROP INDEX mkts_by_time_idx;
+
+DROP TABLE bump_events;
+DROP TABLE periodic_state_events;
+DROP TABLE global_state_events;
+
+DROP TYPE periods;
+DROP TYPE triggers;
+DROP TYPE event_names;

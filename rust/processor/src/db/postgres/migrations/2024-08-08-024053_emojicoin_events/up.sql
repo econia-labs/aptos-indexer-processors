@@ -6,7 +6,14 @@
 --
 -------------------------------------------------------------------------------
 
-CREATE TYPE trigger_type AS ENUM (
+CREATE TYPE event_names AS ENUM (
+  'market_registration',
+  'swap',
+  'chat',
+  'liquidity'
+);
+
+CREATE TYPE triggers AS ENUM (
   'package_publication', -- Emitted a single time alongside a Global State event.
   'market_registration',
   'swap_buy',
@@ -16,7 +23,7 @@ CREATE TYPE trigger_type AS ENUM (
   'chat'
 );
 
-CREATE TYPE period_type AS ENUM (
+CREATE TYPE periods AS ENUM (
   'period_1m',  --     60_000_000 == 1 minute.
   'period_5m',  --    300_000_000 == 5 minutes.
   'period_15m', --    900_000_000 == 15 minutes.
@@ -32,7 +39,7 @@ CREATE TYPE period_type AS ENUM (
 --
 -------------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS global_state_events (
+CREATE TABLE global_state_events (
   -- Transaction metadata.
   transaction_version BIGINT NOT NULL,
   sender VARCHAR(66) NOT NULL,
@@ -43,7 +50,7 @@ CREATE TABLE IF NOT EXISTS global_state_events (
   -- Global state event data.
   emit_time TIMESTAMP NOT NULL,
   registry_nonce BIGINT NOT NULL,
-  trigger trigger_type NOT NULL,
+  trigger triggers NOT NULL,
   cumulative_quote_volume NUMERIC NOT NULL,
   total_quote_locked NUMERIC NOT NULL,
   total_value_locked NUMERIC NOT NULL,
@@ -56,7 +63,7 @@ CREATE TABLE IF NOT EXISTS global_state_events (
   PRIMARY KEY (registry_nonce)
 );
 
-CREATE TABLE IF NOT EXISTS periodic_state_events (
+CREATE TABLE periodic_state_events (
   -- Transaction metadata.
   transaction_version BIGINT NOT NULL,
   sender VARCHAR(66) NOT NULL,
@@ -71,7 +78,7 @@ CREATE TABLE IF NOT EXISTS periodic_state_events (
   -- State metadata.
   emit_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
-  trigger trigger_type NOT NULL,
+  trigger triggers NOT NULL,
 
   -- Last swap data. The last swap can also be the event that triggered the periodic state event.
   last_swap_is_sell BOOLEAN NOT NULL,
@@ -82,7 +89,7 @@ CREATE TABLE IF NOT EXISTS periodic_state_events (
   last_swap_time TIMESTAMP NOT NULL,
 
   -- Periodic state metadata.
-  period period_type NOT NULL,
+  period periods NOT NULL,
   start_time TIMESTAMP NOT NULL,
 
   -- Periodic state event data.
@@ -103,7 +110,7 @@ CREATE TABLE IF NOT EXISTS periodic_state_events (
   PRIMARY KEY (market_id, period, market_nonce)
 );
 
-CREATE TABLE IF NOT EXISTS bump_events (
+CREATE TABLE bump_events (
   -- Transaction metadata.
   transaction_version BIGINT NOT NULL,
   sender VARCHAR(66) NOT NULL,
@@ -118,7 +125,7 @@ CREATE TABLE IF NOT EXISTS bump_events (
   -- State metadata.
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
-  trigger trigger_type NOT NULL,
+  trigger triggers NOT NULL,
 
   -- State event data.
   clamm_virtual_reserves_base BIGINT NOT NULL,
@@ -147,7 +154,8 @@ CREATE TABLE IF NOT EXISTS bump_events (
   last_swap_time TIMESTAMP NOT NULL,
 
   -------- Data in multiple event types --------
-  -- All bump events have a user, either a `registrant`, a `swapper`, a `provider`, or a `user`.
+  -- All bump events have these in some form.
+  event_name event_names NOT NULL,
   user_address VARCHAR(66) NOT NULL,
 
   -- Market registration & Swap data.
@@ -184,10 +192,50 @@ CREATE TABLE IF NOT EXISTS bump_events (
   PRIMARY KEY (market_id, market_nonce)
 );
 
-CREATE INDEX IF NOT EXISTS bump_evts_mkt_bytes_idx ON bump_events (market_id, symbol_bytes);
-CREATE INDEX IF NOT EXISTS bump_evts_trgr_mkt_btime_idx ON bump_events (market_id, trigger, bump_time DESC);
-CREATE INDEX IF NOT EXISTS prdc_evts_mkt_strt_idx ON periodic_state_events (market_id, period, start_time DESC);
-CREATE INDEX IF NOT EXISTS bump_time_idx ON bump_events (bump_time DESC);
+-------------------------------------------------------------------------------
+--
+--                                  Indexes
+--
+-------------------------------------------------------------------------------
+
+-- Create partial indexes for the common queries. Unique markets, swaps by market and time, and chats by market and time.
+CREATE INDEX mkts_by_time_idx
+ON bump_events (bump_time DESC)
+WHERE event_name = 'market_registration';
+
+CREATE INDEX swaps_by_mkt_and_time_idx
+ON bump_events (market_id, bump_time DESC)
+WHERE event_name = 'swap';
+
+CREATE INDEX chats_by_mkt_and_time_idx
+ON bump_events (market_id, bump_time DESC)
+WHERE event_name = 'chat';
+
+-- Querying the candlestick data for a market by its period resolution.
+CREATE INDEX prdc_evts_by_res_idx
+ON periodic_state_events (market_id, period, start_time DESC);
+
+-- Querying all post-bonding curve markets. i.e., markets with liquidity pools.
+CREATE UNIQUE INDEX mkts_with_pool_idx
+ON bump_events (market_id)
+WHERE results_in_state_transition = TRUE;
+
+-- Sorting by bump order.
+CREATE INDEX latest_bump_idx
+ON bump_events (market_id, market_nonce DESC);
+
+-- Sorting by market cap, descending.
+CREATE INDEX mkt_cap_idx
+ON bump_events (instantaneous_stats_market_cap DESC);
+
+-- Sorting by time volume, descending.
+CREATE INDEX all_time_volume_idx
+ON bump_events (cumulative_quote_volume DESC);
+
+-- Querying a user's liquidity pools.
+CREATE INDEX user_lp_idx
+ON bump_events (user_address)
+WHERE event_name = 'liquidity' AND liquidity_provided = TRUE;
 
 -------------------------------------------------------------------------------
 --
@@ -195,32 +243,19 @@ CREATE INDEX IF NOT EXISTS bump_time_idx ON bump_events (bump_time DESC);
 --
 -------------------------------------------------------------------------------
 
--------------------------------------------------------------------------------
--- Periodic state events views, one for each period.
-CREATE VIEW periodic_events_1m AS
-SELECT * FROM periodic_state_events
-WHERE period = 'period_1m'::period_type;
+-- Split the bump events into views for the event types.
+CREATE VIEW market_registration_events AS
+SELECT * FROM bump_events
+WHERE event_name = 'market_registration'::event_names
+ORDER BY bump_time DESC;
 
-CREATE VIEW periodic_events_5m AS
-SELECT * FROM periodic_state_events
-WHERE period = 'period_5m'::period_type;
+CREATE VIEW swap_events AS
+SELECT * FROM bump_events
+WHERE event_name = 'swap'::event_names
+ORDER BY bump_time DESC;
 
-CREATE VIEW periodic_events_15m AS
-SELECT * FROM periodic_state_events
-WHERE period = 'period_15m'::period_type;
 
-CREATE VIEW periodic_events_30m AS
-SELECT * FROM periodic_state_events
-WHERE period = 'period_30m'::period_type;
-
-CREATE VIEW periodic_events_1h AS
-SELECT * FROM periodic_state_events
-WHERE period = 'period_1h'::period_type;
-
-CREATE VIEW periodic_events_4h AS
-SELECT * FROM periodic_state_events
-WHERE period = 'period_4h'::period_type;
-
-CREATE VIEW periodic_events_1d AS
-SELECT * FROM periodic_state_events
-WHERE period = 'period_1d'::period_type;
+CREATE VIEW chat_events AS
+SELECT * FROM bump_events
+WHERE event_name = 'chat'::event_names
+ORDER BY bump_time DESC;

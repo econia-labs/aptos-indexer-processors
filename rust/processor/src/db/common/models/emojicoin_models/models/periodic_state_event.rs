@@ -1,7 +1,7 @@
-use super::super::enums::{PeriodType, Trigger};
-use super::super::utils::micros_to_naive_datetime;
-use crate::db::common::models::emojicoin_models::json_types::{
-    LastSwap, PeriodicStateEvent, TxnInfo,
+use crate::db::common::models::emojicoin_models::{
+    enums,
+    json_types::{LastSwap, PeriodicStateEvent, TxnInfo},
+    utils::micros_to_naive_datetime,
 };
 use crate::schema::periodic_state_events;
 use bigdecimal::BigDecimal;
@@ -25,7 +25,7 @@ pub struct PeriodicStateEventModel {
     // State metadata.
     pub emit_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
-    pub trigger: Trigger,
+    pub trigger: enums::Triggers,
 
     // Last swap data. The last swap can also be the event that triggered the periodic state event.
     pub last_swap_is_sell: bool,
@@ -36,7 +36,7 @@ pub struct PeriodicStateEventModel {
     pub last_swap_time: chrono::NaiveDateTime,
 
     // Periodic state metadata.
-    pub period: PeriodType,
+    pub period: enums::Periods,
     pub start_time: chrono::NaiveDateTime,
 
     // Periodic state event data.
@@ -77,7 +77,7 @@ pub struct PeriodicStateEventModelQuery {
     // State metadata.
     pub emit_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
-    pub trigger: Trigger,
+    pub trigger: enums::Triggers,
 
     // Flattened `last_swap`. The last swap can also be the event that triggered the periodic state event.
     pub last_swap_is_sell: bool,
@@ -88,7 +88,7 @@ pub struct PeriodicStateEventModelQuery {
     pub last_swap_time: chrono::NaiveDateTime,
 
     // Periodic state metadata.
-    pub period: PeriodType,
+    pub period: enums::Periods,
     pub start_time: chrono::NaiveDateTime,
 
     // Periodic state event data.

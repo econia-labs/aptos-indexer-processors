@@ -1,8 +1,10 @@
 use std::borrow::Borrow;
 
-use super::super::enums::Trigger;
-use crate::db::common::models::emojicoin_models::json_types::{BumpEvent, StateEvent, TxnInfo};
-use crate::db::common::models::emojicoin_models::utils::micros_to_naive_datetime;
+use crate::db::common::models::emojicoin_models::{
+    enums::{self, EventNames},
+    json_types::{BumpEvent, StateEvent, TxnInfo},
+    utils::micros_to_naive_datetime,
+};
 use crate::schema::bump_events;
 use bigdecimal::BigDecimal;
 use field_count::FieldCount;
@@ -25,7 +27,7 @@ pub struct BumpEventModel {
     // State metadata.
     pub bump_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
-    pub trigger: Trigger,
+    pub trigger: enums::Triggers,
 
     // ---------------- State data ----------------
     // Flattened `cpamm_virtual_reserves`.
@@ -59,6 +61,7 @@ pub struct BumpEventModel {
 
     //------ Data in multiple event types --------
     // All bump events have a user, either a `registrant`, a `swapper`, a `provider`, or a `user`.
+    pub event_name: enums::EventNames,
     pub user_address: String,
 
     // Market registration & Swap data.
@@ -113,7 +116,7 @@ pub struct BumpEventModelQuery {
     // State metadata.
     pub bump_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
-    pub trigger: Trigger,
+    pub trigger: enums::Triggers,
 
     // State data.
     pub clamm_virtual_reserves_base: i64,
@@ -143,6 +146,7 @@ pub struct BumpEventModelQuery {
 
     //------ Data in multiple event types --------
     // All bump events have a user, either a `registrant`, a `swapper`, a `provider`, or a `user`.
+    pub event_name: enums::EventNames,
     pub user_address: String,
 
     // Market registration & Swap data.
@@ -264,11 +268,13 @@ impl BumpEventModel {
             _ => (None, None, None, None),
         };
 
-        let user_address = match bump_event.borrow() {
-            BumpEvent::Swap(e) => e.swapper.clone(),
-            BumpEvent::MarketRegistration(e) => e.registrant.clone(),
-            BumpEvent::Liquidity(e) => e.provider.clone(),
-            BumpEvent::Chat(e) => e.user.clone(),
+        let (user_address, event_name) = match bump_event.borrow() {
+            BumpEvent::MarketRegistration(e) => {
+                (e.registrant.clone(), EventNames::MarketRegistration)
+            },
+            BumpEvent::Swap(e) => (e.swapper.clone(), EventNames::Swap),
+            BumpEvent::Chat(e) => (e.user.clone(), EventNames::Chat),
+            BumpEvent::Liquidity(e) => (e.provider.clone(), EventNames::Liquidity),
         };
 
         BumpEventModel {
@@ -303,6 +309,7 @@ impl BumpEventModel {
             instantaneous_stats_total_value_locked: i_stats.total_value_locked,
             instantaneous_stats_market_cap: i_stats.market_cap,
             instantaneous_stats_fully_diluted_value: i_stats.fully_diluted_value,
+            event_name,
             user_address,
             // Market registration & Swap data.
             integrator,
