@@ -14,7 +14,7 @@ use crate::{
         ans_processor::AnsProcessor,
         coin_processor::CoinProcessor,
         default_processor::DefaultProcessor,
-        emojicoin_processor::EmojicoinProcessor,
+        emojicoin_dot_fun::processor::EmojicoinProcessor,
         events_processor::EventsProcessor,
         fungible_asset_processor::FungibleAssetProcessor,
         monitoring_processor::MonitoringProcessor,

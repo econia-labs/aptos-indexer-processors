@@ -1,7 +1,3 @@
-// Copyright © Aptos Foundation
-// SPDX-License-Identifier: Apache-2.0
-
-use super::{DefaultProcessingResult, ProcessorName, ProcessorTrait};
 use crate::{
     db::common::models::emojicoin_models::{
         db_types::{
@@ -13,7 +9,7 @@ use crate::{
         json_types::{BumpGroup, EventWithMarket, GlobalStateEvent, TxnInfo},
     },
     gap_detectors::ProcessingResult,
-    schema::global_state_events,
+    processors::{DefaultProcessingResult, ProcessorName, ProcessorTrait},
     utils::{
         counters::PROCESSOR_UNKNOWN_TYPE_COUNT,
         database::{execute_in_chunks, get_config_table_chunk_size, ArcDbPool},
@@ -238,38 +234,25 @@ impl ProcessorTrait for EmojicoinProcessor {
 
                 // Push global events directly to the vector we use for insertion.
                 let mut txn_non_global_state_events = vec![];
+
                 for event in user_txn.events.iter() {
                     let type_str = event.type_str.as_str();
                     let data = event.data.as_str();
 
-                    match EventWithMarket::from_event_type(type_str, data, txn_version) {
-                        Ok(Some(event_with_market)) => {
+                    match EventWithMarket::from_event_type(type_str, data, txn_version)? {
+                        Some(event_with_market) => {
                             txn_non_global_state_events.push(event_with_market);
                         },
-                        Ok(None) => {
-                            match GlobalStateEvent::from_event_type(type_str, data, txn_version) {
-                                Ok(Some(global_event)) => {
-                                    global_state_events.push(GlobalStateEventModel::new(
-                                        global_event,
-                                        txn_info.clone(),
-                                    ));
-                                },
-                                _ => (),
+                        _ => {
+                            if let Some(global_event) =
+                                GlobalStateEvent::from_event_type(type_str, data, txn_version)?
+                            {
+                                global_state_events.push(GlobalStateEventModel::new(
+                                    global_event,
+                                    txn_info.clone(),
+                                ));
                             }
                         },
-                        _ => (),
-                    }
-
-                    if let Ok(Some(event_with_market)) =
-                        EventWithMarket::from_event_type(type_str, data, txn_version)
-                    {
-                        txn_non_global_state_events.push(event_with_market);
-                    } else if let Ok(Some(global_event)) =
-                        GlobalStateEvent::from_event_type(type_str, data, txn_version)
-                    {
-                        println!("Global Event: {:?}", global_event);
-                        global_state_events
-                            .push(GlobalStateEventModel::new(global_event, txn_info.clone()));
                     }
                 }
 
@@ -330,7 +313,7 @@ impl ProcessorTrait for EmojicoinProcessor {
         )
         .await;
 
-        let res = GlobalStateEventModelQuery::get(self.get_pool()).await?;
+        let res = GlobalStateEventModelQuery::get_latest(&mut self.get_conn().await).await?;
         println!("Global State Events: {:?}", res);
 
         // debug_query(query)

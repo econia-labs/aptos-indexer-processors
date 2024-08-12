@@ -8,7 +8,7 @@ pub mod account_transactions_processor;
 pub mod ans_processor;
 pub mod coin_processor;
 pub mod default_processor;
-pub mod emojicoin_processor;
+pub mod emojicoin_dot_fun;
 pub mod events_processor;
 pub mod fungible_asset_processor;
 pub mod monitoring_processor;
@@ -26,7 +26,7 @@ use self::{
     ans_processor::{AnsProcessor, AnsProcessorConfig},
     coin_processor::CoinProcessor,
     default_processor::DefaultProcessor,
-    emojicoin_processor::EmojicoinProcessor,
+    emojicoin_dot_fun::processor::EmojicoinProcessor,
     events_processor::EventsProcessor,
     fungible_asset_processor::FungibleAssetProcessor,
     monitoring_processor::MonitoringProcessor,
