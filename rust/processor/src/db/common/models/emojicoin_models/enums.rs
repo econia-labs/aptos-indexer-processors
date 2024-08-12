@@ -53,19 +53,19 @@ where
 )]
 #[ExistingTypePath = "crate::schema::sql_types::PeriodType"]
 pub enum PeriodType {
-    #[db_rename = "1m"]
+    #[db_rename = "period_1m"]
     Period1M,
-    #[db_rename = "5m"]
+    #[db_rename = "period_5m"]
     Period5M,
-    #[db_rename = "15m"]
+    #[db_rename = "period_15m"]
     Period15M,
-    #[db_rename = "30m"]
+    #[db_rename = "period_30m"]
     Period30M,
-    #[db_rename = "1h"]
+    #[db_rename = "period_1h"]
     Period1H,
-    #[db_rename = "4h"]
+    #[db_rename = "period_4h"]
     Period4H,
-    #[db_rename = "1d"]
+    #[db_rename = "period_1d"]
     Period1D,
 }
 

@@ -5,7 +5,7 @@ use super::models::{bump_event::BumpEventModel, periodic_state_event::PeriodicSt
 use std::cmp::Ordering;
 
 impl EventWithMarket {
-    pub fn get_rank_by_type(&self) -> i64 {
+    pub fn get_sort_rank(&self) -> i64 {
         match self {
             EventWithMarket::State(_) => 0,
             EventWithMarket::MarketRegistration(_) => 1,
@@ -66,7 +66,7 @@ impl Ord for EventWithMarket {
         self.get_market_id()
             .cmp(&other.get_market_id())
             .then(self.get_market_nonce().cmp(&other.get_market_nonce()))
-            .then(self.get_rank_by_type().cmp(&other.get_rank_by_type()))
+            .then(self.get_sort_rank().cmp(&other.get_sort_rank()))
     }
 }
 
