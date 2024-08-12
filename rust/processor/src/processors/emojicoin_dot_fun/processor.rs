@@ -1,7 +1,7 @@
 use crate::{
     db::common::models::emojicoin_models::{
         db_types::{
-            global_state_events_model::{GlobalStateEventModel, GlobalStateEventModelQuery},
+            global_state_events_model::GlobalStateEventModel,
             periodic_state_events_model::PeriodicStateEventModel,
             state_bumps_model::StateBumpModel,
         },
@@ -150,41 +150,6 @@ fn insert_global_events(
     )
 }
 
-// For grouping all events in a single transaction into the various types:
-// Each state event has a unique bump nonce, we can use that to group non-state events with state events.
-// The following groupings are possible:
-// -- Market-ID specific State Events
-//    - ONE State Event
-//    - ONE of the following:
-//       - Market Registration
-//       - Chat
-//       - Swap
-//       - Liquidity
-//    - ZERO to SEVEN of the following:
-//       - Periodic State Events
-// Note that we have no (easy) way of knowing which state event triggered a GlobalStateEvent, because it doesn't emit
-//  the market_id or bump_nonce. We can only know that it was triggered by a state event. This means we can't group
-//  GlobalStateEvents with StateEvents in a BumpGroup.
-//  This is totally fine, because we can just insert the GlobalStateEvent into the global_state_events table separately.
-//  Note that there will only ever be one GlobalStateEvent per transaction, because it takes an entire day to emit
-//   a GlobalStateEvent since the last one. Thus we just have an `Option<GlobalStateEvent>` for each transaction that
-//   we possibly insert into the global_state_events table after event processing.
-
-// Now we sort the vector by market_id first, then the bump_nonce. Note we don't need to even check the StateTrigger type because haveint the same market_id and bump_nonce means
-// there will definitively *only* be one StateTrigger type.
-// We can actually panic if we somehow don't fill the bump event by the end of the transaction event iteration.
-//   It should literally never happen unless the processor was written incorrectly.
-// So:
-//    1. Create a vector of all events
-//    2. Sort the vector by market_id, then bump_nonce
-//    3. Iterate over the sorted vector. You MUST be able to place EVERY single event into a BumpGroup.
-//    4. Use the BumpGroup to insert each event into its corresponding table:
-//       - state_events
-//       - periodic_state_events
-//       - global_state_events
-// Try to keep in mind that we will eventually query for the rolling 24-hour volume as well.
-//   - This will be a query right before the insert. We will find the earliest row in `state_events` with a `last_swap` event time that was at least 24 hours ago.
-//   - Then we use that to subtract the current total/cumulative volume from the total/cumulative volume at that time, which will give us the 24-hour volume.
 #[async_trait]
 impl ProcessorTrait for EmojicoinProcessor {
     fn name(&self) -> &'static str {
@@ -257,22 +222,19 @@ impl ProcessorTrait for EmojicoinProcessor {
                 }
 
                 // Sort and group all events according to EventWithMarket's custom `Ord` implementation.
+                // The builder function below groups events based on their order in the sorted vector.
+                // See the `Ord` implementation in `EventWithMarket` for more details.
                 txn_non_global_state_events.sort();
 
-                // Initialize a bump group if there are any non-global state events in this transaction.
-                // Continue to add to the current bump group as long as the market ID and nonce of each incoming event continue to match.
-                // Once we encounter a new market ID or nonce, we call `build` on the current group and instantiate a new one with the
-                // new market ID and nonce.
-                // If the data is sorted incorrectly, the builder function will panic.
                 let mut bump_groups = vec![];
-                let first = txn_non_global_state_events.first().cloned();
-                if let Some(first) = first {
+                let mut iter = txn_non_global_state_events.into_iter();
+                if let Some(first) = iter.next() {
                     let mut group = BumpGroupBuilder::new(first, txn_info.clone());
 
-                    for evt in txn_non_global_state_events.drain(1..) {
-                        if evt.get_market_id() == group.market_id
-                            && evt.get_market_nonce() == group.market_nonce
-                        {
+                    // Build upon the current group until the market ID or nonce changes.
+                    for evt in iter {
+                        let (curr_id, curr_nonce) = (evt.get_market_id(), evt.get_market_nonce());
+                        if curr_id == group.market_id && curr_nonce == group.market_nonce {
                             group.add_event(evt);
                         } else {
                             bump_groups.push(group.build());
@@ -280,9 +242,8 @@ impl ProcessorTrait for EmojicoinProcessor {
                         }
                     }
 
-                    // By virtue of being in this loop control scope, we know that there is at least one
-                    // bump group to build. Because we only call `build` when a market ID or nonce changes,
-                    // the last group will be fully formed but not built yet, so we call `build` here.
+                    // Since we only call `build` when a market ID or nonce changes, the last group
+                    // will be fully formed but not built yet, so we call `build` here.
                     bump_groups.push(group.build());
                 }
 
@@ -291,11 +252,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                     state_bumps.push(bump);
                     periodic_state_events.extend(periodics);
                 }
-
-                // Insert the global state events into the global_state_events table.
             }
-            // REMEMBER! You can avoid querying when the last swap nonce is 0 or last swap time is > 24 h ago.
-            // Because the 24h rolling volume is just the current state metadata's cumulative volume in both cases.
         }
 
         let processing_duration_in_secs = processing_start.elapsed().as_secs_f64();
@@ -312,24 +269,6 @@ impl ProcessorTrait for EmojicoinProcessor {
             &self.per_table_chunk_sizes,
         )
         .await;
-
-        let res = GlobalStateEventModelQuery::get_latest(&mut self.get_conn().await).await?;
-        println!("Global State Events: {:?}", res);
-
-        // debug_query(query)
-        // {
-        //     use self::global_state_events::dsl::*;
-        //     use diesel::{ExpressionMethods, QueryDsl};
-        //     use diesel_async::RunQueryDsl;
-
-        //     let (nonce, swaps, chats) = global_state_events
-        //         .select((registry_nonce, cumulative_swaps, cumulative_chat_messages))
-        //         .first::<(i64, i64, i64)>(&mut self.get_pool().clone())
-        //         .order_by(registry_nonce.desc())
-        //         .await;
-        //     // let query_str = debug_query::<Pg, _>(&query).to_string();
-        //     println!("Nonce, swaps, chats: {:?}, {:?}, {:?}", nonce, swaps, chats);
-        // }
 
         let db_insertion_duration_in_secs = db_insertion_start.elapsed().as_secs_f64();
         match tx_result {

@@ -43,10 +43,26 @@ impl EventWithMarket {
     }
 }
 
-// We implement the sorting here to prioritize the following values:
-// 1. Market ID, asc, so we can group events by market.
-// 2. Market nonce, asc, so we can group events in chronological order.
-// 3. The type of event.
+// For grouping all events in a single transaction into the various types:
+// Each state event has a unique bump nonce, we can use that to group bump events (events that trigger state bumps)
+// with their respective StateEvent.
+// The following groupings are possible:
+// -- ONE market ID and ONE market nonce.
+//    - ONE State Event
+//    - ONE Bump Event; i.e., one of the following:
+//       - Market Registration Event
+//       - Chat Event
+//       - Swap Event
+//       - Liquidity Event
+//    - ZERO to SEVEN of the following:
+//       - Periodic State Events (1m, 5m, 15m, 30m, 1h, 4h, 1d)
+// Note that we have no easy way of knowing for sure which state event triggered a GlobalStateEvent, because it doesn't emit
+// the market_id or bump_nonce. This means we can't group GlobalStateEvents with StateEvents in a BumpGroup.
+
+/// We implement the sorting here to prioritize the following values:
+/// 1. Market ID, asc, so we can group events by market.
+/// 2. Market nonce, asc, so we can group events in chronological order.
+/// 3. The type of event.
 impl Ord for EventWithMarket {
     fn cmp(&self, other: &Self) -> Ordering {
         self.get_market_id()
