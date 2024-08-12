@@ -110,13 +110,16 @@ CREATE TABLE periodic_state_events (
   PRIMARY KEY (market_id, period, market_nonce)
 );
 
-CREATE TABLE bump_events (
+CREATE TABLE state_bump_events (
   -- Transaction metadata.
   transaction_version BIGINT NOT NULL,
   sender VARCHAR(66) NOT NULL,
   entry_function VARCHAR(200),
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  -- All state bump events have a user, either a `registrant`, a `swapper`, a `provider`, or a `user`.
+  user_address VARCHAR(66) NOT NULL,
+  event_name event_names NOT NULL,
 
   -- Market metadata.
   market_id BIGINT NOT NULL,
@@ -154,10 +157,6 @@ CREATE TABLE bump_events (
   last_swap_time TIMESTAMP NOT NULL,
 
   -------- Data in multiple event types --------
-  -- All bump events have these in some form.
-  event_name event_names NOT NULL,
-  user_address VARCHAR(66) NOT NULL,
-
   -- Market registration & Swap data.
   integrator VARCHAR(66),
   integrator_fee BIGINT,
@@ -200,15 +199,15 @@ CREATE TABLE bump_events (
 
 -- Create partial indexes for the common queries. Unique markets, swaps by market and time, and chats by market and time.
 CREATE INDEX mkts_by_time_idx
-ON bump_events (bump_time DESC)
+ON state_bump_events (bump_time DESC)
 WHERE event_name = 'market_registration';
 
 CREATE INDEX swaps_by_mkt_and_time_idx
-ON bump_events (market_id, bump_time DESC)
+ON state_bump_events (market_id, bump_time DESC)
 WHERE event_name = 'swap';
 
 CREATE INDEX chats_by_mkt_and_time_idx
-ON bump_events (market_id, bump_time DESC)
+ON state_bump_events (market_id, bump_time DESC)
 WHERE event_name = 'chat';
 
 -- Querying the candlestick data for a market by its period resolution.
@@ -217,24 +216,24 @@ ON periodic_state_events (market_id, period, start_time DESC);
 
 -- Querying all post-bonding curve markets. i.e., markets with liquidity pools.
 CREATE UNIQUE INDEX mkts_with_pool_idx
-ON bump_events (market_id)
+ON state_bump_events (market_id)
 WHERE results_in_state_transition = TRUE;
 
 -- Sorting by bump order.
 CREATE INDEX latest_bump_idx
-ON bump_events (market_id, market_nonce DESC);
+ON state_bump_events (market_id, market_nonce DESC);
 
 -- Sorting by market cap, descending.
 CREATE INDEX mkt_cap_idx
-ON bump_events (instantaneous_stats_market_cap DESC);
+ON state_bump_events (instantaneous_stats_market_cap DESC);
 
 -- Sorting by time volume, descending.
 CREATE INDEX all_time_volume_idx
-ON bump_events (cumulative_quote_volume DESC);
+ON state_bump_events (cumulative_quote_volume DESC);
 
 -- Querying a user's liquidity pools.
 CREATE INDEX user_lp_idx
-ON bump_events (user_address)
+ON state_bump_events (user_address)
 WHERE event_name = 'liquidity' AND liquidity_provided = TRUE;
 
 -------------------------------------------------------------------------------
@@ -245,17 +244,17 @@ WHERE event_name = 'liquidity' AND liquidity_provided = TRUE;
 
 -- Split the bump events into views for the event types.
 CREATE VIEW market_registration_events AS
-SELECT * FROM bump_events
+SELECT * FROM state_bump_events
 WHERE event_name = 'market_registration'::event_names
 ORDER BY bump_time DESC;
 
 CREATE VIEW swap_events AS
-SELECT * FROM bump_events
+SELECT * FROM state_bump_events
 WHERE event_name = 'swap'::event_names
 ORDER BY bump_time DESC;
 
 
 CREATE VIEW chat_events AS
-SELECT * FROM bump_events
+SELECT * FROM state_bump_events
 WHERE event_name = 'chat'::event_names
 ORDER BY bump_time DESC;

@@ -3,8 +3,8 @@ use crate::{
         event_utils::BumpGroupBuilder,
         json_types::{BumpGroup, EventWithMarket, GlobalStateEvent, TxnInfo},
         models::{
-            bump_event::BumpEventModel, global_state_event::GlobalStateEventModel,
-            periodic_state_event::PeriodicStateEventModel,
+            global_state_event::GlobalStateEventModel,
+            periodic_state_event::PeriodicStateEventModel, state_bump_event::StateBumpEventModel,
         },
     },
     gap_detectors::ProcessingResult,
@@ -55,7 +55,7 @@ async fn insert_to_db(
     end_version: u64,
     global_state_events: &[GlobalStateEventModel],
     periodic_state_events: &[PeriodicStateEventModel],
-    bump_events: &[BumpEventModel],
+    state_bump_events: &[StateBumpEventModel],
     per_table_chunk_sizes: &AHashMap<String, usize>,
 ) -> Result<(), diesel::result::Error> {
     tracing::trace!(
@@ -66,9 +66,12 @@ async fn insert_to_db(
     );
     let bump = execute_in_chunks(
         conn.clone(),
-        insert_bump_events_query,
-        bump_events,
-        get_config_table_chunk_size::<BumpEventModel>("bump_events", per_table_chunk_sizes),
+        insert_state_state_bump_events_query,
+        state_bump_events,
+        get_config_table_chunk_size::<StateBumpEventModel>(
+            "state_bump_events",
+            per_table_chunk_sizes,
+        ),
     );
     let periodic = execute_in_chunks(
         conn.clone(),
@@ -97,17 +100,20 @@ async fn insert_to_db(
     Ok(())
 }
 
-fn insert_bump_events_query(
-    items_to_insert: Vec<BumpEventModel>,
+fn insert_state_state_bump_events_query(
+    items_to_insert: Vec<StateBumpEventModel>,
 ) -> (
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use crate::schema::bump_events;
+    use crate::schema::state_bump_events;
     (
-        diesel::insert_into(bump_events::table)
+        diesel::insert_into(state_bump_events::table)
             .values(items_to_insert)
-            .on_conflict((bump_events::market_id, bump_events::market_nonce))
+            .on_conflict((
+                state_bump_events::market_id,
+                state_bump_events::market_nonce,
+            ))
             .do_nothing(),
         None,
     )
@@ -165,7 +171,7 @@ impl ProcessorTrait for EmojicoinProcessor {
         let processing_start = std::time::Instant::now();
         let last_transaction_timestamp = transactions.last().unwrap().timestamp.clone();
 
-        let mut bump_events = vec![];
+        let mut state_bump_events = vec![];
         let mut periodic_state_events = vec![];
         let mut global_state_events = vec![];
         for txn in &transactions {
@@ -249,7 +255,7 @@ impl ProcessorTrait for EmojicoinProcessor {
 
                 for group in bump_groups {
                     let (bump, periodics) = BumpGroup::to_db_models(group);
-                    bump_events.push(bump);
+                    state_bump_events.push(bump);
                     periodic_state_events.extend(periodics);
                 }
             }
@@ -265,7 +271,7 @@ impl ProcessorTrait for EmojicoinProcessor {
             end_version,
             &global_state_events,
             &periodic_state_events,
-            &bump_events,
+            &state_bump_events,
             &self.per_table_chunk_sizes,
         )
         .await;

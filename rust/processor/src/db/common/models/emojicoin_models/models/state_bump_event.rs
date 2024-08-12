@@ -5,20 +5,23 @@ use crate::db::common::models::emojicoin_models::{
     json_types::{BumpEvent, StateEvent, TxnInfo},
     utils::micros_to_naive_datetime,
 };
-use crate::schema::bump_events;
+use crate::schema::state_bump_events;
 use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(market_id, market_nonce))]
-#[diesel(table_name = bump_events)]
-pub struct BumpEventModel {
+#[diesel(table_name = state_bump_events)]
+pub struct StateBumpEventModel {
     // Transaction metadata.
     pub transaction_version: i64,
     pub sender: String,
     pub entry_function: Option<String>,
     pub transaction_timestamp: chrono::NaiveDateTime,
+    // All state bump events have a user, either a `registrant`, a `swapper`, a `provider`, or a `user`.
+    pub user_address: String,
+    pub event_name: enums::EventNames,
 
     // Market metadata.
     pub market_id: i64,
@@ -60,10 +63,6 @@ pub struct BumpEventModel {
     pub last_swap_time: chrono::NaiveDateTime,
 
     //------ Data in multiple event types --------
-    // All bump events have a user, either a `registrant`, a `swapper`, a `provider`, or a `user`.
-    pub event_name: enums::EventNames,
-    pub user_address: String,
-
     // Market registration & Swap data.
     pub integrator: Option<String>,
     pub integrator_fee: Option<i64>,
@@ -100,14 +99,17 @@ pub struct BumpEventModel {
 // of duplicated code.
 #[derive(Clone, Debug, Identifiable, Queryable)]
 #[diesel(primary_key(market_id, market_nonce))]
-#[diesel(table_name = bump_events)]
-pub struct BumpEventModelQuery {
+#[diesel(table_name = state_bump_events)]
+pub struct StateBumpEventModelQuery {
     // Transaction metadata.
     pub transaction_version: i64,
     pub sender: String,
     pub entry_function: Option<String>,
     pub inserted_at: chrono::NaiveDateTime,
     pub transaction_timestamp: chrono::NaiveDateTime,
+    // All state bump events have a user, either a `registrant`, a `swapper`, a `provider`, or a `user`.
+    pub user_address: String,
+    pub event_name: enums::EventNames,
 
     // Market metadata.
     pub market_id: i64,
@@ -145,10 +147,6 @@ pub struct BumpEventModelQuery {
     pub last_swap_time: chrono::NaiveDateTime,
 
     //------ Data in multiple event types --------
-    // All bump events have a user, either a `registrant`, a `swapper`, a `provider`, or a `user`.
-    pub event_name: enums::EventNames,
-    pub user_address: String,
-
     // Market registration & Swap data.
     pub integrator: Option<String>,
     pub integrator_fee: Option<i64>,
@@ -181,12 +179,12 @@ pub struct BumpEventModelQuery {
 }
 
 // Converting from our strongly typed, previously JSON data to the database model.
-impl BumpEventModel {
+impl StateBumpEventModel {
     pub fn from_bump_and_state_event(
         txn_info: TxnInfo,
         bump_event: BumpEvent,
         state_event: StateEvent,
-    ) -> BumpEventModel {
+    ) -> StateBumpEventModel {
         let StateEvent {
             state_metadata,
             market_metadata,
@@ -277,7 +275,7 @@ impl BumpEventModel {
             BumpEvent::Liquidity(e) => (e.provider.clone(), EventNames::Liquidity),
         };
 
-        BumpEventModel {
+        StateBumpEventModel {
             transaction_version: txn_info.version,
             sender: txn_info.sender.clone(),
             entry_function: txn_info.entry_function.clone(),

@@ -13,7 +13,7 @@ DROP INDEX chats_by_mkt_and_time_idx;
 DROP INDEX swaps_by_mkt_and_time_idx;
 DROP INDEX mkts_by_time_idx;
 
-DROP TABLE bump_events;
+DROP TABLE state_bump_events;
 DROP TABLE periodic_state_events;
 DROP TABLE global_state_events;
 

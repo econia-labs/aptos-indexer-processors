@@ -1,7 +1,9 @@
 use super::json_types::{
     BumpEvent, BumpGroup, EventWithMarket, PeriodicStateEvent, StateEvent, TxnInfo,
 };
-use super::models::{bump_event::BumpEventModel, periodic_state_event::PeriodicStateEventModel};
+use super::models::{
+    periodic_state_event::PeriodicStateEventModel, state_bump_event::StateBumpEventModel,
+};
 use std::cmp::Ordering;
 
 impl EventWithMarket {
@@ -157,7 +159,7 @@ impl BumpGroupBuilder {
 }
 
 impl BumpGroup {
-    pub fn to_db_models(self) -> (BumpEventModel, Vec<PeriodicStateEventModel>) {
+    pub fn to_db_models(self) -> (StateBumpEventModel, Vec<PeriodicStateEventModel>) {
         let BumpGroup {
             bump_event,
             state_event,
@@ -173,7 +175,7 @@ impl BumpGroup {
         );
 
         let state_bump_model =
-            BumpEventModel::from_bump_and_state_event(txn_info, bump_event, state_event);
+            StateBumpEventModel::from_bump_and_state_event(txn_info, bump_event, state_event);
 
         (state_bump_model, periodic_events_model)
     }
