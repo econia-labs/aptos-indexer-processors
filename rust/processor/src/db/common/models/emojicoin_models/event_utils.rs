@@ -1,9 +1,7 @@
-use super::db_types::{
-    periodic_state_events_model::PeriodicStateEventModel, state_bumps_model::StateBumpModel,
-};
 use super::json_types::{
     BumpEvent, BumpGroup, EventWithMarket, PeriodicStateEvent, StateEvent, TxnInfo,
 };
+use super::models::{bump_event::BumpEventModel, periodic_state_event::PeriodicStateEventModel};
 use std::cmp::Ordering;
 
 impl EventWithMarket {
@@ -58,7 +56,7 @@ impl EventWithMarket {
 //       - Periodic State Events (1m, 5m, 15m, 30m, 1h, 4h, 1d)
 // Note that we have no easy way of knowing for sure which state event triggered a GlobalStateEvent, because it doesn't emit
 // the market_id or bump_nonce. This means we can't group GlobalStateEvents with StateEvents in a BumpGroup.
-
+//
 /// We implement the sorting here to prioritize the following values:
 /// 1. Market ID, asc, so we can group events by market.
 /// 2. Market nonce, asc, so we can group events in chronological order.
@@ -159,7 +157,7 @@ impl BumpGroupBuilder {
 }
 
 impl BumpGroup {
-    pub fn to_db_models(self) -> (StateBumpModel, Vec<PeriodicStateEventModel>) {
+    pub fn to_db_models(self) -> (BumpEventModel, Vec<PeriodicStateEventModel>) {
         let BumpGroup {
             bump_event,
             state_event,
@@ -175,7 +173,7 @@ impl BumpGroup {
         );
 
         let state_bump_model =
-            StateBumpModel::from_bump_and_state_event(txn_info, bump_event, state_event);
+            BumpEventModel::from_bump_and_state_event(txn_info, bump_event, state_event);
 
         (state_bump_model, periodic_events_model)
     }

@@ -10,7 +10,7 @@
 #[cfg(test)]
 mod tests {
     use crate::db::common::models::emojicoin_models::{
-        enums::StateTrigger,
+        enums::Trigger,
         json_types::{EventWithMarket, GlobalStateEvent},
     };
 
@@ -72,7 +72,7 @@ mod tests {
                 "0x066fb901175394d0883e28262c4c40cb8228e47a36e6a813d5117805c3c26a5c"
             );
             assert_eq!(e.market_metadata.market_id, 328);
-            assert_eq!(e.state_metadata.trigger, StateTrigger::ProvideLiquidity);
+            assert_eq!(e.state_metadata.trigger, Trigger::ProvideLiquidity);
             assert_eq!(e.market_metadata.emoji_bytes, vec![240, 159, 159, 165])
         } else {
             panic!("Failed to parse state event");
@@ -122,10 +122,7 @@ mod tests {
             );
             assert_eq!(e.starts_in_bonding_curve, false);
             assert_eq!(e.close_price_q64, (1128118906863219 as i64).into());
-            assert_eq!(
-                e.periodic_state_metadata.trigger,
-                StateTrigger::ProvideLiquidity
-            );
+            assert_eq!(e.periodic_state_metadata.trigger, Trigger::ProvideLiquidity);
         } else {
             panic!("Failed to parse periodic state event");
         }
@@ -319,7 +316,7 @@ mod tests {
                     global_state_event.total_value_locked,
                     (5075928984264 as i64).into()
                 );
-                assert_eq!(global_state_event.trigger, StateTrigger::MarketRegistration);
+                assert_eq!(global_state_event.trigger, Trigger::MarketRegistration);
             },
             Err(e) => {
                 panic!("Failed to parse global state event: {:?}", e);

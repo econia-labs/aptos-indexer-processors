@@ -1,54 +1,49 @@
 -- Your SQL goes here
 
--- NOTE 1: that in all tables, we use `emit_time` in lieu of a transaction timestamp because they will always be the same.
--- If this ever changes, we can always update the database schema.
+-------------------------------------------------------------------------------
+--
+--                                   Enums
+--
+-------------------------------------------------------------------------------
 
--- We omit most state event data for periodic state events because we have no need for them. We can always add them later
--- or create a view to join them.
+CREATE TYPE trigger_type AS ENUM (
+  'package_publication', -- Emitted a single time alongside a Global State event.
+  'market_registration',
+  'swap_buy',
+  'swap_sell',
+  'provide_liquidity',
+  'remove_liquidity',
+  'chat'
+);
 
--- NOTE 2: I don't think it's possible for the sender to not be the user aka the first `&signer`, but I might be wrong
--- in the case of a multi-sig/governance script. Noting it here as a reminder to check during the review.
--- In any case, we use the `sender` field to store the following: the `registrant`, the `swapper`, the `user`, and the `provider`.
+CREATE TYPE period_type AS ENUM (
+  'period_1m',  --     60_000_000 == 1 minute.
+  'period_5m',  --    300_000_000 == 5 minutes.
+  'period_15m', --    900_000_000 == 15 minutes.
+  'period_30m', --  1_800_000_000 == 30 minutes.
+  'period_1h',  --  3_600_000_000 == 1 hour.
+  'period_4h',  -- 14_400_000_000 == 4 hours.
+  'period_1d'   -- 86_400_000_000 == 1 day.
+);
 
-DO $$ BEGIN
-  CREATE TYPE state_trigger AS ENUM (
-    'package_publication', -- Emitted a single time alongside a Global State event.
-    'market_registration',
-    'swap_buy',
-    'swap_sell',
-    'provide_liquidity',
-    'remove_liquidity',
-    'chat'
-  );
-EXCEPTION
-  WHEN duplicate_object THEN NULL;
-END $$;
-
-DO $$ BEGIN
-  CREATE TYPE periodic_state_resolution AS ENUM (
-    '1m',  --     60_000_000 == 1 minute.
-    '5m',  --    300_000_000 == 5 minutes.
-    '15m', --    900_000_000 == 15 minutes.
-    '30m', --  1_800_000_000 == 30 minutes.
-    '1h',  --  3_600_000_000 == 1 hour.
-    '4h',  -- 14_400_000_000 == 4 hours.
-    '1d'   -- 86_400_000_000 == 1 day.
-  );
-EXCEPTION
-  WHEN duplicate_object THEN NULL;
-END $$;
+-------------------------------------------------------------------------------
+--
+--                                  Tables
+--
+-------------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS global_state_events (
   -- Transaction metadata.
   transaction_version BIGINT NOT NULL,
-  sender VARCHAR(66) NOT NULL, -- See note 2.
+  sender VARCHAR(66) NOT NULL,
   entry_function VARCHAR(200),
+  transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
   -- Global state event data.
   emit_time TIMESTAMP NOT NULL,
   registry_nonce BIGINT NOT NULL,
-  trigger state_trigger NOT NULL,
+  trigger trigger_type NOT NULL,
   cumulative_quote_volume NUMERIC NOT NULL,
   total_quote_locked NUMERIC NOT NULL,
   total_value_locked NUMERIC NOT NULL,
@@ -64,8 +59,9 @@ CREATE TABLE IF NOT EXISTS global_state_events (
 CREATE TABLE IF NOT EXISTS periodic_state_events (
   -- Transaction metadata.
   transaction_version BIGINT NOT NULL,
-  sender VARCHAR(66) NOT NULL, -- See note 2.
+  sender VARCHAR(66) NOT NULL,
   entry_function VARCHAR(200),
+  transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
   -- Market metadata.
@@ -75,7 +71,7 @@ CREATE TABLE IF NOT EXISTS periodic_state_events (
   -- State metadata.
   emit_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
-  trigger state_trigger NOT NULL,
+  trigger trigger_type NOT NULL,
 
   -- Last swap data. The last swap can also be the event that triggered the periodic state event.
   last_swap_is_sell BOOLEAN NOT NULL,
@@ -86,7 +82,7 @@ CREATE TABLE IF NOT EXISTS periodic_state_events (
   last_swap_time TIMESTAMP NOT NULL,
 
   -- Periodic state metadata.
-  resolution periodic_state_resolution NOT NULL,
+  period period_type NOT NULL,
   start_time TIMESTAMP NOT NULL,
 
   -- Periodic state event data.
@@ -104,14 +100,15 @@ CREATE TABLE IF NOT EXISTS periodic_state_events (
   starts_in_bonding_curve BOOLEAN NOT NULL,
   ends_in_bonding_curve BOOLEAN NOT NULL,
   tvl_per_lp_coin_growth_q64 NUMERIC NOT NULL,
-  PRIMARY KEY (market_id, resolution, market_nonce)
+  PRIMARY KEY (market_id, period, market_nonce)
 );
 
-CREATE TABLE IF NOT EXISTS state_bumps (
+CREATE TABLE IF NOT EXISTS bump_events (
   -- Transaction metadata.
   transaction_version BIGINT NOT NULL,
-  sender VARCHAR(66) NOT NULL, -- See note 2.
+  sender VARCHAR(66) NOT NULL,
   entry_function VARCHAR(200),
+  transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
   -- Market metadata.
@@ -121,7 +118,7 @@ CREATE TABLE IF NOT EXISTS state_bumps (
   -- State metadata.
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
-  trigger state_trigger NOT NULL,
+  trigger trigger_type NOT NULL,
 
   -- State event data.
   clamm_virtual_reserves_base BIGINT NOT NULL,
@@ -149,7 +146,10 @@ CREATE TABLE IF NOT EXISTS state_bumps (
   last_swap_nonce BIGINT NOT NULL,
   last_swap_time TIMESTAMP NOT NULL,
 
-  -------- Duplicated data --------
+  -------- Data in multiple event types --------
+  -- All bump events have a user, either a `registrant`, a `swapper`, a `provider`, or a `user`.
+  user_address VARCHAR(66) NOT NULL,
+
   -- Market registration & Swap data.
   integrator VARCHAR(66),
   integrator_fee BIGINT,
@@ -184,6 +184,43 @@ CREATE TABLE IF NOT EXISTS state_bumps (
   PRIMARY KEY (market_id, market_nonce)
 );
 
-CREATE INDEX IF NOT EXISTS st_bmps_mkt_bytes_index ON state_bumps (market_id, symbol_bytes);
-CREATE INDEX IF NOT EXISTS st_bmps_trgr_mkt_btime_index ON state_bumps (trigger, market_id, bump_time DESC);
-CREATE INDEX IF NOT EXISTS pe_evts_mkt_res_etime_index ON periodic_state_events (market_id, resolution, emit_time DESC);
+CREATE INDEX IF NOT EXISTS bump_evts_mkt_bytes_idx ON bump_events (market_id, symbol_bytes);
+CREATE INDEX IF NOT EXISTS bump_evts_trgr_mkt_btime_idx ON bump_events (market_id, trigger, bump_time DESC);
+CREATE INDEX IF NOT EXISTS prdc_evts_mkt_strt_idx ON periodic_state_events (market_id, period, start_time DESC);
+CREATE INDEX IF NOT EXISTS bump_time_idx ON bump_events (bump_time DESC);
+
+-------------------------------------------------------------------------------
+--
+--                                   Views
+--
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- Periodic state events views, one for each period.
+CREATE VIEW periodic_events_1m AS
+SELECT * FROM periodic_state_events
+WHERE period = 'period_1m'::period_type;
+
+CREATE VIEW periodic_events_5m AS
+SELECT * FROM periodic_state_events
+WHERE period = 'period_5m'::period_type;
+
+CREATE VIEW periodic_events_15m AS
+SELECT * FROM periodic_state_events
+WHERE period = 'period_15m'::period_type;
+
+CREATE VIEW periodic_events_30m AS
+SELECT * FROM periodic_state_events
+WHERE period = 'period_30m'::period_type;
+
+CREATE VIEW periodic_events_1h AS
+SELECT * FROM periodic_state_events
+WHERE period = 'period_1h'::period_type;
+
+CREATE VIEW periodic_events_4h AS
+SELECT * FROM periodic_state_events
+WHERE period = 'period_4h'::period_type;
+
+CREATE VIEW periodic_events_1d AS
+SELECT * FROM periodic_state_events
+WHERE period = 'period_1d'::period_type;

@@ -2,7 +2,7 @@ use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, QueryResult};
 use diesel_async::RunQueryDsl;
 
 use crate::{
-    db::common::models::emojicoin_models::db_types::global_state_events_model::GlobalStateEventModelQuery,
+    db::common::models::emojicoin_models::models::global_state_event::GlobalStateEventModelQuery,
     schema::global_state_events, utils::database::DbPoolConnection,
 };
 

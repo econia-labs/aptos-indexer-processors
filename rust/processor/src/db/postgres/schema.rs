@@ -2,12 +2,12 @@
 
 pub mod sql_types {
     #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
-    #[diesel(postgres_type(name = "periodic_state_resolution"))]
-    pub struct PeriodicStateResolution;
+    #[diesel(postgres_type(name = "period_type"))]
+    pub struct PeriodType;
 
     #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
-    #[diesel(postgres_type(name = "state_trigger"))]
-    pub struct StateTrigger;
+    #[diesel(postgres_type(name = "trigger_type"))]
+    pub struct TriggerType;
 }
 
 diesel::table! {
@@ -108,6 +108,73 @@ diesel::table! {
         failed_proposer_indices -> Jsonb,
         timestamp -> Timestamp,
         inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::TriggerType;
+
+    bump_events (market_id, market_nonce) {
+        transaction_version -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+        market_id -> Int8,
+        symbol_bytes -> Bytea,
+        bump_time -> Timestamp,
+        market_nonce -> Int8,
+        trigger -> TriggerType,
+        clamm_virtual_reserves_base -> Int8,
+        clamm_virtual_reserves_quote -> Int8,
+        cpamm_real_reserves_base -> Int8,
+        cpamm_real_reserves_quote -> Int8,
+        lp_coin_supply -> Numeric,
+        cumulative_base_volume -> Numeric,
+        cumulative_quote_volume -> Numeric,
+        cumulative_integrator_fees -> Numeric,
+        cumulative_pool_fees_base -> Numeric,
+        cumulative_pool_fees_quote -> Numeric,
+        cumulative_n_swaps -> Int8,
+        cumulative_n_chat_messages -> Int8,
+        instantaneous_stats_total_quote_locked -> Int8,
+        instantaneous_stats_total_value_locked -> Numeric,
+        instantaneous_stats_market_cap -> Numeric,
+        instantaneous_stats_fully_diluted_value -> Numeric,
+        last_swap_is_sell -> Bool,
+        last_swap_avg_execution_price_q64 -> Numeric,
+        last_swap_base_volume -> Int8,
+        last_swap_quote_volume -> Int8,
+        last_swap_nonce -> Int8,
+        last_swap_time -> Timestamp,
+        #[max_length = 66]
+        user_address -> Varchar,
+        #[max_length = 66]
+        integrator -> Nullable<Varchar>,
+        integrator_fee -> Nullable<Int8>,
+        input_amount -> Nullable<Int8>,
+        is_sell -> Nullable<Bool>,
+        integrator_fee_rate_bps -> Nullable<Int2>,
+        net_proceeds -> Nullable<Int8>,
+        base_volume -> Nullable<Int8>,
+        quote_volume -> Nullable<Int8>,
+        avg_execution_price_q64 -> Nullable<Numeric>,
+        pool_fee -> Nullable<Int8>,
+        starts_in_bonding_curve -> Nullable<Bool>,
+        results_in_state_transition -> Nullable<Bool>,
+        base_amount -> Nullable<Int8>,
+        quote_amount -> Nullable<Int8>,
+        lp_coin_amount -> Nullable<Int8>,
+        liquidity_provided -> Nullable<Bool>,
+        pro_rata_base_donation_claim_amount -> Nullable<Int8>,
+        pro_rata_quote_donation_claim_amount -> Nullable<Int8>,
+        message -> Nullable<Text>,
+        user_emojicoin_balance -> Nullable<Int8>,
+        circulating_supply -> Nullable<Int8>,
+        balance_as_fraction_of_circulating_supply_q64 -> Nullable<Numeric>,
     }
 }
 
@@ -856,7 +923,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::StateTrigger;
+    use super::sql_types::TriggerType;
 
     global_state_events (registry_nonce) {
         transaction_version -> Int8,
@@ -864,10 +931,11 @@ diesel::table! {
         sender -> Varchar,
         #[max_length = 200]
         entry_function -> Nullable<Varchar>,
+        transaction_timestamp -> Timestamp,
         inserted_at -> Timestamp,
         emit_time -> Timestamp,
         registry_nonce -> Int8,
-        trigger -> StateTrigger,
+        trigger -> TriggerType,
         cumulative_quote_volume -> Numeric,
         total_quote_locked -> Numeric,
         total_value_locked -> Numeric,
@@ -964,28 +1032,29 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::StateTrigger;
-    use super::sql_types::PeriodicStateResolution;
+    use super::sql_types::TriggerType;
+    use super::sql_types::PeriodType;
 
-    periodic_state_events (market_id, resolution, market_nonce) {
+    periodic_state_events (market_id, period, market_nonce) {
         transaction_version -> Int8,
         #[max_length = 66]
         sender -> Varchar,
         #[max_length = 200]
         entry_function -> Nullable<Varchar>,
+        transaction_timestamp -> Timestamp,
         inserted_at -> Timestamp,
         market_id -> Int8,
         symbol_bytes -> Bytea,
         emit_time -> Timestamp,
         market_nonce -> Int8,
-        trigger -> StateTrigger,
+        trigger -> TriggerType,
         last_swap_is_sell -> Bool,
         last_swap_avg_execution_price_q64 -> Numeric,
         last_swap_base_volume -> Int8,
         last_swap_quote_volume -> Int8,
         last_swap_nonce -> Int8,
         last_swap_time -> Timestamp,
-        resolution -> PeriodicStateResolution,
+        period -> PeriodType,
         start_time -> Timestamp,
         open_price_q64 -> Numeric,
         high_price_q64 -> Numeric,
@@ -1055,70 +1124,6 @@ diesel::table! {
         asset -> Varchar,
         is_spam -> Bool,
         last_updated -> Timestamp,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use super::sql_types::StateTrigger;
-
-    state_bumps (market_id, market_nonce) {
-        transaction_version -> Int8,
-        #[max_length = 66]
-        sender -> Varchar,
-        #[max_length = 200]
-        entry_function -> Nullable<Varchar>,
-        inserted_at -> Timestamp,
-        market_id -> Int8,
-        symbol_bytes -> Bytea,
-        bump_time -> Timestamp,
-        market_nonce -> Int8,
-        trigger -> StateTrigger,
-        clamm_virtual_reserves_base -> Int8,
-        clamm_virtual_reserves_quote -> Int8,
-        cpamm_real_reserves_base -> Int8,
-        cpamm_real_reserves_quote -> Int8,
-        lp_coin_supply -> Numeric,
-        cumulative_base_volume -> Numeric,
-        cumulative_quote_volume -> Numeric,
-        cumulative_integrator_fees -> Numeric,
-        cumulative_pool_fees_base -> Numeric,
-        cumulative_pool_fees_quote -> Numeric,
-        cumulative_n_swaps -> Int8,
-        cumulative_n_chat_messages -> Int8,
-        instantaneous_stats_total_quote_locked -> Int8,
-        instantaneous_stats_total_value_locked -> Numeric,
-        instantaneous_stats_market_cap -> Numeric,
-        instantaneous_stats_fully_diluted_value -> Numeric,
-        last_swap_is_sell -> Bool,
-        last_swap_avg_execution_price_q64 -> Numeric,
-        last_swap_base_volume -> Int8,
-        last_swap_quote_volume -> Int8,
-        last_swap_nonce -> Int8,
-        last_swap_time -> Timestamp,
-        #[max_length = 66]
-        integrator -> Nullable<Varchar>,
-        integrator_fee -> Nullable<Int8>,
-        input_amount -> Nullable<Int8>,
-        is_sell -> Nullable<Bool>,
-        integrator_fee_rate_bps -> Nullable<Int2>,
-        net_proceeds -> Nullable<Int8>,
-        base_volume -> Nullable<Int8>,
-        quote_volume -> Nullable<Int8>,
-        avg_execution_price_q64 -> Nullable<Numeric>,
-        pool_fee -> Nullable<Int8>,
-        starts_in_bonding_curve -> Nullable<Bool>,
-        results_in_state_transition -> Nullable<Bool>,
-        base_amount -> Nullable<Int8>,
-        quote_amount -> Nullable<Int8>,
-        lp_coin_amount -> Nullable<Int8>,
-        liquidity_provided -> Nullable<Bool>,
-        pro_rata_base_donation_claim_amount -> Nullable<Int8>,
-        pro_rata_quote_donation_claim_amount -> Nullable<Int8>,
-        message -> Nullable<Text>,
-        user_emojicoin_balance -> Nullable<Int8>,
-        circulating_supply -> Nullable<Int8>,
-        balance_as_fraction_of_circulating_supply_q64 -> Nullable<Numeric>,
     }
 }
 
@@ -1428,6 +1433,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     ans_primary_name,
     ans_primary_name_v2,
     block_metadata_transactions,
+    bump_events,
     coin_activities,
     coin_balances,
     coin_infos,
@@ -1477,7 +1483,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     proposal_votes,
     signatures,
     spam_assets,
-    state_bumps,
     table_items,
     table_metadatas,
     token_activities,

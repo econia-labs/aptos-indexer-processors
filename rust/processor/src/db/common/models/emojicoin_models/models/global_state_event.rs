@@ -1,4 +1,4 @@
-use super::super::enums::StateTrigger;
+use super::super::enums::Trigger;
 use crate::{
     db::common::models::emojicoin_models::{
         json_types::{GlobalStateEvent, TxnInfo},
@@ -17,9 +17,10 @@ pub struct GlobalStateEventModel {
     pub transaction_version: i64,
     pub sender: String,
     pub entry_function: Option<String>,
+    pub transaction_timestamp: chrono::NaiveDateTime,
     pub emit_time: chrono::NaiveDateTime,
     pub registry_nonce: i64,
-    pub trigger: StateTrigger,
+    pub trigger: Trigger,
     pub cumulative_quote_volume: BigDecimal,
     pub total_quote_locked: BigDecimal,
     pub total_value_locked: BigDecimal,
@@ -39,10 +40,11 @@ pub struct GlobalStateEventModelQuery {
     pub transaction_version: i64,
     pub sender: String,
     pub entry_function: Option<String>,
+    pub transaction_timestamp: chrono::NaiveDateTime,
     pub inserted_at: chrono::NaiveDateTime,
     pub emit_time: chrono::NaiveDateTime,
     pub registry_nonce: i64,
-    pub trigger: StateTrigger,
+    pub trigger: Trigger,
     pub cumulative_quote_volume: BigDecimal,
     pub total_quote_locked: BigDecimal,
     pub total_value_locked: BigDecimal,
@@ -60,7 +62,8 @@ impl GlobalStateEventModel {
             transaction_version: txn_info.version,
             sender: txn_info.sender,
             entry_function: txn_info.entry_function,
-            emit_time: micros_to_naive_datetime(global_state_event.emit_time, "emit_time"),
+            transaction_timestamp: txn_info.timestamp,
+            emit_time: micros_to_naive_datetime(global_state_event.emit_time),
             registry_nonce: global_state_event.registry_nonce,
             trigger: global_state_event.trigger,
             cumulative_quote_volume: global_state_event.cumulative_quote_volume,

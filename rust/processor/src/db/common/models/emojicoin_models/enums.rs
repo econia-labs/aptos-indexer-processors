@@ -7,8 +7,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, diesel_derive_enum::DbEnum,
 )]
-#[ExistingTypePath = "crate::schema::sql_types::StateTrigger"]
-pub enum StateTrigger {
+#[ExistingTypePath = "crate::schema::sql_types::TriggerType"]
+pub enum Trigger {
     PackagePublication,
     MarketRegistration,
     SwapBuy,
@@ -18,7 +18,7 @@ pub enum StateTrigger {
     Chat,
 }
 
-impl StateTrigger {
+impl Trigger {
     pub fn from_i16(i: i16) -> Option<Self> {
         match i {
             0 => Some(Self::PackagePublication),
@@ -33,18 +33,16 @@ impl StateTrigger {
     }
 }
 
-pub fn deserialize_state_trigger<'de, D>(
-    deserializer: D,
-) -> core::result::Result<StateTrigger, D::Error>
+pub fn deserialize_state_trigger<'de, D>(deserializer: D) -> core::result::Result<Trigger, D::Error>
 where
     D: Deserializer<'de>,
 {
     use serde::de::Error;
     let trigger = <i16>::deserialize(deserializer)?;
-    match StateTrigger::from_i16(trigger) {
+    match Trigger::from_i16(trigger) {
         Some(trigger) => Ok(trigger),
         None => Err(D::Error::custom(format!(
-            "Failed to deserialize StateTrigger from i16: {}",
+            "Failed to deserialize Trigger from i16: {}",
             trigger
         ))),
     }
@@ -53,8 +51,8 @@ where
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, diesel_derive_enum::DbEnum,
 )]
-#[ExistingTypePath = "crate::schema::sql_types::PeriodicStateResolution"]
-pub enum PeriodicStateResolution {
+#[ExistingTypePath = "crate::schema::sql_types::PeriodType"]
+pub enum PeriodType {
     #[db_rename = "1m"]
     Period1M,
     #[db_rename = "5m"]
@@ -71,25 +69,25 @@ pub enum PeriodicStateResolution {
     Period1D,
 }
 
-pub fn deserialize_periodic_state_resolution<'de, D>(
+pub fn deserialize_state_period<'de, D>(
     deserializer: D,
-) -> core::result::Result<PeriodicStateResolution, D::Error>
+) -> core::result::Result<PeriodType, D::Error>
 where
     D: Deserializer<'de>,
 {
     use serde::de::Error;
-    let resolution = <String>::deserialize(deserializer)?;
-    match resolution.as_str() {
-        "60000000" => Ok(PeriodicStateResolution::Period1M),
-        "300000000" => Ok(PeriodicStateResolution::Period5M),
-        "900000000" => Ok(PeriodicStateResolution::Period15M),
-        "1800000000" => Ok(PeriodicStateResolution::Period30M),
-        "3600000000" => Ok(PeriodicStateResolution::Period1H),
-        "14400000000" => Ok(PeriodicStateResolution::Period4H),
-        "86400000000" => Ok(PeriodicStateResolution::Period1D),
+    let period = <String>::deserialize(deserializer)?;
+    match period.as_str() {
+        "60000000" => Ok(PeriodType::Period1M),
+        "300000000" => Ok(PeriodType::Period5M),
+        "900000000" => Ok(PeriodType::Period15M),
+        "1800000000" => Ok(PeriodType::Period30M),
+        "3600000000" => Ok(PeriodType::Period1H),
+        "14400000000" => Ok(PeriodType::Period4H),
+        "86400000000" => Ok(PeriodType::Period1D),
         _ => Err(D::Error::custom(format!(
-            "Failed to deserialize PeriodicStateResolution from string: {}",
-            resolution
+            "Failed to deserialize PeriodType from string: {}",
+            period
         ))),
     }
 }

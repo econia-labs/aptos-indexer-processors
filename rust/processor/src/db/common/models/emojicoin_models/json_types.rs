@@ -4,14 +4,14 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     db::common::models::emojicoin_models::enums::{
-        deserialize_periodic_state_resolution, deserialize_state_trigger,
+        deserialize_state_period, deserialize_state_trigger,
     },
     utils::util::{
         deserialize_from_string, hex_to_raw_bytes, standardize_address, AggregatorSnapshot,
     },
 };
 
-use super::enums::{EmojicoinTypeTag, PeriodicStateResolution, StateTrigger};
+use super::enums::{EmojicoinTypeTag, PeriodType, Trigger};
 
 pub fn deserialize_bytes_from_hex_string<'de, D>(
     deserializer: D,
@@ -82,14 +82,14 @@ pub struct Reserves {
 pub struct PeriodicStateMetadata {
     #[serde(deserialize_with = "deserialize_from_string")]
     pub start_time: i64,
-    #[serde(deserialize_with = "deserialize_periodic_state_resolution")]
-    pub period: PeriodicStateResolution,
+    #[serde(deserialize_with = "deserialize_state_period")]
+    pub period: PeriodType,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub emit_time: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub emit_market_nonce: i64,
     #[serde(deserialize_with = "deserialize_state_trigger")]
-    pub trigger: StateTrigger,
+    pub trigger: Trigger,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -99,7 +99,7 @@ pub struct StateMetadata {
     #[serde(deserialize_with = "deserialize_from_string")]
     pub bump_time: i64,
     #[serde(deserialize_with = "deserialize_state_trigger")]
-    pub trigger: StateTrigger,
+    pub trigger: Trigger,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -262,7 +262,7 @@ pub struct GlobalStateEvent {
     #[serde(deserialize_with = "deserialize_aggregator_snapshot_u64")]
     pub registry_nonce: i64,
     #[serde(deserialize_with = "deserialize_state_trigger")]
-    pub trigger: StateTrigger,
+    pub trigger: Trigger,
     #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]
     pub cumulative_quote_volume: BigDecimal,
     #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]
@@ -387,14 +387,15 @@ pub enum BumpEvent {
     Liquidity(LiquidityEvent),
 }
 // A subset of the transaction info that comes in from the GRPC stream.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct TxnInfo {
     pub version: i64,
     pub sender: String,
     pub entry_function: Option<String>,
+    pub timestamp: chrono::NaiveDateTime,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct BumpGroup {
     pub market_id: i64,
     pub market_nonce: i64,

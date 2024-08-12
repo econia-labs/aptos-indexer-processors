@@ -1,4 +1,4 @@
-use super::super::enums::{PeriodicStateResolution, StateTrigger};
+use super::super::enums::{PeriodType, Trigger};
 use super::super::utils::micros_to_naive_datetime;
 use crate::db::common::models::emojicoin_models::json_types::{
     LastSwap, PeriodicStateEvent, TxnInfo,
@@ -9,13 +9,14 @@ use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
-#[diesel(primary_key(market_id, resolution, market_nonce))]
+#[diesel(primary_key(market_id, period, market_nonce))]
 #[diesel(table_name = periodic_state_events)]
 pub struct PeriodicStateEventModel {
     // Transaction metadata.
     pub transaction_version: i64,
     pub sender: String,
     pub entry_function: Option<String>,
+    pub transaction_timestamp: chrono::NaiveDateTime,
 
     // Market metadata.
     pub market_id: i64,
@@ -24,7 +25,7 @@ pub struct PeriodicStateEventModel {
     // State metadata.
     pub emit_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
-    pub trigger: StateTrigger,
+    pub trigger: Trigger,
 
     // Last swap data. The last swap can also be the event that triggered the periodic state event.
     pub last_swap_is_sell: bool,
@@ -35,7 +36,7 @@ pub struct PeriodicStateEventModel {
     pub last_swap_time: chrono::NaiveDateTime,
 
     // Periodic state metadata.
-    pub resolution: PeriodicStateResolution,
+    pub period: PeriodType,
     pub start_time: chrono::NaiveDateTime,
 
     // Periodic state event data.
@@ -59,7 +60,7 @@ pub struct PeriodicStateEventModel {
 // Unfortunately, this is a limitation with `diesel`'s `insertable` derive macro, and it means we must have lots
 // of duplicated code.
 #[derive(Clone, Debug, Identifiable, Queryable)]
-#[diesel(primary_key(market_id, resolution, market_nonce))]
+#[diesel(primary_key(market_id, period, market_nonce))]
 #[diesel(table_name = periodic_state_events)]
 pub struct PeriodicStateEventModelQuery {
     // Transaction metadata.
@@ -67,6 +68,7 @@ pub struct PeriodicStateEventModelQuery {
     pub sender: String,
     pub entry_function: Option<String>,
     pub inserted_at: chrono::NaiveDateTime,
+    pub transaction_timestamp: chrono::NaiveDateTime,
 
     // Market metadata.
     pub market_id: i64,
@@ -75,7 +77,7 @@ pub struct PeriodicStateEventModelQuery {
     // State metadata.
     pub emit_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
-    pub trigger: StateTrigger,
+    pub trigger: Trigger,
 
     // Flattened `last_swap`. The last swap can also be the event that triggered the periodic state event.
     pub last_swap_is_sell: bool,
@@ -86,7 +88,7 @@ pub struct PeriodicStateEventModelQuery {
     pub last_swap_time: chrono::NaiveDateTime,
 
     // Periodic state metadata.
-    pub resolution: PeriodicStateResolution,
+    pub period: PeriodType,
     pub start_time: chrono::NaiveDateTime,
 
     // Periodic state event data.
@@ -119,12 +121,10 @@ impl PeriodicStateEventModel {
                 transaction_version: txn_info.version,
                 sender: txn_info.sender.clone(),
                 entry_function: txn_info.entry_function.clone(),
+                transaction_timestamp: txn_info.timestamp,
                 market_id: ps_event.market_metadata.market_id,
                 symbol_bytes: ps_event.market_metadata.emoji_bytes,
-                emit_time: micros_to_naive_datetime(
-                    ps_event.periodic_state_metadata.emit_time,
-                    "periodic_state_metadata.emit_time",
-                ),
+                emit_time: micros_to_naive_datetime(ps_event.periodic_state_metadata.emit_time),
                 market_nonce: ps_event.periodic_state_metadata.emit_market_nonce,
                 trigger: ps_event.periodic_state_metadata.trigger,
                 last_swap_is_sell: last_swap.is_sell,
@@ -132,12 +132,9 @@ impl PeriodicStateEventModel {
                 last_swap_base_volume: last_swap.base_volume,
                 last_swap_quote_volume: last_swap.quote_volume,
                 last_swap_nonce: last_swap.nonce,
-                last_swap_time: micros_to_naive_datetime(last_swap.time, "last_swap.time"),
-                resolution: ps_event.periodic_state_metadata.period,
-                start_time: micros_to_naive_datetime(
-                    ps_event.periodic_state_metadata.start_time,
-                    "periodic_state_metadata.start_time",
-                ),
+                last_swap_time: micros_to_naive_datetime(last_swap.time),
+                period: ps_event.periodic_state_metadata.period,
+                start_time: micros_to_naive_datetime(ps_event.periodic_state_metadata.start_time),
                 open_price_q64: ps_event.open_price_q64,
                 high_price_q64: ps_event.high_price_q64,
                 low_price_q64: ps_event.low_price_q64,

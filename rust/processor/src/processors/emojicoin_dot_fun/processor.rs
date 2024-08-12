@@ -1,19 +1,18 @@
 use crate::{
     db::common::models::emojicoin_models::{
-        db_types::{
-            global_state_events_model::GlobalStateEventModel,
-            periodic_state_events_model::PeriodicStateEventModel,
-            state_bumps_model::StateBumpModel,
-        },
         event_utils::BumpGroupBuilder,
         json_types::{BumpGroup, EventWithMarket, GlobalStateEvent, TxnInfo},
+        models::{
+            bump_event::BumpEventModel, global_state_event::GlobalStateEventModel,
+            periodic_state_event::PeriodicStateEventModel,
+        },
     },
     gap_detectors::ProcessingResult,
     processors::{DefaultProcessingResult, ProcessorName, ProcessorTrait},
     utils::{
         counters::PROCESSOR_UNKNOWN_TYPE_COUNT,
         database::{execute_in_chunks, get_config_table_chunk_size, ArcDbPool},
-        util::{get_entry_function_from_user_request, standardize_address},
+        util::{get_entry_function_from_user_request, parse_timestamp, standardize_address},
     },
 };
 use ahash::AHashMap;
@@ -56,7 +55,7 @@ async fn insert_to_db(
     end_version: u64,
     global_state_events: &[GlobalStateEventModel],
     periodic_state_events: &[PeriodicStateEventModel],
-    state_bumps: &[StateBumpModel],
+    bump_events: &[BumpEventModel],
     per_table_chunk_sizes: &AHashMap<String, usize>,
 ) -> Result<(), diesel::result::Error> {
     tracing::trace!(
@@ -67,9 +66,9 @@ async fn insert_to_db(
     );
     let bump = execute_in_chunks(
         conn.clone(),
-        insert_state_bumps_query,
-        state_bumps,
-        get_config_table_chunk_size::<StateBumpModel>("state_bumps", per_table_chunk_sizes),
+        insert_bump_events_query,
+        bump_events,
+        get_config_table_chunk_size::<BumpEventModel>("bump_events", per_table_chunk_sizes),
     );
     let periodic = execute_in_chunks(
         conn.clone(),
@@ -98,17 +97,17 @@ async fn insert_to_db(
     Ok(())
 }
 
-fn insert_state_bumps_query(
-    items_to_insert: Vec<StateBumpModel>,
+fn insert_bump_events_query(
+    items_to_insert: Vec<BumpEventModel>,
 ) -> (
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use crate::schema::state_bumps;
+    use crate::schema::bump_events;
     (
-        diesel::insert_into(state_bumps::table)
+        diesel::insert_into(bump_events::table)
             .values(items_to_insert)
-            .on_conflict((state_bumps::market_id, state_bumps::market_nonce))
+            .on_conflict((bump_events::market_id, bump_events::market_nonce))
             .do_nothing(),
         None,
     )
@@ -126,7 +125,7 @@ fn insert_periodic_state_events_query(
             .values(items_to_insert)
             .on_conflict((
                 periodic_state_events::market_id,
-                periodic_state_events::resolution,
+                periodic_state_events::period,
                 periodic_state_events::market_nonce,
             ))
             .do_nothing(),
@@ -166,7 +165,7 @@ impl ProcessorTrait for EmojicoinProcessor {
         let processing_start = std::time::Instant::now();
         let last_transaction_timestamp = transactions.last().unwrap().timestamp.clone();
 
-        let mut state_bumps = vec![];
+        let mut bump_events = vec![];
         let mut periodic_state_events = vec![];
         let mut global_state_events = vec![];
         for txn in &transactions {
@@ -195,6 +194,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                     version: txn_version,
                     sender: standardize_address(user_request.sender.as_ref()),
                     entry_function,
+                    timestamp: parse_timestamp(txn.timestamp.as_ref().unwrap(), txn_version),
                 };
 
                 // Push global events directly to the vector we use for insertion.
@@ -249,7 +249,7 @@ impl ProcessorTrait for EmojicoinProcessor {
 
                 for group in bump_groups {
                     let (bump, periodics) = BumpGroup::to_db_models(group);
-                    state_bumps.push(bump);
+                    bump_events.push(bump);
                     periodic_state_events.extend(periodics);
                 }
             }
@@ -265,7 +265,7 @@ impl ProcessorTrait for EmojicoinProcessor {
             end_version,
             &global_state_events,
             &periodic_state_events,
-            &state_bumps,
+            &bump_events,
             &self.per_table_chunk_sizes,
         )
         .await;
