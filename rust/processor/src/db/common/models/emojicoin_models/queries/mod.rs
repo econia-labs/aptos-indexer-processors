@@ -1,1 +1,1 @@
-pub mod global_state;
+pub mod test_queries;
