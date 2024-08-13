@@ -16,7 +16,7 @@ pub struct MarketRegistrationEventModel {
     entry_function: Option<String>,
     transaction_timestamp: chrono::NaiveDateTime,
 
-    // Market & State metadata.
+    // Market and state metadata.
     market_id: i64,
     symbol_bytes: Vec<u8>,
     bump_time: chrono::NaiveDateTime,
@@ -42,7 +42,7 @@ pub struct MarketRegistrationEventModelQuery {
     transaction_timestamp: chrono::NaiveDateTime,
     inserted_at: chrono::NaiveDateTime,
 
-    // Market & State metadata.
+    // Market and state metadata.
     market_id: i64,
     symbol_bytes: Vec<u8>,
     bump_time: chrono::NaiveDateTime,
@@ -77,7 +77,7 @@ impl MarketRegistrationEventModel {
             entry_function: txn_info.entry_function.clone(),
             transaction_timestamp: txn_info.timestamp,
 
-            // Market & State metadata.
+            // Market and state metadata.
             market_id: market_metadata.market_id,
             symbol_bytes: market_metadata.emoji_bytes,
             bump_time: micros_to_naive_datetime(time),

@@ -64,7 +64,7 @@ CREATE TABLE periodic_state_events (
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
-  -- Market & State metadata.
+  -- Market and state metadata.
   market_id BIGINT NOT NULL,
   symbol_bytes BYTEA NOT NULL,
   emit_time TIMESTAMP NOT NULL,
@@ -110,7 +110,7 @@ CREATE TABLE market_registration_events (
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
-  -- Market & State metadata.
+  -- Market and state metadata.
   market_id BIGINT NOT NULL,
   symbol_bytes BYTEA NOT NULL,
   bump_time TIMESTAMP NOT NULL,
@@ -133,7 +133,7 @@ CREATE TABLE swap_events (
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
-  -- Market & State metadata.
+  -- Market and state metadata.
   market_id BIGINT NOT NULL,
   symbol_bytes BYTEA NOT NULL,
   bump_time TIMESTAMP NOT NULL,
@@ -190,7 +190,7 @@ CREATE TABLE chat_events (
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
-  -- Market & State metadata.
+  -- Market and state metadata.
   market_id BIGINT NOT NULL,
   symbol_bytes BYTEA NOT NULL,
   bump_time TIMESTAMP NOT NULL,
@@ -239,7 +239,7 @@ CREATE TABLE liquidity_events (
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
-  -- Market & State metadata.
+  -- Market and state metadata.
   market_id BIGINT NOT NULL,
   symbol_bytes BYTEA NOT NULL,
   bump_time TIMESTAMP NOT NULL,
