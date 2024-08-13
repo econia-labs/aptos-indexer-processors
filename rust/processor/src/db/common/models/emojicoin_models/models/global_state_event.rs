@@ -34,7 +34,7 @@ pub struct GlobalStateEventModel {
 #[derive(Identifiable, Queryable)]
 #[diesel(primary_key(registry_nonce))]
 #[diesel(table_name = global_state_events)]
-pub struct GlobalStateEventModelQuery {
+pub struct GlobalStateEventQueryModel {
     pub transaction_version: i64,
     pub sender: String,
     pub entry_function: Option<String>,

@@ -1,9 +1,9 @@
 use crate::{
     db::common::models::emojicoin_models::models::{
-        chat_event::ChatEventModelQuery, global_state_event::GlobalStateEventModelQuery,
-        liquidity_event::LiquidityEventModelQuery,
-        market_registration_event::MarketRegistrationEventModelQuery,
-        periodic_state_event::PeriodicStateEventModelQuery, swap_event::SwapEventModelQuery,
+        chat_event::ChatEventQueryModel, global_state_event::GlobalStateEventQueryModel,
+        liquidity_event::LiquidityEventQueryModel,
+        market_registration_event::MarketRegistrationEventQueryModel,
+        periodic_state_event::PeriodicStateEventQueryModel, swap_event::SwapEventQueryModel,
     },
     schema::chat_events,
     schema::global_state_events,
@@ -16,7 +16,7 @@ use crate::{
 use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, QueryResult};
 use diesel_async::RunQueryDsl;
 
-impl GlobalStateEventModelQuery {
+impl GlobalStateEventQueryModel {
     pub async fn get_latest(conn: &mut DbPoolConnection<'_>) -> QueryResult<Option<Self>> {
         global_state_events::table
             .select(global_state_events::all_columns)
@@ -27,7 +27,7 @@ impl GlobalStateEventModelQuery {
     }
 }
 
-impl ChatEventModelQuery {
+impl ChatEventQueryModel {
     pub async fn get_latest_by_market(
         conn: &mut DbPoolConnection<'_>,
         market_id: i64,
@@ -42,7 +42,7 @@ impl ChatEventModelQuery {
     }
 }
 
-impl LiquidityEventModelQuery {
+impl LiquidityEventQueryModel {
     pub async fn get_latest_by_market(
         conn: &mut DbPoolConnection<'_>,
         market_id: i64,
@@ -57,7 +57,7 @@ impl LiquidityEventModelQuery {
     }
 }
 
-impl SwapEventModelQuery {
+impl SwapEventQueryModel {
     pub async fn get_latest_by_market(
         conn: &mut DbPoolConnection<'_>,
         market_id: i64,
@@ -72,7 +72,7 @@ impl SwapEventModelQuery {
     }
 }
 
-impl MarketRegistrationEventModelQuery {
+impl MarketRegistrationEventQueryModel {
     pub async fn get_latest(
         conn: &mut DbPoolConnection<'_>,
         market_id: i64,
@@ -87,7 +87,7 @@ impl MarketRegistrationEventModelQuery {
     }
 }
 
-impl PeriodicStateEventModelQuery {
+impl PeriodicStateEventQueryModel {
     pub async fn get_latest_by_market(
         conn: &mut DbPoolConnection<'_>,
         market_id: i64,

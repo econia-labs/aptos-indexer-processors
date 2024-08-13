@@ -396,7 +396,7 @@ pub struct TxnInfo {
 }
 
 #[derive(Debug, Clone)]
-pub struct BumpGroup {
+pub struct EventGroup {
     pub market_id: i64,
     pub market_nonce: i64,
     pub bump_event: BumpEvent,

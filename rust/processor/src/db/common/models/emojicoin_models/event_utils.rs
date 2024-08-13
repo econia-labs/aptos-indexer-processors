@@ -1,20 +1,7 @@
 use super::json_types::{
-    BumpEvent, BumpGroup, EventWithMarket, PeriodicStateEvent, StateEvent, TxnInfo,
+    BumpEvent, EventGroup, EventWithMarket, PeriodicStateEvent, StateEvent, TxnInfo,
 };
-use std::cmp::Ordering;
-
 impl EventWithMarket {
-    pub fn get_tertiary_sort_rank(&self) -> i64 {
-        match self {
-            EventWithMarket::State(_) => 0,
-            EventWithMarket::MarketRegistration(_) => 1,
-            EventWithMarket::Chat(_) => 2,
-            EventWithMarket::Swap(_) => 3,
-            EventWithMarket::PeriodicState(_) => 4,
-            EventWithMarket::Liquidity(_) => 5,
-        }
-    }
-
     pub fn get_market_id(&self) -> i64 {
         match self {
             EventWithMarket::Chat(event) => event.market_metadata.market_id,
@@ -41,8 +28,8 @@ impl EventWithMarket {
 }
 
 // For grouping all events in a single transaction into the various types:
-// Each state event has a unique bump nonce, we can use that to group bump events (events that trigger state bumps)
-// with their respective StateEvent.
+// Each state event has a unique bump nonce, we can use that to group events that trigger state bumps
+// with the corresponding emitted StateEvent.
 // The following groupings are possible:
 // -- ONE market ID and ONE market nonce.
 //    - ONE State Event
@@ -54,40 +41,9 @@ impl EventWithMarket {
 //    - ZERO to SEVEN of the following:
 //       - Periodic State Events (1m, 5m, 15m, 30m, 1h, 4h, 1d)
 // Note that we have no easy way of knowing for sure which state event triggered a GlobalStateEvent, because it doesn't emit
-// the market_id or bump_nonce. This means we can't group GlobalStateEvents with StateEvents in a BumpGroup.
-//
-/// We implement the sorting here to prioritize the following values:
-/// 1. Market ID, asc, so we can group events by market.
-/// 2. Market nonce, asc, so we can group events in chronological order.
-/// 3. The type of event.
-impl Ord for EventWithMarket {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.get_market_id()
-            .cmp(&other.get_market_id())
-            .then(self.get_market_nonce().cmp(&other.get_market_nonce()))
-            .then(
-                self.get_tertiary_sort_rank()
-                    .cmp(&other.get_tertiary_sort_rank()),
-            )
-    }
-}
-
-impl PartialOrd for EventWithMarket {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Eq for EventWithMarket {}
-
-impl PartialEq for EventWithMarket {
-    fn eq(&self, other: &Self) -> bool {
-        self.cmp(other) == Ordering::Equal
-    }
-}
-
+// the market_id or bump_nonce. This means we can't group GlobalStateEvents with StateEvents in an EventGroup.
 #[derive(Debug)]
-pub struct BumpGroupBuilder {
+pub struct EventGroupBuilder {
     pub market_id: i64,
     pub market_nonce: i64,
     pub bump_event: Option<BumpEvent>,
@@ -95,7 +51,7 @@ pub struct BumpGroupBuilder {
     pub periodic_state_events: Vec<PeriodicStateEvent>,
     pub txn_info: TxnInfo,
 }
-impl BumpGroupBuilder {
+impl EventGroupBuilder {
     pub fn new(event: EventWithMarket, txn_info: TxnInfo) -> Self {
         let mut builder = Self {
             market_id: event.get_market_id(),
@@ -127,12 +83,16 @@ impl BumpGroupBuilder {
     }
 
     pub fn add_bump(&mut self, bump_event: BumpEvent) {
-        debug_assert!(self.bump_event.is_none());
+        if self.bump_event.is_some() {
+            panic!("EventGroups can only have one BumpEvent.");
+        }
         self.bump_event = Some(bump_event);
     }
 
     pub fn add_state(&mut self, state_event: StateEvent) {
-        debug_assert!(self.state_event.is_none());
+        if self.state_event.is_some() {
+            panic!("EventGroups can only have one StateEvent.");
+        }
         self.state_event = Some(state_event);
     }
 
@@ -141,13 +101,13 @@ impl BumpGroupBuilder {
         self.periodic_state_events.push(periodic_state_event);
     }
 
-    pub fn build(self) -> BumpGroup {
-        let bump_event = self.bump_event.expect("BumpGroups must have a BumpEvent.");
+    pub fn build(self) -> EventGroup {
+        let bump_event = self.bump_event.expect("EventGroups must have a BumpEvent.");
         let state_event = self
             .state_event
-            .expect("BumpGroups must have a StateEvent.");
+            .expect("EventGroups must have a StateEvent.");
 
-        BumpGroup {
+        EventGroup {
             market_id: self.market_id,
             market_nonce: self.market_nonce,
             bump_event,

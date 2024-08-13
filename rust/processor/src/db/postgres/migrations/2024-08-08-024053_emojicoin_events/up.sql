@@ -172,12 +172,9 @@ CREATE TABLE swap_events (
   instantaneous_stats_total_value_locked NUMERIC NOT NULL,
   instantaneous_stats_market_cap NUMERIC NOT NULL,
   instantaneous_stats_fully_diluted_value NUMERIC NOT NULL,
-  last_swap_is_sell BOOLEAN NOT NULL,
-  last_swap_avg_execution_price_q64 NUMERIC NOT NULL,
-  last_swap_base_volume BIGINT NOT NULL,
-  last_swap_quote_volume BIGINT NOT NULL,
-  last_swap_nonce BIGINT NOT NULL,
-  last_swap_time TIMESTAMP NOT NULL,
+
+  -- We don't include the state `last_swap` data here because
+  -- it's identical to the swap event data above.
 
   PRIMARY KEY (market_id, market_nonce)
 );
@@ -290,18 +287,13 @@ CREATE TABLE liquidity_events (
 
 -- Querying the swap events for a market, descending chronologically.
 CREATE INDEX swaps_by_mkt_and_time_idx
-ON swap_events (market_id, bump_time DESC);
+ON swap_events (market_id, market_nonce DESC);
 
 -- Querying the chat events for a market, descending chronologically.
 CREATE INDEX chats_by_mkt_and_time_idx
-ON chat_events (market_id, bump_time DESC);
+ON chat_events (market_id, market_nonce DESC);
 
 -- Querying the candlestick data for a market by its period,
 -- descending chronologically by the candlestick open time.
 CREATE UNIQUE INDEX prdc_evts_by_res_idx
 ON periodic_state_events (market_id, period, start_time DESC);
-
--- Querying a user's liquidity pools.
-CREATE INDEX user_lp_idx
-ON liquidity_events (provider)
-WHERE liquidity_provided = TRUE;
