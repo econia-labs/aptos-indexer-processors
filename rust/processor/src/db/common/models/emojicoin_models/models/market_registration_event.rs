@@ -11,22 +11,22 @@ use serde::{Deserialize, Serialize};
 #[diesel(table_name = market_registration_events)]
 pub struct MarketRegistrationEventModel {
     // Transaction metadata.
-    transaction_version: i64,
-    sender: String,
-    entry_function: Option<String>,
-    transaction_timestamp: chrono::NaiveDateTime,
+    pub transaction_version: i64,
+    pub sender: String,
+    pub entry_function: Option<String>,
+    pub transaction_timestamp: chrono::NaiveDateTime,
 
     // Market and state metadata.
-    market_id: i64,
-    symbol_bytes: Vec<u8>,
-    bump_time: chrono::NaiveDateTime,
-    market_nonce: i64,
-    trigger: enums::Triggers,
+    pub market_id: i64,
+    pub symbol_bytes: Vec<u8>,
+    pub bump_time: chrono::NaiveDateTime,
+    pub market_nonce: i64,
+    pub trigger: enums::Triggers,
 
     // Market registration event data.
-    registrant: String,
-    integrator: String,
-    integrator_fee: i64,
+    pub registrant: String,
+    pub integrator: String,
+    pub integrator_fee: i64,
 }
 
 // Need a queryable version of the model to include the `inserted_at` field, since it's populated at insertion time.
@@ -34,25 +34,26 @@ pub struct MarketRegistrationEventModel {
 #[derive(Clone, Debug, Identifiable, Queryable)]
 #[diesel(primary_key(market_id))]
 #[diesel(table_name = market_registration_events)]
-pub struct MarketRegistrationEventModelQuery {
+#[allow(dead_code)]
+pub struct MarketRegistrationEventQueryModel {
     // Transaction metadata.
-    transaction_version: i64,
-    sender: String,
-    entry_function: Option<String>,
-    transaction_timestamp: chrono::NaiveDateTime,
-    inserted_at: chrono::NaiveDateTime,
+    pub transaction_version: i64,
+    pub sender: String,
+    pub entry_function: Option<String>,
+    pub transaction_timestamp: chrono::NaiveDateTime,
+    pub inserted_at: chrono::NaiveDateTime,
 
     // Market and state metadata.
-    market_id: i64,
-    symbol_bytes: Vec<u8>,
-    bump_time: chrono::NaiveDateTime,
-    market_nonce: i64,
-    trigger: enums::Triggers,
+    pub market_id: i64,
+    pub symbol_bytes: Vec<u8>,
+    pub bump_time: chrono::NaiveDateTime,
+    pub market_nonce: i64,
+    pub trigger: enums::Triggers,
 
     // Market registration event data.
-    registrant: String,
-    integrator: String,
-    integrator_fee: i64,
+    pub registrant: String,
+    pub integrator: String,
+    pub integrator_fee: i64,
 }
 
 impl MarketRegistrationEventModel {

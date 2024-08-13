@@ -62,7 +62,7 @@ pub struct PeriodicStateEventModel {
 #[derive(Clone, Debug, Identifiable, Queryable)]
 #[diesel(primary_key(market_id, period, market_nonce))]
 #[diesel(table_name = periodic_state_events)]
-pub struct PeriodicStateEventModelQuery {
+pub struct PeriodicStateEventQueryModel {
     // Transaction metadata.
     pub transaction_version: i64,
     pub sender: String,

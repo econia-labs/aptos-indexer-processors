@@ -5,17 +5,21 @@ use super::insertion_queries::{
 };
 use crate::{
     db::common::models::emojicoin_models::{
-        event_utils::BumpGroupBuilder,
-        json_types::{BumpEvent, BumpGroup, EventWithMarket, GlobalStateEvent, TxnInfo},
+        event_utils::EventGroupBuilder,
+        json_types::{BumpEvent, EventGroup, EventWithMarket, GlobalStateEvent, TxnInfo},
         models::{
             chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
             liquidity_event::LiquidityEventModel,
             market_registration_event::MarketRegistrationEventModel,
             periodic_state_event::PeriodicStateEventModel, swap_event::SwapEventModel,
+            user_liquidity_pools::UserLiquidityPoolsModel,
         },
     },
     gap_detectors::ProcessingResult,
-    processors::{DefaultProcessingResult, ProcessorName, ProcessorTrait},
+    processors::{
+        emojicoin_dot_fun::insertion_queries::insert_user_liquidity_pools_query,
+        DefaultProcessingResult, ProcessorName, ProcessorTrait,
+    },
     utils::{
         counters::PROCESSOR_UNKNOWN_TYPE_COUNT,
         database::{execute_in_chunks, get_config_table_chunk_size, ArcDbPool},
@@ -26,6 +30,7 @@ use ahash::AHashMap;
 use anyhow::bail;
 use aptos_protos::transaction::v1::{transaction::TxnData, Transaction};
 use async_trait::async_trait;
+use itertools::Itertools;
 use std::fmt::Debug;
 use tracing::error;
 
@@ -65,6 +70,7 @@ async fn insert_to_db(
     liquidity_events: &[LiquidityEventModel],
     periodic_state_events: &[PeriodicStateEventModel],
     global_state_events: &[GlobalStateEventModel],
+    user_pools: &[UserLiquidityPoolsModel],
     per_table_chunk_sizes: &AHashMap<String, usize>,
 ) -> Result<(), diesel::result::Error> {
     tracing::trace!(
@@ -121,10 +127,26 @@ async fn insert_to_db(
             per_table_chunk_sizes,
         ),
     );
+    let lp_pools = execute_in_chunks(
+        conn.clone(),
+        insert_user_liquidity_pools_query,
+        user_pools,
+        get_config_table_chunk_size::<UserLiquidityPoolsModel>(
+            "user_liquidity_pools",
+            per_table_chunk_sizes,
+        ),
+    );
 
-    let (m, s, c, l, p, g) =
-        tokio::join!(market_registration, chat, swap, liquidity, periodic, global);
-    for res in [m, s, c, l, p, g] {
+    let (m, s, c, l, per, g, pools) = tokio::join!(
+        market_registration,
+        chat,
+        swap,
+        liquidity,
+        periodic,
+        global,
+        lp_pools
+    );
+    for res in [m, s, c, l, per, g, pools] {
         res?;
     }
 
@@ -147,12 +169,13 @@ impl ProcessorTrait for EmojicoinProcessor {
         let processing_start = std::time::Instant::now();
         let last_transaction_timestamp = transactions.last().unwrap().timestamp.clone();
 
-        let mut market_registration_events = vec![];
+        let mut registration_events = vec![];
         let mut swap_events = vec![];
         let mut chat_events = vec![];
         let mut liquidity_events = vec![];
         let mut periodic_state_events = vec![];
         let mut global_state_events = vec![];
+        let mut user_pools: AHashMap<(String, i64), UserLiquidityPoolsModel> = AHashMap::new();
         for txn in &transactions {
             let txn_version = txn.version as i64;
             let txn_data = match txn.txn_data.as_ref() {
@@ -182,16 +205,15 @@ impl ProcessorTrait for EmojicoinProcessor {
                     timestamp: parse_timestamp(txn.timestamp.as_ref().unwrap(), txn_version),
                 };
 
-                // Push global events directly to the vector we use for insertion.
-                let mut txn_non_global_state_events = vec![];
-
+                // Group the market events in this transaction.
+                let mut market_events = vec![];
                 for event in user_txn.events.iter() {
                     let type_str = event.type_str.as_str();
                     let data = event.data.as_str();
 
                     match EventWithMarket::from_event_type(type_str, data, txn_version)? {
-                        Some(event_with_market) => {
-                            txn_non_global_state_events.push(event_with_market);
+                        Some(evt) => {
+                            market_events.push(evt);
                         },
                         _ => {
                             if let Some(global_event) =
@@ -206,58 +228,62 @@ impl ProcessorTrait for EmojicoinProcessor {
                     }
                 }
 
-                // Sort and group all events according to EventWithMarket's custom `Ord` implementation.
-                // The builder function below groups events based on their order in the sorted vector.
-                // See the `Ord` implementation in `EventWithMarket` for more details.
-                txn_non_global_state_events.sort();
-
-                let mut bump_groups = vec![];
-                let mut iter = txn_non_global_state_events.into_iter();
-                if let Some(first) = iter.next() {
-                    let mut group = BumpGroupBuilder::new(first, txn_info.clone());
-
-                    // Build upon the current group until the market ID or nonce changes.
-                    for evt in iter {
-                        let (curr_id, curr_nonce) = (evt.get_market_id(), evt.get_market_nonce());
-                        if curr_id == group.market_id && curr_nonce == group.market_nonce {
+                let mut builders: AHashMap<(i64, i64), EventGroupBuilder> = AHashMap::new();
+                for evt in market_events.into_iter() {
+                    let (market_id, market_nonce) = (evt.get_market_id(), evt.get_market_nonce());
+                    match builders.get_mut(&(market_id, market_nonce)) {
+                        Some(group) => {
                             group.add_event(evt);
-                        } else {
-                            bump_groups.push(group.build());
-                            group = BumpGroupBuilder::new(evt, txn_info.clone());
-                        }
-                    }
-
-                    // Since we only call `build` when a market ID or nonce changes, the last group
-                    // will be fully formed but not built yet, so we call `build` here.
-                    bump_groups.push(group.build());
+                        },
+                        None => {
+                            builders.insert(
+                                (market_id, market_nonce),
+                                EventGroupBuilder::new(evt, txn_info.clone()),
+                            );
+                        },
+                    };
                 }
 
-                for group in bump_groups {
-                    let BumpGroup {
+                for builder in builders.into_values() {
+                    let EventGroup {
                         bump_event,
-                        state_event: state_ev,
+                        state_event: state_evt,
                         periodic_state_events: periodic_events,
                         txn_info,
                         ..
-                    } = group;
+                    } = builder.build();
 
                     periodic_state_events.extend(PeriodicStateEventModel::from_periodic_events(
                         txn_info.clone(),
                         periodic_events,
-                        state_ev.last_swap.clone(),
+                        state_evt.last_swap.clone(),
                     ));
 
                     match bump_event {
-                        BumpEvent::MarketRegistration(ev) => market_registration_events
-                            .push(MarketRegistrationEventModel::new(txn_info, ev, state_ev)),
-                        BumpEvent::Chat(ev) => {
-                            chat_events.push(ChatEventModel::new(txn_info, ev, state_ev))
+                        BumpEvent::MarketRegistration(bump) => {
+                            registration_events
+                                .push(MarketRegistrationEventModel::new(txn_info, bump, state_evt));
                         },
-                        BumpEvent::Swap(ev) => {
-                            swap_events.push(SwapEventModel::new(txn_info, ev, state_ev))
+                        BumpEvent::Chat(bump) => {
+                            chat_events.push(ChatEventModel::new(txn_info, bump, state_evt));
                         },
-                        BumpEvent::Liquidity(ev) => {
-                            liquidity_events.push(LiquidityEventModel::new(txn_info, ev, state_ev))
+                        BumpEvent::Swap(bump) => {
+                            swap_events.push(SwapEventModel::new(txn_info, bump, state_evt));
+                        },
+                        BumpEvent::Liquidity(bump) => {
+                            let ev = LiquidityEventModel::new(txn_info, bump, state_evt);
+                            liquidity_events.push(ev.clone());
+
+                            let key = (ev.provider.clone(), ev.market_id);
+                            let new_pool: UserLiquidityPoolsModel = ev.into();
+                            user_pools
+                                .entry(key)
+                                .and_modify(|pool| {
+                                    if pool.market_nonce < new_pool.market_nonce {
+                                        *pool = new_pool.clone();
+                                    }
+                                })
+                                .or_insert(new_pool);
                         },
                     }
                 }
@@ -272,27 +298,39 @@ impl ProcessorTrait for EmojicoinProcessor {
             self.name(),
             start_version,
             end_version,
-            &market_registration_events,
+            &registration_events,
             &swap_events,
             &chat_events,
             &liquidity_events,
             &periodic_state_events,
             &global_state_events,
+            user_pools.into_values().collect_vec().as_slice(),
             &self.per_table_chunk_sizes,
         )
         .await;
 
         let db_insertion_duration_in_secs = db_insertion_start.elapsed().as_secs_f64();
         match tx_result {
-            Ok(_) => Ok(ProcessingResult::DefaultProcessingResult(
-                DefaultProcessingResult {
+            Ok(_) => {
+                let res = ProcessingResult::DefaultProcessingResult(DefaultProcessingResult {
                     start_version,
                     end_version,
                     processing_duration_in_secs,
                     db_insertion_duration_in_secs,
-                    last_transaction_timestamp,
-                },
-            )),
+                    last_transaction_timestamp: last_transaction_timestamp.clone(),
+                });
+                println!(
+                    "::: EmojicoinProcessor: {:?}",
+                    (
+                        start_version,
+                        end_version,
+                        processing_duration_in_secs,
+                        db_insertion_duration_in_secs,
+                        last_transaction_timestamp,
+                    )
+                );
+                Ok(res)
+            },
             Err(e) => {
                 error!(
                     start_version = start_version,
