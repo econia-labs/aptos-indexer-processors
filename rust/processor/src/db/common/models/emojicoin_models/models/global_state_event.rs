@@ -28,10 +28,10 @@ pub struct GlobalStateEventModel {
     pub cumulative_swaps: i64,
     pub cumulative_chat_messages: i64,
 }
+
 // Need a queryable version of the model to include the `inserted_at` field, since it's populated at insertion time.
-// Unfortunately, this is a limitation with `diesel`'s `insertable` derive macro, and it means we must have lots
-// of duplicated code.
-#[derive(Clone, Debug, Identifiable, Queryable)]
+// Unfortunately, this is a limitation with `diesel`'s `insertable` derive macro.
+#[derive(Identifiable, Queryable)]
 #[diesel(primary_key(registry_nonce))]
 #[diesel(table_name = global_state_events)]
 pub struct GlobalStateEventModelQuery {
@@ -53,9 +53,8 @@ pub struct GlobalStateEventModelQuery {
     pub cumulative_chat_messages: i64,
 }
 
-// Converting from our strongly typed, previously JSON data to the database model.
 impl GlobalStateEventModel {
-    pub fn new(global_state_event: GlobalStateEvent, txn_info: TxnInfo) -> Self {
+    pub fn new(txn_info: TxnInfo, global_state_event: GlobalStateEvent) -> Self {
         GlobalStateEventModel {
             transaction_version: txn_info.version,
             sender: txn_info.sender,

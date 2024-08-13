@@ -1,13 +1,10 @@
 use super::json_types::{
     BumpEvent, BumpGroup, EventWithMarket, PeriodicStateEvent, StateEvent, TxnInfo,
 };
-use super::models::{
-    periodic_state_event::PeriodicStateEventModel, state_bump_event::StateBumpEventModel,
-};
 use std::cmp::Ordering;
 
 impl EventWithMarket {
-    pub fn get_sort_rank(&self) -> i64 {
+    pub fn get_tertiary_sort_rank(&self) -> i64 {
         match self {
             EventWithMarket::State(_) => 0,
             EventWithMarket::MarketRegistration(_) => 1,
@@ -68,7 +65,10 @@ impl Ord for EventWithMarket {
         self.get_market_id()
             .cmp(&other.get_market_id())
             .then(self.get_market_nonce().cmp(&other.get_market_nonce()))
-            .then(self.get_sort_rank().cmp(&other.get_sort_rank()))
+            .then(
+                self.get_tertiary_sort_rank()
+                    .cmp(&other.get_tertiary_sort_rank()),
+            )
     }
 }
 
@@ -155,28 +155,5 @@ impl BumpGroupBuilder {
             periodic_state_events: self.periodic_state_events,
             txn_info: self.txn_info,
         }
-    }
-}
-
-impl BumpGroup {
-    pub fn to_db_models(self) -> (StateBumpEventModel, Vec<PeriodicStateEventModel>) {
-        let BumpGroup {
-            bump_event,
-            state_event,
-            periodic_state_events,
-            txn_info,
-            ..
-        } = self;
-
-        let periodic_events_model = PeriodicStateEventModel::from_periodic_events(
-            txn_info.clone(),
-            periodic_state_events,
-            state_event.last_swap.clone(),
-        );
-
-        let state_bump_model =
-            StateBumpEventModel::from_bump_and_state_event(txn_info, bump_event, state_event);
-
-        (state_bump_model, periodic_events_model)
     }
 }

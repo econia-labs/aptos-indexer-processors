@@ -7,17 +7,6 @@ use serde::{Deserialize, Deserializer, Serialize};
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, diesel_derive_enum::DbEnum,
 )]
-#[ExistingTypePath = "crate::schema::sql_types::EventNames"]
-pub enum EventNames {
-    MarketRegistration,
-    Swap,
-    Chat,
-    Liquidity,
-}
-
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, diesel_derive_enum::DbEnum,
-)]
 #[ExistingTypePath = "crate::schema::sql_types::Triggers"]
 pub enum Triggers {
     PackagePublication,

@@ -1,10 +1,17 @@
+use super::insertion_queries::{
+    insert_chat_events_query, insert_global_events, insert_liquidity_events_query,
+    insert_market_registration_events_query, insert_periodic_state_events_query,
+    insert_swap_events_query,
+};
 use crate::{
     db::common::models::emojicoin_models::{
         event_utils::BumpGroupBuilder,
-        json_types::{BumpGroup, EventWithMarket, GlobalStateEvent, TxnInfo},
+        json_types::{BumpEvent, BumpGroup, EventWithMarket, GlobalStateEvent, TxnInfo},
         models::{
-            global_state_event::GlobalStateEventModel,
-            periodic_state_event::PeriodicStateEventModel, state_bump_event::StateBumpEventModel,
+            chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
+            liquidity_event::LiquidityEventModel,
+            market_registration_event::MarketRegistrationEventModel,
+            periodic_state_event::PeriodicStateEventModel, swap_event::SwapEventModel,
         },
     },
     gap_detectors::ProcessingResult,
@@ -19,7 +26,6 @@ use ahash::AHashMap;
 use anyhow::bail;
 use aptos_protos::transaction::v1::{transaction::TxnData, Transaction};
 use async_trait::async_trait;
-use diesel::{pg::Pg, query_builder::QueryFragment};
 use std::fmt::Debug;
 use tracing::error;
 
@@ -53,9 +59,12 @@ async fn insert_to_db(
     name: &'static str,
     start_version: u64,
     end_version: u64,
-    global_state_events: &[GlobalStateEventModel],
+    market_registration_events: &[MarketRegistrationEventModel],
+    swap_events: &[SwapEventModel],
+    chat_events: &[ChatEventModel],
+    liquidity_events: &[LiquidityEventModel],
     periodic_state_events: &[PeriodicStateEventModel],
-    state_bump_events: &[StateBumpEventModel],
+    global_state_events: &[GlobalStateEventModel],
     per_table_chunk_sizes: &AHashMap<String, usize>,
 ) -> Result<(), diesel::result::Error> {
     tracing::trace!(
@@ -64,12 +73,33 @@ async fn insert_to_db(
         end_version = end_version,
         "Inserting to db",
     );
-    let bump = execute_in_chunks(
+    let market_registration = execute_in_chunks(
         conn.clone(),
-        insert_state_state_bump_events_query,
-        state_bump_events,
-        get_config_table_chunk_size::<StateBumpEventModel>(
-            "state_bump_events",
+        insert_market_registration_events_query,
+        market_registration_events,
+        get_config_table_chunk_size::<MarketRegistrationEventModel>(
+            "market_registration_events",
+            per_table_chunk_sizes,
+        ),
+    );
+    let swap = execute_in_chunks(
+        conn.clone(),
+        insert_swap_events_query,
+        swap_events,
+        get_config_table_chunk_size::<SwapEventModel>("swap_events", per_table_chunk_sizes),
+    );
+    let chat = execute_in_chunks(
+        conn.clone(),
+        insert_chat_events_query,
+        chat_events,
+        get_config_table_chunk_size::<ChatEventModel>("chat_events", per_table_chunk_sizes),
+    );
+    let liquidity = execute_in_chunks(
+        conn.clone(),
+        insert_liquidity_events_query,
+        liquidity_events,
+        get_config_table_chunk_size::<LiquidityEventModel>(
+            "liquidity_events",
             per_table_chunk_sizes,
         ),
     );
@@ -92,67 +122,13 @@ async fn insert_to_db(
         ),
     );
 
-    let (b, p, g) = tokio::join!(bump, periodic, global);
-    for res in [b, p, g] {
+    let (m, s, c, l, p, g) =
+        tokio::join!(market_registration, chat, swap, liquidity, periodic, global);
+    for res in [m, s, c, l, p, g] {
         res?;
     }
 
     Ok(())
-}
-
-fn insert_state_state_bump_events_query(
-    items_to_insert: Vec<StateBumpEventModel>,
-) -> (
-    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
-    Option<&'static str>,
-) {
-    use crate::schema::state_bump_events;
-    (
-        diesel::insert_into(state_bump_events::table)
-            .values(items_to_insert)
-            .on_conflict((
-                state_bump_events::market_id,
-                state_bump_events::market_nonce,
-            ))
-            .do_nothing(),
-        None,
-    )
-}
-
-fn insert_periodic_state_events_query(
-    items_to_insert: Vec<PeriodicStateEventModel>,
-) -> (
-    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
-    Option<&'static str>,
-) {
-    use crate::schema::periodic_state_events;
-    (
-        diesel::insert_into(periodic_state_events::table)
-            .values(items_to_insert)
-            .on_conflict((
-                periodic_state_events::market_id,
-                periodic_state_events::period,
-                periodic_state_events::market_nonce,
-            ))
-            .do_nothing(),
-        None,
-    )
-}
-
-fn insert_global_events(
-    items_to_insert: Vec<GlobalStateEventModel>,
-) -> (
-    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
-    Option<&'static str>,
-) {
-    use crate::schema::global_state_events;
-    (
-        diesel::insert_into(global_state_events::table)
-            .values(items_to_insert)
-            .on_conflict(global_state_events::registry_nonce)
-            .do_nothing(),
-        None,
-    )
 }
 
 #[async_trait]
@@ -171,7 +147,10 @@ impl ProcessorTrait for EmojicoinProcessor {
         let processing_start = std::time::Instant::now();
         let last_transaction_timestamp = transactions.last().unwrap().timestamp.clone();
 
-        let mut state_bump_events = vec![];
+        let mut market_registration_events = vec![];
+        let mut swap_events = vec![];
+        let mut chat_events = vec![];
+        let mut liquidity_events = vec![];
         let mut periodic_state_events = vec![];
         let mut global_state_events = vec![];
         for txn in &transactions {
@@ -219,8 +198,8 @@ impl ProcessorTrait for EmojicoinProcessor {
                                 GlobalStateEvent::from_event_type(type_str, data, txn_version)?
                             {
                                 global_state_events.push(GlobalStateEventModel::new(
-                                    global_event,
                                     txn_info.clone(),
+                                    global_event,
                                 ));
                             }
                         },
@@ -254,9 +233,33 @@ impl ProcessorTrait for EmojicoinProcessor {
                 }
 
                 for group in bump_groups {
-                    let (bump, periodics) = BumpGroup::to_db_models(group);
-                    state_bump_events.push(bump);
-                    periodic_state_events.extend(periodics);
+                    let BumpGroup {
+                        bump_event,
+                        state_event: state_ev,
+                        periodic_state_events: periodic_events,
+                        txn_info,
+                        ..
+                    } = group;
+
+                    periodic_state_events.extend(PeriodicStateEventModel::from_periodic_events(
+                        txn_info.clone(),
+                        periodic_events,
+                        state_ev.last_swap.clone(),
+                    ));
+
+                    match bump_event {
+                        BumpEvent::MarketRegistration(ev) => market_registration_events
+                            .push(MarketRegistrationEventModel::new(txn_info, ev, state_ev)),
+                        BumpEvent::Chat(ev) => {
+                            chat_events.push(ChatEventModel::new(txn_info, ev, state_ev))
+                        },
+                        BumpEvent::Swap(ev) => {
+                            swap_events.push(SwapEventModel::new(txn_info, ev, state_ev))
+                        },
+                        BumpEvent::Liquidity(ev) => {
+                            liquidity_events.push(LiquidityEventModel::new(txn_info, ev, state_ev))
+                        },
+                    }
                 }
             }
         }
@@ -269,9 +272,12 @@ impl ProcessorTrait for EmojicoinProcessor {
             self.name(),
             start_version,
             end_version,
-            &global_state_events,
+            &market_registration_events,
+            &swap_events,
+            &chat_events,
+            &liquidity_events,
             &periodic_state_events,
-            &state_bump_events,
+            &global_state_events,
             &self.per_table_chunk_sizes,
         )
         .await;
