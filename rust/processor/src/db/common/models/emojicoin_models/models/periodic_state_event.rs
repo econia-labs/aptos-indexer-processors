@@ -25,7 +25,7 @@ pub struct PeriodicStateEventModel {
     // State metadata.
     pub emit_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
-    pub trigger: enums::Triggers,
+    pub trigger: enums::Trigger,
 
     // Last swap data. The last swap can also be the event that triggered the periodic state event.
     pub last_swap_is_sell: bool,
@@ -36,7 +36,7 @@ pub struct PeriodicStateEventModel {
     pub last_swap_time: chrono::NaiveDateTime,
 
     // Periodic state metadata.
-    pub period: enums::Periods,
+    pub period: enums::Period,
     pub start_time: chrono::NaiveDateTime,
 
     // Periodic state event data.
@@ -77,7 +77,7 @@ pub struct PeriodicStateEventQueryModel {
     // State metadata.
     pub emit_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
-    pub trigger: enums::Triggers,
+    pub trigger: enums::Trigger,
 
     // Flattened `last_swap`. The last swap can also be the event that triggered the periodic state event.
     pub last_swap_is_sell: bool,
@@ -88,7 +88,7 @@ pub struct PeriodicStateEventQueryModel {
     pub last_swap_time: chrono::NaiveDateTime,
 
     // Periodic state metadata.
-    pub period: enums::Periods,
+    pub period: enums::Period,
     pub start_time: chrono::NaiveDateTime,
 
     // Periodic state event data.

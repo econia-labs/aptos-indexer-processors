@@ -6,7 +6,7 @@
 --
 -------------------------------------------------------------------------------
 
-CREATE TYPE triggers AS ENUM (
+CREATE TYPE trigger_type AS ENUM (
   'package_publication',
   'market_registration',
   'swap_buy',
@@ -16,7 +16,7 @@ CREATE TYPE triggers AS ENUM (
   'chat'
 );
 
-CREATE TYPE periods AS ENUM (
+CREATE TYPE period_type AS ENUM (
   'period_1m',  --     60_000_000 == 1 minute.
   'period_5m',  --    300_000_000 == 5 minutes.
   'period_15m', --    900_000_000 == 15 minutes.
@@ -43,7 +43,7 @@ CREATE TABLE global_state_events (
   -- Global state event data.
   emit_time TIMESTAMP NOT NULL,
   registry_nonce BIGINT NOT NULL,
-  trigger triggers NOT NULL,
+  trigger trigger_type NOT NULL,
   cumulative_quote_volume NUMERIC NOT NULL,
   total_quote_locked NUMERIC NOT NULL,
   total_value_locked NUMERIC NOT NULL,
@@ -69,7 +69,7 @@ CREATE TABLE periodic_state_events (
   symbol_bytes BYTEA NOT NULL,
   emit_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
-  trigger triggers NOT NULL,
+  trigger trigger_type NOT NULL,
 
   -- Last swap data.
   last_swap_is_sell BOOLEAN NOT NULL,
@@ -80,7 +80,7 @@ CREATE TABLE periodic_state_events (
   last_swap_time TIMESTAMP NOT NULL,
 
   -- Periodic state metadata.
-  period periods NOT NULL,
+  period period_type NOT NULL,
   start_time TIMESTAMP NOT NULL,
 
   -- Periodic state event data.
@@ -115,7 +115,7 @@ CREATE TABLE market_registration_events (
   symbol_bytes BYTEA NOT NULL,
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
-  trigger triggers NOT NULL,
+  trigger trigger_type NOT NULL,
 
   -- Market registration event data.
   registrant VARCHAR(66) NOT NULL,
@@ -138,7 +138,7 @@ CREATE TABLE swap_events (
   symbol_bytes BYTEA NOT NULL,
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
-  trigger triggers NOT NULL,
+  trigger trigger_type NOT NULL,
 
   -- Swap event data.
   swapper VARCHAR(66) NOT NULL,
@@ -192,7 +192,7 @@ CREATE TABLE chat_events (
   symbol_bytes BYTEA NOT NULL,
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
-  trigger triggers NOT NULL,
+  trigger trigger_type NOT NULL,
 
   -- Chat event data.
   "user" VARCHAR(66) NOT NULL,
@@ -241,7 +241,7 @@ CREATE TABLE liquidity_events (
   symbol_bytes BYTEA NOT NULL,
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
-  trigger triggers NOT NULL,
+  trigger trigger_type NOT NULL,
 
   -- Liquidity event data.
   provider VARCHAR(66) NOT NULL,

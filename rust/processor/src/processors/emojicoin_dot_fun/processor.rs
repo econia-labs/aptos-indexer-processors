@@ -1,6 +1,6 @@
 use crate::{
     db::common::models::emojicoin_models::{
-        enums::Triggers,
+        enums::Trigger,
         event_utils::EventGroupBuilder,
         json_types::{
             BumpEvent, EventGroup, EventWithMarket, GlobalStateEvent, InstantaneousStats,
@@ -217,7 +217,7 @@ impl ProcessorTrait for EmojicoinProcessor {
         // latest event for that market. We may get several writeset changes for the same market across all the transactions.
         let mut latest_market_resources: AHashMap<
             i64,
-            (TxnInfo, MarketResource, Triggers, InstantaneousStats),
+            (TxnInfo, MarketResource, Trigger, InstantaneousStats),
         > = AHashMap::new();
         let mut user_pools_db: AHashMap<(String, i64), UserLiquidityPoolsModel> = AHashMap::new();
         for txn in &transactions {

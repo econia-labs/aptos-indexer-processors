@@ -1,5 +1,5 @@
 use crate::{
-    db::common::models::emojicoin_models::{enums::Periods, json_types::EventWithMarket},
+    db::common::models::emojicoin_models::{enums::Period, json_types::EventWithMarket},
     schema::market_24h_rolling_1min_periods,
 };
 use bigdecimal::BigDecimal;
@@ -60,7 +60,7 @@ impl RecentOneMinutePeriodicStateEvent {
                     pse.periodic_state_metadata.start_time,
                 );
 
-                if period == Periods::Period1M && start_time > one_day_ago_micros {
+                if period == Period::Period1M && start_time > one_day_ago_micros {
                     Some(RecentOneMinutePeriodicStateEvent {
                         market_id: pse.market_metadata.market_id,
                         market_nonce: pse.periodic_state_metadata.emit_market_nonce,

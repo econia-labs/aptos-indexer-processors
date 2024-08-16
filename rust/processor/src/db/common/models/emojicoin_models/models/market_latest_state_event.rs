@@ -1,4 +1,4 @@
-use crate::db::common::models::emojicoin_models::enums::{Periods, Triggers};
+use crate::db::common::models::emojicoin_models::enums::{Period, Trigger};
 use crate::db::common::models::emojicoin_models::json_types::{
     InstantaneousStats, PeriodicStateTracker, TxnInfo,
 };
@@ -24,7 +24,7 @@ pub struct MarketLatestStateEventModel {
     pub symbol_bytes: Vec<u8>,
     pub bump_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
-    pub trigger: enums::Triggers,
+    pub trigger: enums::Trigger,
 
     // State event data.
     pub clamm_virtual_reserves_base: i64,
@@ -59,7 +59,7 @@ impl MarketLatestStateEventModel {
     pub fn from_txn_and_market_resource(
         txn_info: TxnInfo,
         market: MarketResource,
-        trigger: Triggers,
+        trigger: Trigger,
         instant_stats: InstantaneousStats,
     ) -> Self {
         let MarketResource {
@@ -77,9 +77,9 @@ impl MarketLatestStateEventModel {
         // Note that we can examine the tracker for info here because it's the latest value on-chain.
         let (mut maybe_tracker_1m, mut maybe_tracker_1d) = (None, None);
         periodic_state_trackers.into_iter().for_each(|tracker| {
-            if tracker.period == Periods::Period1M {
+            if tracker.period == Period::Period1M {
                 maybe_tracker_1m = Some(tracker);
-            } else if tracker.period == Periods::Period1D {
+            } else if tracker.period == Period::Period1D {
                 maybe_tracker_1d = Some(tracker);
             }
         });

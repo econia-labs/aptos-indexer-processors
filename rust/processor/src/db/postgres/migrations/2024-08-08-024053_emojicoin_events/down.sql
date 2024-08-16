@@ -10,5 +10,5 @@ DROP TABLE swap_events;
 DROP TABLE chat_events;
 DROP TABLE liquidity_events;
 
-DROP TYPE triggers;
-DROP TYPE periods;
+DROP TYPE trigger_type;
+DROP TYPE period_type;

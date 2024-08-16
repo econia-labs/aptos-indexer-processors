@@ -13,7 +13,7 @@ CREATE TABLE market_latest_state_event (
   symbol_bytes BYTEA NOT NULL,
   bump_time TIMESTAMP NOT NULL, -- Note that bump and emit time are interchangeable.
   market_nonce BIGINT NOT NULL,
-  trigger triggers NOT NULL,
+  trigger trigger_type NOT NULL,
 
   -- State event data.
   clamm_virtual_reserves_base BIGINT NOT NULL,
@@ -62,7 +62,7 @@ CREATE TABLE user_liquidity_pools (
   symbol_bytes BYTEA NOT NULL,
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
-  trigger triggers NOT NULL,
+  trigger trigger_type NOT NULL,
 
   -- Liquidity event data.
   base_amount BIGINT NOT NULL,

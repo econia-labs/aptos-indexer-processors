@@ -7,8 +7,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, diesel_derive_enum::DbEnum,
 )]
-#[ExistingTypePath = "crate::schema::sql_types::Triggers"]
-pub enum Triggers {
+#[ExistingTypePath = "crate::schema::sql_types::TriggerType"]
+pub enum Trigger {
     PackagePublication,
     MarketRegistration,
     SwapBuy,
@@ -18,7 +18,7 @@ pub enum Triggers {
     Chat,
 }
 
-impl Triggers {
+impl Trigger {
     pub fn from_i16(i: i16) -> Option<Self> {
         match i {
             0 => Some(Self::PackagePublication),
@@ -33,15 +33,13 @@ impl Triggers {
     }
 }
 
-pub fn deserialize_state_trigger<'de, D>(
-    deserializer: D,
-) -> core::result::Result<Triggers, D::Error>
+pub fn deserialize_state_trigger<'de, D>(deserializer: D) -> core::result::Result<Trigger, D::Error>
 where
     D: Deserializer<'de>,
 {
     use serde::de::Error;
     let trigger = <i16>::deserialize(deserializer)?;
-    match Triggers::from_i16(trigger) {
+    match Trigger::from_i16(trigger) {
         Some(trigger) => Ok(trigger),
         None => Err(D::Error::custom(format!(
             "Failed to deserialize Trigger from i16: {}",
@@ -53,8 +51,8 @@ where
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, diesel_derive_enum::DbEnum,
 )]
-#[ExistingTypePath = "crate::schema::sql_types::Periods"]
-pub enum Periods {
+#[ExistingTypePath = "crate::schema::sql_types::PeriodType"]
+pub enum Period {
     #[db_rename = "period_1m"]
     Period1M,
     #[db_rename = "period_5m"]
@@ -71,20 +69,20 @@ pub enum Periods {
     Period1D,
 }
 
-pub fn deserialize_state_period<'de, D>(deserializer: D) -> core::result::Result<Periods, D::Error>
+pub fn deserialize_state_period<'de, D>(deserializer: D) -> core::result::Result<Period, D::Error>
 where
     D: Deserializer<'de>,
 {
     use serde::de::Error;
     let period = <String>::deserialize(deserializer)?;
     match period.as_str() {
-        "60000000" => Ok(Periods::Period1M),
-        "300000000" => Ok(Periods::Period5M),
-        "900000000" => Ok(Periods::Period15M),
-        "1800000000" => Ok(Periods::Period30M),
-        "3600000000" => Ok(Periods::Period1H),
-        "14400000000" => Ok(Periods::Period4H),
-        "86400000000" => Ok(Periods::Period1D),
+        "60000000" => Ok(Period::Period1M),
+        "300000000" => Ok(Period::Period5M),
+        "900000000" => Ok(Period::Period15M),
+        "1800000000" => Ok(Period::Period30M),
+        "3600000000" => Ok(Period::Period1H),
+        "14400000000" => Ok(Period::Period4H),
+        "86400000000" => Ok(Period::Period1D),
         _ => Err(D::Error::custom(format!(
             "Failed to deserialize PeriodType from string: {}",
             period

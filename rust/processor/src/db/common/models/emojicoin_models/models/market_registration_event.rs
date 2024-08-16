@@ -21,7 +21,7 @@ pub struct MarketRegistrationEventModel {
     pub symbol_bytes: Vec<u8>,
     pub bump_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
-    pub trigger: enums::Triggers,
+    pub trigger: enums::Trigger,
 
     // Market registration event data.
     pub registrant: String,

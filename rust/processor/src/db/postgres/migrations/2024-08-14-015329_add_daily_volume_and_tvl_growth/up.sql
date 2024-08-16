@@ -108,7 +108,7 @@ BEGIN
         -- This can also be useful for unit tests.
         ORDER BY (nonces) DESC
     ),
-    -- Filter periods that started more than 24h ago, also remove duplicates.
+    -- Filter period_type that started more than 24h ago, also remove duplicates.
     filtered_by_time AS (
         SELECT DISTINCT ON (times)
             nonces,

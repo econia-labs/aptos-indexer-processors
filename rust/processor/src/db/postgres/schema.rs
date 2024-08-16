@@ -2,12 +2,12 @@
 
 pub mod sql_types {
     #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
-    #[diesel(postgres_type(name = "periods"))]
-    pub struct Periods;
+    #[diesel(postgres_type(name = "period_type"))]
+    pub struct PeriodType;
 
     #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
-    #[diesel(postgres_type(name = "triggers"))]
-    pub struct Triggers;
+    #[diesel(postgres_type(name = "trigger_type"))]
+    pub struct TriggerType;
 }
 
 diesel::table! {
@@ -113,7 +113,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::Triggers;
+    use super::sql_types::TriggerType;
 
     chat_events (market_id, market_nonce) {
         transaction_version -> Int8,
@@ -127,7 +127,7 @@ diesel::table! {
         symbol_bytes -> Bytea,
         bump_time -> Timestamp,
         market_nonce -> Int8,
-        trigger -> Triggers,
+        trigger -> TriggerType,
         #[max_length = 66]
         user -> Varchar,
         message -> Text,
@@ -904,7 +904,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::Triggers;
+    use super::sql_types::TriggerType;
 
     global_state_events (registry_nonce) {
         transaction_version -> Int8,
@@ -916,7 +916,7 @@ diesel::table! {
         inserted_at -> Timestamp,
         emit_time -> Timestamp,
         registry_nonce -> Int8,
-        trigger -> Triggers,
+        trigger -> TriggerType,
         cumulative_quote_volume -> Numeric,
         total_quote_locked -> Numeric,
         total_value_locked -> Numeric,
@@ -945,7 +945,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::Triggers;
+    use super::sql_types::TriggerType;
 
     liquidity_events (market_id, market_nonce) {
         transaction_version -> Int8,
@@ -959,7 +959,7 @@ diesel::table! {
         symbol_bytes -> Bytea,
         bump_time -> Timestamp,
         market_nonce -> Int8,
-        trigger -> Triggers,
+        trigger -> TriggerType,
         #[max_length = 66]
         provider -> Varchar,
         base_amount -> Int8,
@@ -1005,7 +1005,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::Triggers;
+    use super::sql_types::TriggerType;
 
     market_latest_state_event (market_id) {
         transaction_version -> Int8,
@@ -1019,7 +1019,7 @@ diesel::table! {
         symbol_bytes -> Bytea,
         bump_time -> Timestamp,
         market_nonce -> Int8,
-        trigger -> Triggers,
+        trigger -> TriggerType,
         clamm_virtual_reserves_base -> Int8,
         clamm_virtual_reserves_quote -> Int8,
         cpamm_real_reserves_base -> Int8,
@@ -1050,7 +1050,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::Triggers;
+    use super::sql_types::TriggerType;
 
     market_registration_events (market_id) {
         transaction_version -> Int8,
@@ -1064,7 +1064,7 @@ diesel::table! {
         symbol_bytes -> Bytea,
         bump_time -> Timestamp,
         market_nonce -> Int8,
-        trigger -> Triggers,
+        trigger -> TriggerType,
         #[max_length = 66]
         registrant -> Varchar,
         #[max_length = 66]
@@ -1143,8 +1143,8 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::Triggers;
-    use super::sql_types::Periods;
+    use super::sql_types::TriggerType;
+    use super::sql_types::PeriodType;
 
     periodic_state_events (market_id, period, market_nonce) {
         transaction_version -> Int8,
@@ -1158,14 +1158,14 @@ diesel::table! {
         symbol_bytes -> Bytea,
         emit_time -> Timestamp,
         market_nonce -> Int8,
-        trigger -> Triggers,
+        trigger -> TriggerType,
         last_swap_is_sell -> Bool,
         last_swap_avg_execution_price_q64 -> Numeric,
         last_swap_base_volume -> Int8,
         last_swap_quote_volume -> Int8,
         last_swap_nonce -> Int8,
         last_swap_time -> Timestamp,
-        period -> Periods,
+        period -> PeriodType,
         start_time -> Timestamp,
         open_price_q64 -> Numeric,
         high_price_q64 -> Numeric,
@@ -1240,7 +1240,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::Triggers;
+    use super::sql_types::TriggerType;
 
     swap_events (market_id, market_nonce) {
         transaction_version -> Int8,
@@ -1254,7 +1254,7 @@ diesel::table! {
         symbol_bytes -> Bytea,
         bump_time -> Timestamp,
         market_nonce -> Int8,
-        trigger -> Triggers,
+        trigger -> TriggerType,
         #[max_length = 66]
         swapper -> Varchar,
         #[max_length = 66]
@@ -1545,7 +1545,7 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::Triggers;
+    use super::sql_types::TriggerType;
 
     user_liquidity_pools (provider, market_id) {
         #[max_length = 66]
@@ -1557,7 +1557,7 @@ diesel::table! {
         symbol_bytes -> Bytea,
         bump_time -> Timestamp,
         market_nonce -> Int8,
-        trigger -> Triggers,
+        trigger -> TriggerType,
         base_amount -> Int8,
         quote_amount -> Int8,
         lp_coin_amount -> Int8,
