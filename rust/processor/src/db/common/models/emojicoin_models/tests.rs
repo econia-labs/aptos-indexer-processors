@@ -1,17 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use crate::{
-        db::common::models::emojicoin_models::{
-            enums::Trigger,
-            json_types::{EventWithMarket, GlobalStateEvent},
-            models::market_24h_rolling_volume::RecentOneMinutePeriodicStateEvent,
-            queries::last_24h_volume::update_volume_from_periodic_state_events,
-        },
-        utils::database::{new_db_pool, DbPoolConnection},
+    use crate::db::common::models::emojicoin_models::{
+        enums::Trigger,
+        json_types::{EventWithMarket, GlobalStateEvent},
     };
-    use anyhow::Context;
-    use bigdecimal::BigDecimal;
-    use chrono::{Duration, Utc};
 
     #[test]
     fn test_state_event_json() {
@@ -320,49 +312,6 @@ mod tests {
             Err(e) => {
                 panic!("Failed to parse global state event: {:?}", e);
             },
-        }
-    }
-
-    #[tokio::test]
-    async fn test_query() {
-        let conn_pool = new_db_pool("postgres://postgres@localhost:5432/emojicoin", None)
-            .await
-            .context("Failed to create connection pool");
-
-        match conn_pool {
-            Ok(conn_pool) => {
-                let conn: &mut DbPoolConnection<'_> = &mut conn_pool.get().await.unwrap();
-                let one_day_ago = Utc::now() - Duration::days(1);
-
-                let data = vec![
-                    RecentOneMinutePeriodicStateEvent {
-                        market_id: 123,
-                        market_nonce: 13,
-                        period_volume: BigDecimal::from(1),
-                        start_time: (one_day_ago + Duration::seconds(1)).timestamp_micros(),
-                    },
-                    RecentOneMinutePeriodicStateEvent {
-                        market_id: 123,
-                        market_nonce: 12,
-                        period_volume: BigDecimal::from(1),
-                        start_time: (one_day_ago + Duration::seconds(3)).timestamp_micros(),
-                    },
-                    RecentOneMinutePeriodicStateEvent {
-                        market_id: 123,
-                        market_nonce: 11,
-                        period_volume: BigDecimal::from(1),
-                        start_time: (one_day_ago + Duration::seconds(5)).timestamp_micros(),
-                    },
-                ];
-
-                let res = update_volume_from_periodic_state_events(data, conn).await;
-                if let Ok(res) = res {
-                    println!("{:?}", res);
-                } else {
-                    panic!("Failed to execute query: {:?}", res);
-                }
-            },
-            Err(e) => panic!("Failed to create connection pool: {:?}", e),
         }
     }
 }

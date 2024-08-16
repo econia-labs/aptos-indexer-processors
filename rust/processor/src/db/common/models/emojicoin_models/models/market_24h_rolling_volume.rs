@@ -1,44 +1,6 @@
-use crate::{
-    db::common::models::emojicoin_models::{enums::Period, json_types::EventWithMarket},
-    schema::market_24h_rolling_1min_periods,
-};
+use crate::db::common::models::emojicoin_models::{enums::Period, json_types::EventWithMarket};
 use bigdecimal::BigDecimal;
-use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
-#[diesel(primary_key(market_id))]
-#[diesel(table_name = market_24h_rolling_1min_periods)]
-pub struct Market24HRolling1MinPeriodsModel {
-    pub market_id: i64,
-    pub market_nonces: Vec<i64>,
-    pub period_volumes: Vec<BigDecimal>,
-    pub start_times: Vec<i64>,
-}
-
-// Need a queryable version of the model to include the `inserted_at` field, since it's populated at insertion time.
-// Unfortunately, this is a limitation with `diesel`'s `insertable` derive macro.
-#[derive(Clone, Debug, Identifiable, Queryable)]
-#[diesel(primary_key(market_id))]
-#[diesel(table_name = market_24h_rolling_1min_periods)]
-pub struct Market24HRolling1MinPeriodsQueryModel {
-    pub market_id: i64,
-    pub inserted_at: chrono::NaiveDateTime,
-    pub market_nonces: Vec<i64>,
-    pub period_volumes: Vec<BigDecimal>,
-    pub start_times: Vec<i64>,
-}
-
-impl Market24HRolling1MinPeriodsModel {
-    pub fn new(market_id: i64) -> Market24HRolling1MinPeriodsModel {
-        Market24HRolling1MinPeriodsModel {
-            market_id,
-            market_nonces: vec![],
-            period_volumes: vec![],
-            start_times: vec![],
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RecentOneMinutePeriodicStateEvent {
@@ -74,16 +36,4 @@ impl RecentOneMinutePeriodicStateEvent {
             _ => None,
         }
     }
-}
-
-#[derive(QueryableByName, Debug)]
-pub struct UpdateMarketRolling24hVolumeResult {
-    #[diesel(sql_type = diesel::sql_types::BigInt)]
-    pub market_id: i64,
-    #[diesel(sql_type = diesel::sql_types::Array<diesel::sql_types::BigInt>)]
-    pub nonces: Vec<i64>,
-    #[diesel(sql_type = diesel::sql_types::Array<diesel::sql_types::Numeric>)]
-    pub volumes: Vec<BigDecimal>,
-    #[diesel(sql_type = diesel::sql_types::Array<diesel::sql_types::BigInt>)]
-    pub times: Vec<i64>,
 }

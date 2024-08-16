@@ -51,6 +51,8 @@ CREATE INDEX mkts_in_bonding_curve_idx
 ON market_latest_state_event (in_bonding_curve, market_id, market_nonce DESC)
 WHERE in_bonding_curve = TRUE;
 
+CREATE INDEX unique_mkts_idx
+ON market_latest_state_event (market_id);
 
 CREATE TABLE user_liquidity_pools (
   provider VARCHAR(66) NOT NULL,

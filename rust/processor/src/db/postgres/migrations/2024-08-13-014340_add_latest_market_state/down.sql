@@ -2,6 +2,7 @@
 
 DROP INDEX mkts_in_bonding_curve_idx;
 DROP INDEX user_lp_pools_idx;
+DROP INDEX unique_mkts_idx;
 
 DROP TABLE user_liquidity_pools;
 DROP TABLE market_latest_state_event;

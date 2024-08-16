@@ -7,28 +7,20 @@ use crate::{
             MarketResource, TxnInfo,
         },
         models::{
-            chat_event::ChatEventModel,
-            global_state_event::GlobalStateEventModel,
+            chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
             liquidity_event::LiquidityEventModel,
             market_1m_periods_in_last_day::MarketOneMinutePeriodsInLastDayModel,
-            market_24h_rolling_volume::{
-                Market24HRolling1MinPeriodsModel, RecentOneMinutePeriodicStateEvent,
-            },
+            market_24h_rolling_volume::RecentOneMinutePeriodicStateEvent,
             market_latest_state_event::MarketLatestStateEventModel,
             market_registration_event::MarketRegistrationEventModel,
-            periodic_state_event::PeriodicStateEventModel,
-            swap_event::SwapEventModel,
+            periodic_state_event::PeriodicStateEventModel, swap_event::SwapEventModel,
             user_liquidity_pools::UserLiquidityPoolsModel,
         },
-        queries::{
-            insertion_queries::{
-                initialize_market_24h_rolling_1min_periods_query, insert_chat_events_query,
-                insert_global_events, insert_liquidity_events_query,
-                insert_market_latest_state_event_query, insert_market_registration_events_query,
-                insert_periodic_state_events_query, insert_swap_events_query,
-                insert_user_liquidity_pools_query,
-            },
-            last_24h_volume::update_volume_from_periodic_state_events,
+        queries::insertion_queries::{
+            insert_chat_events_query, insert_global_events, insert_liquidity_events_query,
+            insert_market_latest_state_event_query, insert_market_registration_events_query,
+            insert_periodic_state_events_query, insert_swap_events_query,
+            insert_user_liquidity_pools_query,
         },
     },
     gap_detectors::ProcessingResult,
@@ -94,25 +86,12 @@ async fn insert_to_db(
         end_version = end_version,
         "Inserting to db",
     );
-    let new_market_ids = market_registration_events
-        .iter()
-        .map(|m| m.market_id)
-        .collect_vec();
     let market_registration = execute_in_chunks(
         conn.clone(),
         insert_market_registration_events_query,
         market_registration_events,
         get_config_table_chunk_size::<MarketRegistrationEventModel>(
             "market_registration_events",
-            per_table_chunk_sizes,
-        ),
-    );
-    let rolling_1min_initializations = execute_in_chunks(
-        conn.clone(),
-        initialize_market_24h_rolling_1min_periods_query,
-        new_market_ids.as_slice(),
-        get_config_table_chunk_size::<Market24HRolling1MinPeriodsModel>(
-            "market_24h_rolling_1min_periods",
             per_table_chunk_sizes,
         ),
     );
@@ -179,9 +158,8 @@ async fn insert_to_db(
         ),
     );
 
-    let (m, r1is, s, c, l, per, g, pools, lse, update_1mins) = tokio::join!(
+    let (m, s, c, l, per, g, pools, lse, update_1mins) = tokio::join!(
         market_registration,
-        rolling_1min_initializations,
         swap,
         chat,
         liquidity,
@@ -192,7 +170,7 @@ async fn insert_to_db(
         update_one_min_periods,
     );
 
-    for res in [m, r1is, s, c, l, per, g, pools, lse] {
+    for res in [m, s, c, l, per, g, pools, lse] {
         res?;
     }
 
@@ -431,14 +409,6 @@ impl ProcessorTrait for EmojicoinProcessor {
         )
         .await;
 
-        // Update the period volume data for the last 24 hours for each market that emitted a 1-minute periodic state event.
-        // We do it here because it's a raw SQL query that updates all markets with new 1m events at once and we don't need to batch it.
-        // We could split it up into chunks by market if it becomes a bottleneck somehow.
-        if !period_data.is_empty() {
-            let conn = &mut self.get_conn().await;
-            update_volume_from_periodic_state_events(period_data, conn).await?;
-        }
-
         let db_insertion_duration_in_secs = db_insertion_start.elapsed().as_secs_f64();
         match tx_result {
             Ok(_) => {
@@ -449,17 +419,6 @@ impl ProcessorTrait for EmojicoinProcessor {
                     db_insertion_duration_in_secs,
                     last_transaction_timestamp: last_transaction_timestamp.clone(),
                 });
-                // TODO: Remove.
-                println!(
-                    "::: EmojicoinProcessor: {:?}",
-                    (
-                        start_version,
-                        end_version,
-                        processing_duration_in_secs,
-                        db_insertion_duration_in_secs,
-                        last_transaction_timestamp,
-                    )
-                );
                 Ok(res)
             },
             Err(e) => {

@@ -2,7 +2,6 @@ use diesel::query_dsl::methods::FilterDsl;
 use diesel::ExpressionMethods;
 use diesel::{pg::Pg, query_builder::QueryFragment, upsert::excluded};
 
-use crate::db::common::models::emojicoin_models::models::market_24h_rolling_volume::Market24HRolling1MinPeriodsModel;
 use crate::db::common::models::emojicoin_models::models::{
     chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
     liquidity_event::LiquidityEventModel, market_latest_state_event::MarketLatestStateEventModel,
@@ -191,27 +190,6 @@ pub fn insert_market_latest_state_event_query(
                 volume_in_1m_state_tracker.eq(excluded(volume_in_1m_state_tracker)),
             ))
             .filter(market_nonce.le(excluded(market_nonce))),
-        None,
-    )
-}
-
-pub fn initialize_market_24h_rolling_1min_periods_query(
-    market_ids: Vec<i64>,
-) -> (
-    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
-    Option<&'static str>,
-) {
-    let items = market_ids
-        .into_iter()
-        .map(|m_id| Market24HRolling1MinPeriodsModel::new(m_id))
-        .collect::<Vec<_>>();
-
-    use schema::market_24h_rolling_1min_periods::dsl::*;
-    (
-        diesel::insert_into(schema::market_24h_rolling_1min_periods::table)
-            .values(items)
-            .on_conflict(market_id)
-            .do_nothing(),
         None,
     )
 }
