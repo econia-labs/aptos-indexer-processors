@@ -1,5 +1,5 @@
 use crate::db::common::models::emojicoin_models::models::market_24h_rolling_volume::{
-    OneMinutePeriodicStateEvent, UpdateMarketRolling24hVolumeResult,
+    RecentOneMinutePeriodicStateEvent, UpdateMarketRolling24hVolumeResult,
 };
 use crate::utils::database::DbPoolConnection;
 use ahash::AHashMap;
@@ -9,9 +9,9 @@ use diesel::QueryResult;
 use diesel_async::RunQueryDsl;
 use itertools::Itertools;
 
-impl OneMinutePeriodicStateEvent {
+impl RecentOneMinutePeriodicStateEvent {
     pub fn to_unzipped_period_data(
-        events: Vec<OneMinutePeriodicStateEvent>,
+        events: Vec<RecentOneMinutePeriodicStateEvent>,
     ) -> Vec<(i64, Vec<i64>, Vec<BigDecimal>, Vec<i64>)> {
         let mut models: AHashMap<i64, (i64, Vec<i64>, Vec<BigDecimal>, Vec<i64>)> = AHashMap::new();
 
@@ -30,10 +30,10 @@ impl OneMinutePeriodicStateEvent {
 }
 
 pub async fn update_volume_from_periodic_state_events(
-    events: Vec<OneMinutePeriodicStateEvent>,
+    events: Vec<RecentOneMinutePeriodicStateEvent>,
     conn: &mut DbPoolConnection<'_>,
 ) -> QueryResult<Vec<UpdateMarketRolling24hVolumeResult>> {
-    let period_data = OneMinutePeriodicStateEvent::to_unzipped_period_data(events);
+    let period_data = RecentOneMinutePeriodicStateEvent::to_unzipped_period_data(events);
     sql_query(format_query(period_data).as_str())
         .load(conn)
         .await

@@ -1,23 +1,31 @@
 use crate::{
     db::common::models::emojicoin_models::{
+        enums::Triggers,
         event_utils::EventGroupBuilder,
         json_types::{
-            BumpEvent, EventGroup, EventWithMarket, GlobalStateEvent, MarketResource, SwapEvent,
-            TxnInfo,
+            BumpEvent, EventGroup, EventWithMarket, GlobalStateEvent, InstantaneousStats,
+            MarketResource, TxnInfo,
         },
         models::{
-            chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
+            chat_event::ChatEventModel,
+            global_state_event::GlobalStateEventModel,
             liquidity_event::LiquidityEventModel,
-            market_24h_rolling_volume::OneMinutePeriodicStateEvent,
+            market_24h_rolling_volume::{
+                Market24HRolling1MinPeriodsModel, RecentOneMinutePeriodicStateEvent,
+            },
+            market_latest_state_event::MarketLatestStateEventModel,
             market_registration_event::MarketRegistrationEventModel,
-            periodic_state_event::PeriodicStateEventModel, swap_event::SwapEventModel,
+            periodic_state_event::PeriodicStateEventModel,
+            swap_event::SwapEventModel,
             user_liquidity_pools::UserLiquidityPoolsModel,
         },
         queries::{
             insertion_queries::{
-                insert_chat_events_query, insert_global_events, insert_liquidity_events_query,
-                insert_market_registration_events_query, insert_periodic_state_events_query,
-                insert_swap_events_query, insert_user_liquidity_pools_query,
+                initialize_market_24h_rolling_1min_periods_query, insert_chat_events_query,
+                insert_global_events, insert_liquidity_events_query,
+                insert_market_latest_state_event_query, insert_market_registration_events_query,
+                insert_periodic_state_events_query, insert_swap_events_query,
+                insert_user_liquidity_pools_query,
             },
             last_24h_volume::update_volume_from_periodic_state_events,
         },
@@ -32,9 +40,7 @@ use crate::{
 };
 use ahash::AHashMap;
 use anyhow::bail;
-use aptos_protos::transaction::v1::{
-    transaction::TxnData, write_set_change::Change as WriteSetChangeEnum, Transaction,
-};
+use aptos_protos::transaction::v1::{transaction::TxnData, Transaction};
 use async_trait::async_trait;
 use itertools::Itertools;
 use std::fmt::Debug;
@@ -76,6 +82,7 @@ async fn insert_to_db(
     liquidity_events: &[LiquidityEventModel],
     periodic_state_events: &[PeriodicStateEventModel],
     global_state_events: &[GlobalStateEventModel],
+    market_latest_state_events: &[MarketLatestStateEventModel],
     user_pools: &[UserLiquidityPoolsModel],
     per_table_chunk_sizes: &AHashMap<String, usize>,
 ) -> Result<(), diesel::result::Error> {
@@ -85,6 +92,10 @@ async fn insert_to_db(
         end_version = end_version,
         "Inserting to db",
     );
+    let new_market_ids = market_registration_events
+        .iter()
+        .map(|m| m.market_id)
+        .collect_vec();
     let market_registration = execute_in_chunks(
         conn.clone(),
         insert_market_registration_events_query,
@@ -94,23 +105,15 @@ async fn insert_to_db(
             per_table_chunk_sizes,
         ),
     );
-    // We could probably check swaps to avoid conflicts, but it doesn't matter
-    // because this query will do nothing on a conflict since it's merely intended
-    // to initialize the row for a market.
-    // let daily_vol = execute_in_chunks(
-    //     conn.clone(),
-    //     insert_market_last_24_volume_query,
-    //     market_registration_events
-    //         .iter()
-    //         .map(|event| MarketLast24HVolumeModel::new(event.market_id))
-    //         .collect_vec()
-    //         .as_slice(),
-    //     get_config_table_chunk_size::<MarketLast24HVolumeModel>(
-    //         "market_last_24h_volume",
-    //         per_table_chunk_sizes,
-    //     ),
-    // );
-
+    let rolling_1min_initializations = execute_in_chunks(
+        conn.clone(),
+        initialize_market_24h_rolling_1min_periods_query,
+        new_market_ids.as_slice(),
+        get_config_table_chunk_size::<Market24HRolling1MinPeriodsModel>(
+            "market_24h_rolling_1min_periods",
+            per_table_chunk_sizes,
+        ),
+    );
     let swap = execute_in_chunks(
         conn.clone(),
         insert_swap_events_query,
@@ -159,17 +162,28 @@ async fn insert_to_db(
             per_table_chunk_sizes,
         ),
     );
+    let latest_state_events = execute_in_chunks(
+        conn.clone(),
+        insert_market_latest_state_event_query,
+        market_latest_state_events,
+        get_config_table_chunk_size::<MarketLatestStateEventModel>(
+            "market_latest_state_events",
+            per_table_chunk_sizes,
+        ),
+    );
 
-    let (m, s, c, l, per, g, pools) = tokio::join!(
+    let (m, r1is, s, c, l, per, g, pools, lse) = tokio::join!(
         market_registration,
-        chat,
+        rolling_1min_initializations,
         swap,
+        chat,
         liquidity,
         periodic,
         global,
-        lp_pools
+        lp_pools,
+        latest_state_events,
     );
-    for res in [m, s, c, l, per, g, pools] {
+    for res in [m, r1is, s, c, l, per, g, pools, lse] {
         res?;
     }
 
@@ -199,6 +213,12 @@ impl ProcessorTrait for EmojicoinProcessor {
         let mut periodic_state_events_db = vec![];
         let mut global_state_events_db = vec![];
         let mut period_data = vec![];
+        // Store the writeset changes for each market in the transaction so we can lazily parse them later only for the
+        // latest event for that market. We may get several writeset changes for the same market across all the transactions.
+        let mut latest_market_resources: AHashMap<
+            i64,
+            (TxnInfo, MarketResource, Triggers, InstantaneousStats),
+        > = AHashMap::new();
         let mut user_pools_db: AHashMap<(String, i64), UserLiquidityPoolsModel> = AHashMap::new();
         for txn in &transactions {
             let txn_version = txn.version as i64;
@@ -239,7 +259,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                         Some(evt) => {
                             market_events.push(evt.clone());
                             if let Some(one_min_pse) =
-                                OneMinutePeriodicStateEvent::try_from_event(evt)
+                                RecentOneMinutePeriodicStateEvent::try_from_event(evt)
                             {
                                 period_data.push(one_min_pse);
                             }
@@ -259,7 +279,6 @@ impl ProcessorTrait for EmojicoinProcessor {
 
                 // Keep in mind that these are collecting events and changes within the context of a single transaction,
                 // not all transactions.
-                let mut swaps_per_market: AHashMap<String, Vec<SwapEvent>> = AHashMap::new();
                 let mut builders: AHashMap<(i64, i64), EventGroupBuilder> = AHashMap::new();
                 for evt in market_events.into_iter() {
                     let (market_id, market_nonce) = (evt.get_market_id(), evt.get_market_nonce());
@@ -278,11 +297,12 @@ impl ProcessorTrait for EmojicoinProcessor {
 
                 for builder in builders.into_values() {
                     let EventGroup {
+                        market_id,
+                        market_nonce,
                         bump_event,
                         state_event,
                         periodic_state_events: periodic_events,
                         txn_info,
-                        ..
                     } = builder.build();
 
                     periodic_state_events_db.extend(PeriodicStateEventModel::from_periodic_events(
@@ -290,6 +310,38 @@ impl ProcessorTrait for EmojicoinProcessor {
                         periodic_events,
                         state_event.last_swap.clone(),
                     ));
+
+                    let market_addr = &state_event.market_metadata.market_address;
+
+                    latest_market_resources
+                        .entry(market_id)
+                        .and_modify(
+                            |(
+                                txn_info_for_latest,
+                                latest_resource,
+                                latest_trigger,
+                                latest_instant_stats,
+                            )| {
+                                if latest_resource.sequence_info.nonce < market_nonce {
+                                    // Writeset changes reflect the final state changes from the transaction; same version == same changes.
+                                    if txn_info_for_latest.version != txn_version {
+                                        *latest_resource =
+                                            MarketResource::from_wsc(txn, market_addr);
+                                        *txn_info_for_latest = txn_info.clone();
+                                    }
+                                    *latest_trigger = state_event.state_metadata.trigger;
+                                    *latest_instant_stats = state_event.instantaneous_stats.clone();
+                                }
+                            },
+                        )
+                        .or_insert_with(|| {
+                            (
+                                txn_info.clone(),
+                                MarketResource::from_wsc(txn, market_addr),
+                                state_event.state_metadata.trigger,
+                                state_event.instantaneous_stats.clone(),
+                            )
+                        });
 
                     match bump_event {
                         BumpEvent::MarketRegistration(event) => {
@@ -301,12 +353,6 @@ impl ProcessorTrait for EmojicoinProcessor {
                             chat_events_db.push(ChatEventModel::new(txn_info, chat, state_event));
                         },
                         BumpEvent::Swap(swap) => {
-                            // Use the market address as the key here so we can easily find the write resource by address later.
-                            let market_address = state_event.market_metadata.market_address.clone();
-                            swaps_per_market
-                                .entry(market_address)
-                                .or_insert_with(Vec::new)
-                                .push(swap.clone());
                             let swap_model = SwapEventModel::new(txn_info, swap, state_event);
                             swap_events_db.push(swap_model);
                         },
@@ -331,33 +377,21 @@ impl ProcessorTrait for EmojicoinProcessor {
                         },
                     }
                 }
-
-                // Parse the writeset changes for periodic state trackers for each `market_id`. Although we could calculate
-                // the latest unclosed periodic state event ourselves with some clever logic, we can also just look on-chain
-                // to find the current state of the tracker.
-                let transaction_info = txn.info.as_ref().expect("Transaction info doesn't exist.");
-                let mut market_resource_and_swaps: Vec<(MarketResource, Vec<SwapEvent>)> = vec![];
-                if !swaps_per_market.is_empty() {
-                    for wsc in &transaction_info.changes {
-                        if let WriteSetChangeEnum::WriteResource(resource) =
-                            &wsc.change.as_ref().unwrap()
-                        {
-                            if let Ok(Some(market)) = MarketResource::from_write_resource(resource)
-                            {
-                                let market_addr = market.extend_ref.self_address.clone();
-                                if let Some(swaps) = swaps_per_market.remove(&market_addr) {
-                                    market_resource_and_swaps.push((market, swaps));
-                                }
-                            }
-                        }
-                    }
-                }
-                if !swaps_per_market.is_empty() {
-                    panic!("Couldn't find a market resource for all swaps in the transaction.");
-                }
-                // TODO: Add the periodic state tracker to the latest state table.
             }
         }
+        // @CRBl69 Perhaps this is where we could emit the state event paired with the event data? That way we don't have to store
+        // it in the last state event table, but it's still emitted.
+        let market_latest_state_events = latest_market_resources
+            .into_values()
+            .map(|(txn_info, market, trigger, instant_stats)| {
+                MarketLatestStateEventModel::from_txn_and_market_resource(
+                    txn_info,
+                    market,
+                    trigger,
+                    instant_stats,
+                )
+            })
+            .collect_vec();
 
         let processing_duration_in_secs = processing_start.elapsed().as_secs_f64();
         let db_insertion_start = std::time::Instant::now();
@@ -373,6 +407,7 @@ impl ProcessorTrait for EmojicoinProcessor {
             &liquidity_events_db,
             &periodic_state_events_db,
             &global_state_events_db,
+            &market_latest_state_events,
             user_pools_db.into_values().collect_vec().as_slice(),
             &self.per_table_chunk_sizes,
         )
@@ -396,6 +431,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                     db_insertion_duration_in_secs,
                     last_transaction_timestamp: last_transaction_timestamp.clone(),
                 });
+                // TODO: Remove.
                 println!(
                     "::: EmojicoinProcessor: {:?}",
                     (

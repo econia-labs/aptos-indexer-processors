@@ -4,7 +4,7 @@ mod tests {
         db::common::models::emojicoin_models::{
             enums::Triggers,
             json_types::{EventWithMarket, GlobalStateEvent},
-            models::market_24h_rolling_volume::OneMinutePeriodicStateEvent,
+            models::market_24h_rolling_volume::RecentOneMinutePeriodicStateEvent,
             queries::last_24h_volume::update_volume_from_periodic_state_events,
         },
         utils::database::{new_db_pool, DbPoolConnection},
@@ -338,19 +338,19 @@ mod tests {
                 let one_day_ago = Utc::now() - Duration::days(1);
 
                 let data = vec![
-                    OneMinutePeriodicStateEvent {
+                    RecentOneMinutePeriodicStateEvent {
                         market_id: 123,
                         market_nonce: 13,
                         period_volume: BigDecimal::from(1),
                         start_time: (one_day_ago + Duration::seconds(1)).timestamp_micros(),
                     },
-                    OneMinutePeriodicStateEvent {
+                    RecentOneMinutePeriodicStateEvent {
                         market_id: 123,
                         market_nonce: 12,
                         period_volume: BigDecimal::from(1),
                         start_time: (one_day_ago + Duration::seconds(3)).timestamp_micros(),
                     },
-                    OneMinutePeriodicStateEvent {
+                    RecentOneMinutePeriodicStateEvent {
                         market_id: 123,
                         market_nonce: 11,
                         period_volume: BigDecimal::from(1),

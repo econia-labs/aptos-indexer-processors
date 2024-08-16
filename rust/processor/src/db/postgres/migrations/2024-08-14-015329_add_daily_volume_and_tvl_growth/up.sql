@@ -42,31 +42,6 @@ CREATE INDEX mkt_rlng_24h_vol_idx
 ON market_24h_rolling_1min_periods (market_id)
 INCLUDE (period_volumes, start_times);
 
--- Store some of the latest 1D periodic state data, specifically for calculating
--- DPR, WPR, APR, etc, with tvl per lp coin growth, for each market.
-CREATE TABLE market_latest_1d_tvl_lp_coin_growth (
-  -- Transaction metadata.
-  transaction_version BIGINT NOT NULL,
-  sender VARCHAR(66) NOT NULL,
-  entry_function VARCHAR(200),
-  transaction_timestamp TIMESTAMP NOT NULL,
-  inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
-
-  market_id BIGINT NOT NULL,
-  symbol_bytes BYTEA NOT NULL,
-  emit_time TIMESTAMP NOT NULL,
-  market_nonce BIGINT NOT NULL,
-  trigger triggers NOT NULL,
-
-  period periods NOT NULL,
-  start_time TIMESTAMP NOT NULL,
-
-  tvl_per_lp_coin_growth_q64 NUMERIC NOT NULL,
-
-  PRIMARY KEY (market_id)
-);
-
-
 -- Concatenate, deduplicate, and filter the last 24 hours of 1min period data for a market
 -- and insert it into the market_24h_rolling_1min_periods table.
 CREATE OR REPLACE FUNCTION update_market_24h_rolling_1min_periods(
@@ -159,6 +134,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 
+-- Calculate the 24h rolling volume for each market.
 CREATE OR REPLACE VIEW market_rolling_24h_volume AS
 WITH all_markets AS (
     SELECT DISTINCT market_id FROM market_24h_rolling_1min_periods
@@ -181,14 +157,29 @@ recent_volumes AS (
         filtered_times > (EXTRACT(EPOCH FROM NOW()) * 1000000 - 86400000000)::BIGINT
     GROUP BY
         market_id
+),
+-- Get the latest state tracker volume for each market, aka the unclosed 1min candle volume that hasn't
+-- been emitted as a periodic state event yet.
+latest_state_volumes AS (
+    SELECT
+        market_id,
+        -- Don't include the volume in the state tracker if the bump time is older than 1 day.
+        -- I think this means the volume calculation period is technically 24 hours + up to 1 minute.
+        CASE
+            WHEN bump_time > NOW() - INTERVAL '1 day'
+            THEN COALESCE(volume_in_1m_state_tracker, 0::NUMERIC)
+            ELSE 0::NUMERIC
+        END AS volume_in_1m_state_tracker
+    FROM
+        market_latest_state_event
 )
--- Left join zero volume markets with > 0 volume markets.
+-- Left join zero volume markets with > 0 volume markets and latest state volumes, then sum the volumes.
 SELECT 
     am.market_id,
-    COALESCE(rv.volume, 0::NUMERIC) AS volume
+    COALESCE(rv.volume, 0::NUMERIC) + COALESCE(lsv.volume_in_1m_state_tracker, 0::NUMERIC) AS total_volume
 FROM 
     all_markets am
 LEFT JOIN 
-    recent_volumes rv ON am.market_id = rv.market_id;
-
-
+    recent_volumes rv ON am.market_id = rv.market_id
+LEFT JOIN
+    latest_state_volumes lsv ON am.market_id = lsv.market_id;

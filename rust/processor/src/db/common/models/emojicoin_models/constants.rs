@@ -32,6 +32,8 @@ pub const MARKET_RESOURCE: &'static str = concat!(
     env!("EMOJICOIN_MODULE_ADDRESS"),
     "::emojicoin_dot_fun::Market"
 );
+// When a market is first registered, the market_nonce field is emitted in the resulting events as 1.
+pub const INITIAL_MARKET_NONCE: i64 = 1;
 
 #[cfg(test)]
 mod tests {

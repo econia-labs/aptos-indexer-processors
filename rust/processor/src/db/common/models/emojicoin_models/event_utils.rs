@@ -1,5 +1,6 @@
-use super::json_types::{
-    BumpEvent, EventGroup, EventWithMarket, PeriodicStateEvent, StateEvent, TxnInfo,
+use super::{
+    constants::INITIAL_MARKET_NONCE,
+    json_types::{BumpEvent, EventGroup, EventWithMarket, PeriodicStateEvent, StateEvent, TxnInfo},
 };
 impl EventWithMarket {
     pub fn get_market_id(&self) -> i64 {
@@ -15,7 +16,7 @@ impl EventWithMarket {
 
     pub fn get_market_nonce(&self) -> i64 {
         match self {
-            EventWithMarket::MarketRegistration(_) => 1,
+            EventWithMarket::MarketRegistration(_) => INITIAL_MARKET_NONCE,
             EventWithMarket::Chat(event) => event.emit_market_nonce,
             EventWithMarket::Swap(event) => event.market_nonce,
             EventWithMarket::State(event) => event.state_metadata.market_nonce,

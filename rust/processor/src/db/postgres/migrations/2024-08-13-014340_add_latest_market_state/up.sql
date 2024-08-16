@@ -1,6 +1,6 @@
 -- Your SQL goes here
 
-CREATE TABLE latest_market_state (
+CREATE TABLE market_latest_state_event (
   -- Transaction metadata.
   transaction_version BIGINT NOT NULL,
   sender VARCHAR(66) NOT NULL,
@@ -40,20 +40,17 @@ CREATE TABLE latest_market_state (
   last_swap_time TIMESTAMP NOT NULL,
   
   -- Querying all post-bonding curve markets. i.e., markets with liquidity pools.
-  tvl_per_lp_coin_growth_q64 NUMERIC,
+  daily_tvl_per_lp_coin_growth_q64 NUMERIC NOT NULL,
   in_bonding_curve BOOLEAN NOT NULL,
-  daily_volume NUMERIC NOT NULL,
+  volume_in_1m_state_tracker NUMERIC NOT NULL,
 
   PRIMARY KEY (market_id)
 );
 
 CREATE INDEX mkts_in_bonding_curve_idx
-ON latest_market_state (in_bonding_curve, market_id, market_nonce DESC)
+ON market_latest_state_event (in_bonding_curve, market_id, market_nonce DESC)
 WHERE in_bonding_curve = TRUE;
 
-CREATE INDEX mkts_daily_volume_idx
-ON latest_market_state (daily_volume DESC, market_id)
-WHERE daily_volume != 0;
 
 CREATE TABLE user_liquidity_pools (
   provider VARCHAR(66) NOT NULL,
