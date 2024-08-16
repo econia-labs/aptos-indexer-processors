@@ -16,6 +16,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION one_day_ago_micros() RETURNS BIGINT AS $$
+    SELECT (EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) * 1000000 - 86400000000)::BIGINT;
+$$ LANGUAGE SQL IMMUTABLE;
+
 -- Note for the volume calculations below:
 -- The array sizes are ignored by Postgres; they are there for documentation purposes.
 -- There are 1440 minutes in a day; we store the volume and time in ms for each minute.
@@ -66,7 +70,7 @@ CREATE OR REPLACE FUNCTION update_market_24h_rolling_1min_periods(
 DECLARE 
     one_day_ago BIGINT;
 BEGIN
-    one_day_ago := (EXTRACT(EPOCH FROM NOW()) * 1000000 - 86400000000)::BIGINT;
+    one_day_ago := one_day_ago_micros();
     PERFORM assert_arrays_equal_length(p_nonces, p_volumes);
     PERFORM assert_arrays_equal_length(p_nonces, p_times);
     
@@ -166,8 +170,7 @@ recent_volumes AS (
             market_24h_rolling_1min_periods
     ) AS unpacked
     WHERE
-        -- 86400000000 is 24 hours in microseconds.
-        filtered_times > (EXTRACT(EPOCH FROM NOW()) * 1000000 - 86400000000)::BIGINT
+        filtered_times > one_day_ago_micros()
     GROUP BY
         market_id
 ),
@@ -196,3 +199,23 @@ LEFT JOIN
     recent_volumes rv ON am.market_id = rv.market_id
 LEFT JOIN
     latest_state_volumes lsv ON am.market_id = lsv.market_id;
+
+
+CREATE TABLE market_1m_periods_in_last_day (
+    market_id BIGINT NOT NULL,
+    inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    nonce BIGINT NOT NULL, -- Market nonce.
+    volume NUMERIC NOT NULL, -- Quote volume.
+    start_time BIGINT NOT NULL, -- In microseconds.
+
+    PRIMARY KEY (market_id, nonce)
+);
+
+CREATE INDEX mkt_1m_24h_idx
+ON market_1m_periods_in_last_day (market_id, start_time)
+INCLUDE (volume)
+WHERE start_time > one_day_ago_micros();
+
+CREATE INDEX mkt_expired_1m_periods_idx
+ON market_1m_periods_in_last_day (start_time)
+WHERE start_time <= one_day_ago_micros();

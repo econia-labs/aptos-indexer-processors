@@ -10,6 +10,7 @@ use crate::{
             chat_event::ChatEventModel,
             global_state_event::GlobalStateEventModel,
             liquidity_event::LiquidityEventModel,
+            market_1m_periods_in_last_day::MarketOneMinutePeriodsInLastDayModel,
             market_24h_rolling_volume::{
                 Market24HRolling1MinPeriodsModel, RecentOneMinutePeriodicStateEvent,
             },
@@ -83,6 +84,7 @@ async fn insert_to_db(
     periodic_state_events: &[PeriodicStateEventModel],
     global_state_events: &[GlobalStateEventModel],
     market_latest_state_events: &[MarketLatestStateEventModel],
+    market_1m_periods: &[MarketOneMinutePeriodsInLastDayModel],
     user_pools: &[UserLiquidityPoolsModel],
     per_table_chunk_sizes: &AHashMap<String, usize>,
 ) -> Result<(), diesel::result::Error> {
@@ -113,6 +115,11 @@ async fn insert_to_db(
             "market_24h_rolling_1min_periods",
             per_table_chunk_sizes,
         ),
+    );
+    // TODO: Do we need to chunk this?
+    let update_one_min_periods = MarketOneMinutePeriodsInLastDayModel::insert_and_delete_periods(
+        market_1m_periods,
+        conn.clone(),
     );
     let swap = execute_in_chunks(
         conn.clone(),
@@ -172,7 +179,7 @@ async fn insert_to_db(
         ),
     );
 
-    let (m, r1is, s, c, l, per, g, pools, lse) = tokio::join!(
+    let (m, r1is, s, c, l, per, g, pools, lse, update_1mins) = tokio::join!(
         market_registration,
         rolling_1min_initializations,
         swap,
@@ -182,10 +189,14 @@ async fn insert_to_db(
         global,
         lp_pools,
         latest_state_events,
+        update_one_min_periods,
     );
+
     for res in [m, r1is, s, c, l, per, g, pools, lse] {
         res?;
     }
+
+    update_1mins?;
 
     Ok(())
 }
@@ -393,6 +404,12 @@ impl ProcessorTrait for EmojicoinProcessor {
             })
             .collect_vec();
 
+        let market_1m_periods: Vec<MarketOneMinutePeriodsInLastDayModel> = period_data
+            .clone()
+            .into_iter()
+            .map(|p| p.into())
+            .collect_vec();
+
         let processing_duration_in_secs = processing_start.elapsed().as_secs_f64();
         let db_insertion_start = std::time::Instant::now();
 
@@ -408,6 +425,7 @@ impl ProcessorTrait for EmojicoinProcessor {
             &periodic_state_events_db,
             &global_state_events_db,
             &market_latest_state_events,
+            &market_1m_periods,
             user_pools_db.into_values().collect_vec().as_slice(),
             &self.per_table_chunk_sizes,
         )

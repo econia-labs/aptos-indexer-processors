@@ -1,6 +1,7 @@
 pub mod chat_event;
 pub mod global_state_event;
 pub mod liquidity_event;
+pub mod market_1m_periods_in_last_day;
 pub mod market_24h_rolling_volume;
 pub mod market_latest_state_event;
 pub mod market_registration_event;
