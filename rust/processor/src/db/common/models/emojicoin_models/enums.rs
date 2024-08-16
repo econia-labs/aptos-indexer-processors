@@ -1,8 +1,8 @@
-use super::constants::{
+use super::{constants::{
     CHAT_EVENT, GLOBAL_STATE_EVENT, LIQUIDITY_EVENT, MARKET_REGISTRATION_EVENT, MARKET_RESOURCE,
     PERIODIC_STATE_EVENT, STATE_EVENT, SWAP_EVENT,
-};
-use serde::{Deserialize, Deserializer, Serialize};
+}, json_types::{EventWithMarket, GlobalStateEvent}};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, diesel_derive_enum::DbEnum,
@@ -33,7 +33,30 @@ impl Trigger {
     }
 }
 
-pub fn deserialize_state_trigger<'de, D>(deserializer: D) -> core::result::Result<Trigger, D::Error>
+impl From<&Trigger> for i16 {
+    fn from(i: &Trigger) -> Self {
+        match i {
+            Trigger::PackagePublication => 0,
+            Trigger::MarketRegistration => 1,
+            Trigger::SwapBuy => 2,
+            Trigger::SwapSell => 3,
+            Trigger::ProvideLiquidity => 4,
+            Trigger::RemoveLiquidity => 5,
+            Trigger::Chat => 6,
+        }
+    }
+}
+
+pub fn serialize_state_trigger<S>(element: &Trigger, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    s.serialize_i16(element.into())
+}
+
+pub fn deserialize_state_trigger<'de, D>(
+    deserializer: D,
+) -> core::result::Result<Trigger, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -69,6 +92,22 @@ pub enum Period {
     OneDay,
 }
 
+pub fn serialize_state_period<S>(element: &Period, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let r = match element {
+        Period::OneMinute => "60000000",
+        Period::FiveMinutes => "300000000",
+        Period::FifteenMinutes => "900000000",
+        Period::ThirtyMinutes => "1800000000",
+        Period::OneHour => "3600000000",
+        Period::FourHours => "14400000000",
+        Period::OneDay => "86400000000",
+    };
+    s.serialize_str(r)
+}
+
 pub fn deserialize_state_period<'de, D>(deserializer: D) -> core::result::Result<Period, D::Error>
 where
     D: Deserializer<'de>,
@@ -99,6 +138,41 @@ pub enum EmojicoinTypeTag {
     GlobalState,
     Liquidity,
     Market,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum EmojicoinEvent {
+    EventWithMarket(EventWithMarket),
+    EventWithoutMarket(GlobalStateEvent),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub enum EmojicoinEventType {
+    Swap,
+    Chat,
+    MarketRegistration,
+    PeriodicState,
+    State,
+    GlobalState,
+    Liquidity,
+}
+
+impl From<&EmojicoinEvent> for EmojicoinEventType {
+    fn from(value: &EmojicoinEvent) -> Self {
+        match value {
+            EmojicoinEvent::EventWithMarket(e) => {
+                match e {
+                    EventWithMarket::PeriodicState(_) => EmojicoinEventType::PeriodicState,
+                    EventWithMarket::State(_) => EmojicoinEventType::State,
+                    EventWithMarket::Swap(_) => EmojicoinEventType::Swap,
+                    EventWithMarket::Chat(_) => EmojicoinEventType::Chat,
+                    EventWithMarket::Liquidity(_) => EmojicoinEventType::Liquidity,
+                    EventWithMarket::MarketRegistration(_) => EmojicoinEventType::MarketRegistration,
+                }
+            },
+            EmojicoinEvent::EventWithoutMarket(_) => EmojicoinEventType::GlobalState
+        }
+    }
 }
 
 impl EmojicoinTypeTag {

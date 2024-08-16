@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::{atomic::{AtomicU64, Ordering}, Arc}};
 use axum::{extract::{ws::{Message, WebSocket}, State, WebSocketUpgrade}, response::Response, routing::get, Router};
 use tokio::sync::{mpsc::UnboundedReceiver, Mutex};
 
-use crate::db::common::models::emojicoin_models::json_types::EmojicoinEvent;
+use crate::emojicoin_dot_fun::EmojicoinEvent;
 
 struct Connection {
     socket: WebSocket,

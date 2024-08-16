@@ -3,7 +3,8 @@
 
 use crate::{
     config::IndexerGrpcHttp2Config,
-    db::common::models::{emojicoin_models::json_types::EmojicoinEvent, ledger_info::LedgerInfo, processor_status::ProcessorStatusQuery},
+    db::common::models::{ledger_info::LedgerInfo, processor_status::ProcessorStatusQuery},
+    emojicoin_dot_fun::EmojicoinEvent,
     gap_detectors::{
         create_gap_detector_status_tracker_loop, gap_detector::DefaultGapDetector,
         parquet_gap_detector::ParquetFileGapDetector, GapDetector, ProcessingResult,

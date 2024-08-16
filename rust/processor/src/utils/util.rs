@@ -17,7 +17,7 @@ use aptos_protos::{
 use bigdecimal::{BigDecimal, Signed, ToPrimitive, Zero};
 use chrono::NaiveDateTime;
 use lazy_static::lazy_static;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use sha2::Digest;
 use std::str::FromStr;
@@ -438,6 +438,15 @@ pub fn convert_bcs_token_object_propertymap(s: Value) -> Option<Value> {
 /// Convert from hex string to raw byte string
 pub fn hex_to_raw_bytes(val: &str) -> anyhow::Result<Vec<u8>> {
     Ok(hex::decode(val.strip_prefix("0x").unwrap_or(val))?)
+}
+
+/// Serialize to string from type T
+pub fn serialize_to_string<S, T>(element: &T, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+    T: std::fmt::Display,
+{
+    s.serialize_str(&element.to_string())
 }
 
 /// Deserialize from string to type T

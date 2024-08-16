@@ -3,7 +3,7 @@ use crate::{
         enums::Trigger,
         event_utils::EventGroupBuilder,
         json_types::{
-            BumpEvent, EmojicoinEvent, EventGroup, EventWithMarket, GlobalStateEvent, InstantaneousStats, MarketResource, TxnInfo
+            BumpEvent, EventGroup, EventWithMarket, GlobalStateEvent, InstantaneousStats, MarketResource, TxnInfo
         },
         models::{
             chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
@@ -22,6 +22,7 @@ use crate::{
             insert_user_liquidity_pools_query,
         },
     },
+    emojicoin_dot_fun::EmojicoinEvent,
     gap_detectors::ProcessingResult,
     processors::{DefaultProcessingResult, ProcessorName, ProcessorTrait},
     utils::{
