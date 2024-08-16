@@ -1006,30 +1006,6 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::Triggers;
-    use super::sql_types::Periods;
-
-    market_latest_1d_tvl_lp_coin_growth (market_id) {
-        transaction_version -> Int8,
-        #[max_length = 66]
-        sender -> Varchar,
-        #[max_length = 200]
-        entry_function -> Nullable<Varchar>,
-        transaction_timestamp -> Timestamp,
-        inserted_at -> Timestamp,
-        market_id -> Int8,
-        symbol_bytes -> Bytea,
-        emit_time -> Timestamp,
-        market_nonce -> Int8,
-        trigger -> Triggers,
-        period -> Periods,
-        start_time -> Timestamp,
-        tvl_per_lp_coin_growth_q64 -> Numeric,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use super::sql_types::Triggers;
 
     market_latest_state_event (market_id) {
         transaction_version -> Int8,
@@ -1335,14 +1311,6 @@ diesel::table! {
         key_type -> Text,
         value_type -> Text,
         inserted_at -> Timestamp,
-    }
-}
-
-diesel::table! {
-    test_volumes (id) {
-        id -> Int4,
-        times -> Array<Nullable<Int8>>,
-        volumes -> Array<Nullable<Int8>>,
     }
 }
 
@@ -1694,7 +1662,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     ledger_infos,
     liquidity_events,
     market_24h_rolling_1min_periods,
-    market_latest_1d_tvl_lp_coin_growth,
     market_latest_state_event,
     market_registration_events,
     move_modules,
@@ -1709,7 +1676,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     swap_events,
     table_items,
     table_metadatas,
-    test_volumes,
     token_activities,
     token_activities_v2,
     token_datas,
