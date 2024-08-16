@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use aptos_protos::transaction::v1::WriteResource;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -327,29 +328,25 @@ impl From<StateEvent> for EventWithMarket {
 }
 
 impl EventWithMarket {
-    pub fn from_event_type(
-        event_type: &str,
-        data: &str,
-        txn_version: i64,
-    ) -> Result<Option<EventWithMarket>> {
+    pub fn from_event_type(event_type: &str, data: &str, txn_version: i64) -> Result<Option<Self>> {
         match EmojicoinTypeTag::from_type_str(event_type) {
             Some(EmojicoinTypeTag::PeriodicState) => {
-                serde_json::from_str(data).map(|v| Some(EventWithMarket::PeriodicState(v)))
+                serde_json::from_str(data).map(|inner| Some(Self::PeriodicState(inner)))
             },
             Some(EmojicoinTypeTag::State) => {
-                serde_json::from_str(data).map(|v| Some(EventWithMarket::State(v)))
+                serde_json::from_str(data).map(|inner| Some(Self::State(inner)))
             },
             Some(EmojicoinTypeTag::Swap) => {
-                serde_json::from_str(data).map(|v| Some(EventWithMarket::Swap(v)))
+                serde_json::from_str(data).map(|inner| Some(Self::Swap(inner)))
             },
             Some(EmojicoinTypeTag::Chat) => {
-                serde_json::from_str(data).map(|v| Some(EventWithMarket::Chat(v)))
+                serde_json::from_str(data).map(|inner| Some(Self::Chat(inner)))
             },
             Some(EmojicoinTypeTag::MarketRegistration) => {
-                serde_json::from_str(data).map(|v| Some(EventWithMarket::MarketRegistration(v)))
+                serde_json::from_str(data).map(|inner| Some(Self::MarketRegistration(inner)))
             },
             Some(EmojicoinTypeTag::Liquidity) => {
-                serde_json::from_str(data).map(|v| Some(EventWithMarket::Liquidity(v)))
+                serde_json::from_str(data).map(|inner| Some(Self::Liquidity(inner)))
             },
             _ => Ok(None),
         }
@@ -413,5 +410,95 @@ impl From<BumpEvent> for EventWithMarket {
             BumpEvent::Chat(event) => EventWithMarket::Chat(event),
             BumpEvent::Liquidity(event) => EventWithMarket::Liquidity(event),
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MarketResource {
+    pub metadata: MarketMetadata,
+    pub sequence_info: SequenceInfo,
+    pub extend_ref: ExtendRef,
+    pub clamm_virtual_reserves: Reserves,
+    pub cpamm_real_reserves: Reserves,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub lp_coin_supply: BigDecimal,
+    pub cumulative_stats: CumulativeStats,
+    pub last_swap: LastSwap,
+    pub periodic_state_trackers: Vec<PeriodicStateTracker>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+
+pub struct SequenceInfo {
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub nonce: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub last_bump_time: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ExtendRef {
+    // We need to rename the `self` field because it's a reserved keyword in Rust.
+    #[serde(
+        deserialize_with = "deserialize_and_normalize_account_address",
+        rename = "self"
+    )]
+    pub self_address: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PeriodicStateTracker {
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub start_time: i64,
+    #[serde(deserialize_with = "deserialize_state_period")]
+    pub period: Periods,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub open_price_q64: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub high_price_q64: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub low_price_q64: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub close_price_q64: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub volume_base: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub volume_quote: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub integrator_fees: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub pool_fees_base: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub pool_fees_quote: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub n_swaps: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub n_chat_messages: i64,
+    pub starts_in_bonding_curve: bool,
+    pub ends_in_bonding_curve: bool,
+    pub tvl_to_lp_coin_ratio_start: TVLtoLPCoinRatio,
+    pub tvl_to_lp_coin_ratio_end: TVLtoLPCoinRatio,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TVLtoLPCoinRatio {
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub tvl: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub lp_coins: BigDecimal,
+}
+
+impl MarketResource {
+    pub fn from_write_resource(resource: &WriteResource) -> Result<Option<Self>> {
+        let data = &resource.data;
+        match EmojicoinTypeTag::from_type_str(&resource.type_str) {
+            Some(EmojicoinTypeTag::Market) => {
+                serde_json::from_str(data.as_str()).map(|inner| Some(MarketResource::from(inner)))
+            },
+            _ => Ok(None),
+        }
+        .context(format!(
+            "Parsing a MarketResource failed! Failed to parse type {}, with data: {:?}",
+            resource.type_str, data,
+        ))
     }
 }

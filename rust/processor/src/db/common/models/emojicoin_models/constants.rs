@@ -28,6 +28,10 @@ pub const LIQUIDITY_EVENT: &'static str = concat!(
     env!("EMOJICOIN_MODULE_ADDRESS"),
     "::emojicoin_dot_fun::Liquidity"
 );
+pub const MARKET_RESOURCE: &'static str = concat!(
+    env!("EMOJICOIN_MODULE_ADDRESS"),
+    "::emojicoin_dot_fun::Market"
+);
 
 #[cfg(test)]
 mod tests {

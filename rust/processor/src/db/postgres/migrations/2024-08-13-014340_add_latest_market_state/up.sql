@@ -80,3 +80,4 @@ CREATE TABLE user_liquidity_pools (
 
 CREATE INDEX user_lp_pools_idx
 ON user_liquidity_pools (provider, market_id, market_nonce DESC);
+

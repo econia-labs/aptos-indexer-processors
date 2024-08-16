@@ -1,5 +1,5 @@
 use super::constants::{
-    CHAT_EVENT, GLOBAL_STATE_EVENT, LIQUIDITY_EVENT, MARKET_REGISTRATION_EVENT,
+    CHAT_EVENT, GLOBAL_STATE_EVENT, LIQUIDITY_EVENT, MARKET_REGISTRATION_EVENT, MARKET_RESOURCE,
     PERIODIC_STATE_EVENT, STATE_EVENT, SWAP_EVENT,
 };
 use serde::{Deserialize, Deserializer, Serialize};
@@ -100,6 +100,7 @@ pub enum EmojicoinTypeTag {
     State,
     GlobalState,
     Liquidity,
+    Market,
 }
 
 impl EmojicoinTypeTag {
@@ -112,6 +113,7 @@ impl EmojicoinTypeTag {
             STATE_EVENT => Some(Self::State),
             GLOBAL_STATE_EVENT => Some(Self::GlobalState),
             LIQUIDITY_EVENT => Some(Self::Liquidity),
+            MARKET_RESOURCE => Some(Self::Market),
             _ => None,
         }
     }

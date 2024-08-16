@@ -1,18 +1,17 @@
-// Triggers for state event bumps.
-// const TRIGGER_PACKAGE_PUBLICATION: u8 = 0;
-// const TRIGGER_MARKET_REGISTRATION: u8 = 1;
-// const TRIGGER_SWAP_BUY: u8 = 2;
-// const TRIGGER_SWAP_SELL: u8 = 3;
-// const TRIGGER_PROVIDE_LIQUIDITY: u8 = 4;
-// const TRIGGER_REMOVE_LIQUIDITY: u8 = 5;
-// const TRIGGER_CHAT: u8 = 6;
-
 #[cfg(test)]
 mod tests {
-    use crate::db::common::models::emojicoin_models::{
-        enums::Triggers,
-        json_types::{EventWithMarket, GlobalStateEvent},
+    use crate::{
+        db::common::models::emojicoin_models::{
+            enums::Triggers,
+            json_types::{EventWithMarket, GlobalStateEvent},
+            models::market_24h_rolling_volume::OneMinutePeriodicStateEvent,
+            queries::last_24h_volume::update_volume_from_periodic_state_events,
+        },
+        utils::database::{new_db_pool, DbPoolConnection},
     };
+    use anyhow::Context;
+    use bigdecimal::BigDecimal;
+    use chrono::{Duration, Utc};
 
     #[test]
     fn test_state_event_json() {
@@ -122,7 +121,10 @@ mod tests {
             );
             assert_eq!(e.starts_in_bonding_curve, false);
             assert_eq!(e.close_price_q64, (1128118906863219 as i64).into());
-            assert_eq!(e.periodic_state_metadata.trigger, Triggers::ProvideLiquidity);
+            assert_eq!(
+                e.periodic_state_metadata.trigger,
+                Triggers::ProvideLiquidity
+            );
         } else {
             panic!("Failed to parse periodic state event");
         }
@@ -321,6 +323,49 @@ mod tests {
             Err(e) => {
                 panic!("Failed to parse global state event: {:?}", e);
             },
+        }
+    }
+
+    #[tokio::test]
+    async fn test_query() {
+        let conn_pool = new_db_pool("postgres://postgres@localhost:5432/emojicoin", None)
+            .await
+            .context("Failed to create connection pool");
+
+        match conn_pool {
+            Ok(conn_pool) => {
+                let conn: &mut DbPoolConnection<'_> = &mut conn_pool.get().await.unwrap();
+                let one_day_ago = Utc::now() - Duration::days(1);
+
+                let data = vec![
+                    OneMinutePeriodicStateEvent {
+                        market_id: 123,
+                        market_nonce: 13,
+                        period_volume: BigDecimal::from(1),
+                        start_time: (one_day_ago + Duration::seconds(1)).timestamp_micros(),
+                    },
+                    OneMinutePeriodicStateEvent {
+                        market_id: 123,
+                        market_nonce: 12,
+                        period_volume: BigDecimal::from(1),
+                        start_time: (one_day_ago + Duration::seconds(3)).timestamp_micros(),
+                    },
+                    OneMinutePeriodicStateEvent {
+                        market_id: 123,
+                        market_nonce: 11,
+                        period_volume: BigDecimal::from(1),
+                        start_time: (one_day_ago + Duration::seconds(5)).timestamp_micros(),
+                    },
+                ];
+
+                let res = update_volume_from_periodic_state_events(data, conn).await;
+                if let Ok(res) = res {
+                    println!("{:?}", res);
+                } else {
+                    panic!("Failed to execute query: {:?}", res);
+                }
+            },
+            Err(e) => panic!("Failed to create connection pool: {:?}", e),
         }
     }
 }
