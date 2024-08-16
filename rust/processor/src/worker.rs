@@ -3,7 +3,7 @@
 
 use crate::{
     config::IndexerGrpcHttp2Config,
-    db::common::models::{ledger_info::LedgerInfo, processor_status::ProcessorStatusQuery},
+    db::common::models::{emojicoin_models::json_types::EmojicoinEvent, ledger_info::LedgerInfo, processor_status::ProcessorStatusQuery},
     gap_detectors::{
         create_gap_detector_status_tracker_loop, gap_detector::DefaultGapDetector,
         parquet_gap_detector::ParquetFileGapDetector, GapDetector, ProcessingResult,
@@ -55,7 +55,7 @@ use aptos_moving_average::MovingAverage;
 use bitflags::bitflags;
 use kanal::AsyncSender;
 use std::collections::HashSet;
-use tokio::task::JoinHandle;
+use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
 use tracing::{debug, error, info};
 use url::Url;
 
@@ -127,6 +127,7 @@ pub struct Worker {
     pub transaction_filter: TransactionFilter,
     pub grpc_response_item_timeout_in_secs: u64,
     pub deprecated_tables: TableFlags,
+    pub notif_sender: UnboundedSender<EmojicoinEvent>,
 }
 
 impl Worker {
@@ -150,6 +151,7 @@ impl Worker {
         transaction_filter: TransactionFilter,
         grpc_response_item_timeout_in_secs: u64,
         deprecated_tables: HashSet<String>,
+        notif_sender: UnboundedSender<EmojicoinEvent>,
     ) -> Result<Self> {
         let processor_name = processor_config.name();
         info!(processor_name = processor_name, "[Parser] Kicking off");
@@ -195,6 +197,7 @@ impl Worker {
             transaction_filter,
             grpc_response_item_timeout_in_secs,
             deprecated_tables: deprecated_tables_flags,
+            notif_sender,
         })
     }
 
@@ -327,6 +330,7 @@ impl Worker {
             self.deprecated_tables,
             self.db_pool.clone(),
             maybe_gap_detector_sender,
+            self.notif_sender.clone(),
         );
 
         let gap_detector = if is_parquet_processor {
@@ -401,6 +405,7 @@ impl Worker {
                 self.deprecated_tables,
                 self.db_pool.clone(),
                 Some(gap_detector_sender.clone()),
+                self.notif_sender.clone(),
             )
         } else {
             build_processor(
@@ -409,6 +414,7 @@ impl Worker {
                 self.deprecated_tables,
                 self.db_pool.clone(),
                 None,
+                self.notif_sender.clone(),
             )
         };
 
@@ -857,6 +863,7 @@ pub fn build_processor(
     deprecated_tables: TableFlags,
     db_pool: ArcDbPool,
     gap_detector_sender: Option<AsyncSender<ProcessingResult>>, // Parquet only
+    notif_sender: UnboundedSender<EmojicoinEvent>,
 ) -> Processor {
     match config {
         ProcessorConfig::AccountTransactionsProcessor => Processor::from(
@@ -877,7 +884,7 @@ pub fn build_processor(
             deprecated_tables,
         )),
         ProcessorConfig::EmojicoinProcessor => {
-            Processor::from(EmojicoinProcessor::new(db_pool, per_table_chunk_sizes))
+            Processor::from(EmojicoinProcessor::new(db_pool, per_table_chunk_sizes, notif_sender))
         },
         ProcessorConfig::EventsProcessor => {
             Processor::from(EventsProcessor::new(db_pool, per_table_chunk_sizes))

@@ -3,8 +3,7 @@ use crate::{
         enums::Trigger,
         event_utils::EventGroupBuilder,
         json_types::{
-            BumpEvent, EventGroup, EventWithMarket, GlobalStateEvent, InstantaneousStats,
-            MarketResource, TxnInfo,
+            BumpEvent, EmojicoinEvent, EventGroup, EventWithMarket, GlobalStateEvent, InstantaneousStats, MarketResource, TxnInfo
         },
         models::{
             chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
@@ -36,19 +35,22 @@ use anyhow::bail;
 use aptos_protos::transaction::v1::{transaction::TxnData, Transaction};
 use async_trait::async_trait;
 use itertools::Itertools;
+use tokio::sync::mpsc::UnboundedSender;
 use std::fmt::Debug;
 use tracing::error;
 
 pub struct EmojicoinProcessor {
     connection_pool: ArcDbPool,
     per_table_chunk_sizes: AHashMap<String, usize>,
+    notif_sender: UnboundedSender<EmojicoinEvent>,
 }
 
 impl EmojicoinProcessor {
-    pub fn new(connection_pool: ArcDbPool, per_table_chunk_sizes: AHashMap<String, usize>) -> Self {
+    pub fn new(connection_pool: ArcDbPool, per_table_chunk_sizes: AHashMap<String, usize>, notif_sender: UnboundedSender<EmojicoinEvent>) -> Self {
         Self {
             connection_pool,
             per_table_chunk_sizes,
+            notif_sender,
         }
     }
 }
@@ -241,12 +243,14 @@ impl ProcessorTrait for EmojicoinProcessor {
 
                 // Group the market events in this transaction.
                 let mut market_events = vec![];
+                let mut all_events = vec![];
                 for event in user_txn.events.iter() {
                     let type_str = event.type_str.as_str();
                     let data = event.data.as_str();
 
                     match EventWithMarket::from_event_type(type_str, data, txn_version)? {
                         Some(evt) => {
+                            all_events.push(EmojicoinEvent::EventWithMarket(evt.clone()));
                             market_events.push(evt.clone());
                             if let Some(one_min_pse) =
                                 RecentOneMinutePeriodicStateEvent::try_from_event(evt, txn_version)
@@ -258,6 +262,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                             if let Some(global_event) =
                                 GlobalStateEvent::from_event_type(type_str, data, txn_version)?
                             {
+                                all_events.push(EmojicoinEvent::EventWithoutMarket(global_event.clone()));
                                 global_state_events_db.push(GlobalStateEventModel::new(
                                     txn_info.clone(),
                                     global_event,
@@ -266,6 +271,13 @@ impl ProcessorTrait for EmojicoinProcessor {
                         },
                     }
                 }
+
+                for event in all_events {
+                    let _ = self.notif_sender
+                        .send(event)
+                        .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
+                }
+
 
                 // Keep in mind that these are collecting events and changes within the context of a single transaction,
                 // not all transactions.

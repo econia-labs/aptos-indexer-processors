@@ -315,6 +315,12 @@ pub enum EventWithMarket {
     MarketRegistration(MarketRegistrationEvent),
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum EmojicoinEvent {
+    EventWithMarket(EventWithMarket),
+    EventWithoutMarket(GlobalStateEvent),
+}
+
 impl From<PeriodicStateEvent> for EventWithMarket {
     fn from(event: PeriodicStateEvent) -> Self {
         EventWithMarket::PeriodicState(event)
