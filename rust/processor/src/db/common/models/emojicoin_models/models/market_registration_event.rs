@@ -29,33 +29,6 @@ pub struct MarketRegistrationEventModel {
     pub integrator_fee: i64,
 }
 
-// Need a queryable version of the model to include the `inserted_at` field, since it's populated at insertion time.
-// Unfortunately, this is a limitation with `diesel`'s `insertable` derive macro.
-#[derive(Clone, Debug, Identifiable, Queryable)]
-#[diesel(primary_key(market_id))]
-#[diesel(table_name = market_registration_events)]
-#[allow(dead_code)]
-pub struct MarketRegistrationEventQueryModel {
-    // Transaction metadata.
-    pub transaction_version: i64,
-    pub sender: String,
-    pub entry_function: Option<String>,
-    pub transaction_timestamp: chrono::NaiveDateTime,
-    pub inserted_at: chrono::NaiveDateTime,
-
-    // Market and state metadata.
-    pub market_id: i64,
-    pub symbol_bytes: Vec<u8>,
-    pub bump_time: chrono::NaiveDateTime,
-    pub market_nonce: i64,
-    pub trigger: enums::Triggers,
-
-    // Market registration event data.
-    pub registrant: String,
-    pub integrator: String,
-    pub integrator_fee: i64,
-}
-
 impl MarketRegistrationEventModel {
     pub fn new(
         txn_info: TxnInfo,

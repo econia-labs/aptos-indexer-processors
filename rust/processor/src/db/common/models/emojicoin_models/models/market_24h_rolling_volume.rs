@@ -77,7 +77,6 @@ impl RecentOneMinutePeriodicStateEvent {
 }
 
 #[derive(QueryableByName, Debug)]
-#[allow(dead_code)]
 pub struct UpdateMarketRolling24hVolumeResult {
     #[diesel(sql_type = diesel::sql_types::BigInt)]
     pub market_id: i64,

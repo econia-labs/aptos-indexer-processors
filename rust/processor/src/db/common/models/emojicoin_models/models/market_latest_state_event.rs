@@ -27,32 +27,32 @@ pub struct MarketLatestStateEventModel {
     pub trigger: enums::Triggers,
 
     // State event data.
-    clamm_virtual_reserves_base: i64,
-    clamm_virtual_reserves_quote: i64,
-    cpamm_real_reserves_base: i64,
-    cpamm_real_reserves_quote: i64,
-    lp_coin_supply: BigDecimal,
-    cumulative_stats_base_volume: BigDecimal,
-    cumulative_stats_quote_volume: BigDecimal,
-    cumulative_stats_integrator_fees: BigDecimal,
-    cumulative_stats_pool_fees_base: BigDecimal,
-    cumulative_stats_pool_fees_quote: BigDecimal,
-    cumulative_stats_n_swaps: i64,
-    cumulative_stats_n_chat_messages: i64,
-    instantaneous_stats_total_quote_locked: i64,
-    instantaneous_stats_total_value_locked: BigDecimal,
-    instantaneous_stats_market_cap: BigDecimal,
-    instantaneous_stats_fully_diluted_value: BigDecimal,
-    last_swap_is_sell: bool,
-    last_swap_avg_execution_price_q64: BigDecimal,
-    last_swap_base_volume: i64,
-    last_swap_quote_volume: i64,
-    last_swap_nonce: i64,
-    last_swap_time: chrono::NaiveDateTime,
+    pub clamm_virtual_reserves_base: i64,
+    pub clamm_virtual_reserves_quote: i64,
+    pub cpamm_real_reserves_base: i64,
+    pub cpamm_real_reserves_quote: i64,
+    pub lp_coin_supply: BigDecimal,
+    pub cumulative_stats_base_volume: BigDecimal,
+    pub cumulative_stats_quote_volume: BigDecimal,
+    pub cumulative_stats_integrator_fees: BigDecimal,
+    pub cumulative_stats_pool_fees_base: BigDecimal,
+    pub cumulative_stats_pool_fees_quote: BigDecimal,
+    pub cumulative_stats_n_swaps: i64,
+    pub cumulative_stats_n_chat_messages: i64,
+    pub instantaneous_stats_total_quote_locked: i64,
+    pub instantaneous_stats_total_value_locked: BigDecimal,
+    pub instantaneous_stats_market_cap: BigDecimal,
+    pub instantaneous_stats_fully_diluted_value: BigDecimal,
+    pub last_swap_is_sell: bool,
+    pub last_swap_avg_execution_price_q64: BigDecimal,
+    pub last_swap_base_volume: i64,
+    pub last_swap_quote_volume: i64,
+    pub last_swap_nonce: i64,
+    pub last_swap_time: chrono::NaiveDateTime,
 
-    daily_tvl_per_lp_coin_growth_q64: BigDecimal,
-    in_bonding_curve: bool,
-    volume_in_1m_state_tracker: BigDecimal,
+    pub daily_tvl_per_lp_coin_growth_q64: BigDecimal,
+    pub in_bonding_curve: bool,
+    pub volume_in_1m_state_tracker: BigDecimal,
 }
 
 impl MarketLatestStateEventModel {
@@ -137,12 +137,12 @@ pub fn calculate_tvl_growth(tracker_1d: PeriodicStateTracker) -> BigDecimal {
         ..
     } = tracker_1d;
 
-    // tracker_1d.tvl_to_lp_coin_ratio_end - tracker_1d.tvl_to_lp_coin_ratio_start
-    let a = BigDecimal::from(start.tvl);
-    let b = BigDecimal::from(start.lp_coins);
-    let c = BigDecimal::from(end.tvl);
-    let d = BigDecimal::from(end.lp_coins);
+    let a = start.tvl;
+    let b = start.lp_coins;
+    let c = end.tvl;
+    let d = end.lp_coins;
 
+    // Copied directly from the original implementation.
     if a.is_zero() || b.is_zero() {
         BigDecimal::zero()
     } else {

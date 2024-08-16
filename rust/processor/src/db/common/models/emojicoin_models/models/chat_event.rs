@@ -55,59 +55,6 @@ pub struct ChatEventModel {
     pub last_swap_time: chrono::NaiveDateTime,
 }
 
-// Need a queryable version of the model to include the `inserted_at` field, since it's populated at insertion time.
-// Unfortunately, this is a limitation with `diesel`'s `insertable` derive macro.
-#[derive(Clone, Debug, Identifiable, Queryable)]
-#[diesel(primary_key(market_id, market_nonce))]
-#[diesel(table_name = chat_events)]
-#[allow(dead_code)]
-pub struct ChatEventQueryModel {
-    // Transaction metadata.
-    pub transaction_version: i64,
-    pub sender: String,
-    pub entry_function: Option<String>,
-    pub transaction_timestamp: chrono::NaiveDateTime,
-    pub inserted_at: chrono::NaiveDateTime,
-
-    // Market and state metadata.
-    pub market_id: i64,
-    pub symbol_bytes: Vec<u8>,
-    pub bump_time: chrono::NaiveDateTime,
-    pub market_nonce: i64,
-    pub trigger: enums::Triggers,
-
-    // Chat event data.
-    pub user: String,
-    pub message: String,
-    pub user_emojicoin_balance: i64,
-    pub circulating_supply: i64,
-    pub balance_as_fraction_of_circulating_supply_q64: BigDecimal,
-
-    // State event data.
-    pub clamm_virtual_reserves_base: i64,
-    pub clamm_virtual_reserves_quote: i64,
-    pub cpamm_real_reserves_base: i64,
-    pub cpamm_real_reserves_quote: i64,
-    pub lp_coin_supply: BigDecimal,
-    pub cumulative_stats_base_volume: BigDecimal,
-    pub cumulative_stats_quote_volume: BigDecimal,
-    pub cumulative_stats_integrator_fees: BigDecimal,
-    pub cumulative_stats_pool_fees_base: BigDecimal,
-    pub cumulative_stats_pool_fees_quote: BigDecimal,
-    pub cumulative_stats_n_swaps: i64,
-    pub cumulative_stats_n_chat_messages: i64,
-    pub instantaneous_stats_total_quote_locked: i64,
-    pub instantaneous_stats_total_value_locked: BigDecimal,
-    pub instantaneous_stats_market_cap: BigDecimal,
-    pub instantaneous_stats_fully_diluted_value: BigDecimal,
-    pub last_swap_is_sell: bool,
-    pub last_swap_avg_execution_price_q64: BigDecimal,
-    pub last_swap_base_volume: i64,
-    pub last_swap_quote_volume: i64,
-    pub last_swap_nonce: i64,
-    pub last_swap_time: chrono::NaiveDateTime,
-}
-
 impl ChatEventModel {
     pub fn new(
         txn_info: TxnInfo,
