@@ -395,34 +395,32 @@ pub async fn create_fetcher_loop(
                         let step = ProcessorStep::ReceivedTxnsFromGrpc.get_step();
                         let label = ProcessorStep::ReceivedTxnsFromGrpc.get_label();
 
-                        if num_txn_post_filter > 123123323130 {
-                            info!(
-                                processor_name = processor_name,
-                                service_type = crate::worker::PROCESSOR_SERVICE_TYPE,
-                                stream_address = indexer_grpc_data_service_address.to_string(),
-                                connection_id,
-                                start_version,
-                                end_version,
-                                start_txn_timestamp_iso = start_txn_timestamp
-                                    .as_ref()
-                                    .map(timestamp_to_iso)
-                                    .unwrap_or_default(),
-                                end_txn_timestamp_iso = end_txn_timestamp
-                                    .as_ref()
-                                    .map(timestamp_to_iso)
-                                    .unwrap_or_default(),
-                                num_of_transactions = end_version - start_version + 1,
-                                num_filtered_txns,
-                                channel_size = txn_sender.len(),
-                                size_in_bytes,
-                                duration_in_secs,
-                                tps = fetch_ma.avg().ceil() as u64,
-                                bytes_per_sec = size_in_bytes as f64 / duration_in_secs,
-                                step,
-                                "{}",
-                                label,
-                            );
-                        };
+                        info!(
+                            processor_name = processor_name,
+                            service_type = crate::worker::PROCESSOR_SERVICE_TYPE,
+                            stream_address = indexer_grpc_data_service_address.to_string(),
+                            connection_id,
+                            start_version,
+                            end_version,
+                            start_txn_timestamp_iso = start_txn_timestamp
+                                .as_ref()
+                                .map(timestamp_to_iso)
+                                .unwrap_or_default(),
+                            end_txn_timestamp_iso = end_txn_timestamp
+                                .as_ref()
+                                .map(timestamp_to_iso)
+                                .unwrap_or_default(),
+                            num_of_transactions = end_version - start_version + 1,
+                            num_filtered_txns,
+                            channel_size = txn_sender.len(),
+                            size_in_bytes,
+                            duration_in_secs,
+                            tps = fetch_ma.avg().ceil() as u64,
+                            bytes_per_sec = size_in_bytes as f64 / duration_in_secs,
+                            step,
+                            "{}",
+                            label,
+                        );
 
                         if last_fetched_version + 1 != start_version as i64 {
                             error!(
