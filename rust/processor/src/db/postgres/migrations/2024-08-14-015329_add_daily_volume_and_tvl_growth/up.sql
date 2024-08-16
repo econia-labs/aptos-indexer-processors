@@ -35,7 +35,20 @@ CREATE TABLE market_24h_rolling_1min_periods (
     period_volumes NUMERIC[1440] NOT NULL,
     start_times BIGINT[1440] NOT NULL, -- Microseconds.
 
-    PRIMARY KEY (market_id)
+    PRIMARY KEY (market_id),
+
+    -- Check length with cardinality because `array_length` returns NULL if the array is empty.
+    CONSTRAINT check_equal_array_cardinality CHECK (
+        cardinality(market_nonces) = cardinality(period_volumes) AND
+        cardinality(period_volumes) = cardinality(start_times)
+    ),
+
+    -- Check that the arrays are 1-dimensional since we check length with cardinality.
+    CONSTRAINT check_array_dimensions CHECK (
+        array_ndims(market_nonces) = 1 AND
+        array_ndims(period_volumes) = 1 AND
+        array_ndims(start_times) = 1
+    )
 );
 
 CREATE INDEX mkt_rlng_24h_vol_idx
