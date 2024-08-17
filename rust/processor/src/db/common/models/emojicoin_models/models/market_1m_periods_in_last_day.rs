@@ -21,22 +21,6 @@ pub struct MarketOneMinutePeriodsInLastDayModel {
     pub start_time: i64,
 }
 
-impl MarketOneMinutePeriodsInLastDayModel {
-    pub fn new(
-        market_id: i64,
-        nonce: i64,
-        volume: BigDecimal,
-        start_time: i64,
-    ) -> MarketOneMinutePeriodsInLastDayModel {
-        MarketOneMinutePeriodsInLastDayModel {
-            market_id,
-            nonce,
-            volume,
-            start_time,
-        }
-    }
-}
-
 impl From<RecentOneMinutePeriodicStateEvent> for MarketOneMinutePeriodsInLastDayModel {
     fn from(event: RecentOneMinutePeriodicStateEvent) -> Self {
         MarketOneMinutePeriodsInLastDayModel {
