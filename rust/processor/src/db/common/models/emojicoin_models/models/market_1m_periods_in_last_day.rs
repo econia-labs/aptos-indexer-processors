@@ -20,19 +20,6 @@ pub struct MarketOneMinutePeriodsInLastDayModel {
     pub start_time: i64,
 }
 
-// Need a queryable version of the model to include the `inserted_at` field, since it's populated at insertion time.
-// Unfortunately, this is a limitation with `diesel`'s `insertable` derive macro.
-#[derive(Clone, Debug, Identifiable, Queryable)]
-#[diesel(primary_key(market_id, nonce))]
-#[diesel(table_name = market_1m_periods_in_last_day)]
-pub struct MarketOneMinutePeriodsInLastDayQueryModel {
-    pub market_id: i64,
-    pub inserted_at: chrono::NaiveDateTime,
-    pub nonce: i64,
-    pub volume: BigDecimal,
-    pub start_time: i64,
-}
-
 impl MarketOneMinutePeriodsInLastDayModel {
     pub fn new(
         market_id: i64,

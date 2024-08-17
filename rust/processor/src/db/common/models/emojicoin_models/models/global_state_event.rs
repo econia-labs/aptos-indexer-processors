@@ -29,30 +29,6 @@ pub struct GlobalStateEventModel {
     pub cumulative_chat_messages: i64,
 }
 
-// Need a queryable version of the model to include the `inserted_at` field, since it's populated at insertion time.
-// Unfortunately, this is a limitation with `diesel`'s `insertable` derive macro.
-#[derive(Identifiable, Queryable)]
-#[diesel(primary_key(registry_nonce))]
-#[diesel(table_name = global_state_events)]
-pub struct GlobalStateEventQueryModel {
-    pub transaction_version: i64,
-    pub sender: String,
-    pub entry_function: Option<String>,
-    pub transaction_timestamp: chrono::NaiveDateTime,
-    pub inserted_at: chrono::NaiveDateTime,
-    pub emit_time: chrono::NaiveDateTime,
-    pub registry_nonce: i64,
-    pub trigger: enums::Trigger,
-    pub cumulative_quote_volume: BigDecimal,
-    pub total_quote_locked: BigDecimal,
-    pub total_value_locked: BigDecimal,
-    pub market_cap: BigDecimal,
-    pub fully_diluted_value: BigDecimal,
-    pub cumulative_integrator_fees: BigDecimal,
-    pub cumulative_swaps: i64,
-    pub cumulative_chat_messages: i64,
-}
-
 impl GlobalStateEventModel {
     pub fn new(txn_info: TxnInfo, global_state_event: GlobalStateEvent) -> Self {
         GlobalStateEventModel {
