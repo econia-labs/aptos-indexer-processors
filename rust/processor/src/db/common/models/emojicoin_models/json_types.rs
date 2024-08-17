@@ -491,9 +491,7 @@ impl MarketResource {
     pub fn from_write_resource(resource: &WriteResource) -> Result<Option<Self>> {
         let data = &resource.data;
         match EmojicoinTypeTag::from_type_str(&resource.type_str) {
-            Some(EmojicoinTypeTag::Market) => {
-                serde_json::from_str(data.as_str()).map(|inner| Some(MarketResource::from(inner)))
-            },
+            Some(EmojicoinTypeTag::Market) => serde_json::from_str(data.as_str()).map(Some),
             _ => Ok(None),
         }
         .context(format!(

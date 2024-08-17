@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod json_tests {
     use crate::db::common::models::emojicoin_models::{
         enums::Trigger,
         json_types::{EventWithMarket, GlobalStateEvent},
@@ -111,8 +111,8 @@ mod tests {
                 e.market_metadata.market_address,
                 "0x00000000175394d0883e28262c4c40cb8228e47a36e6a813d5117805c3c26a5c"
             );
-            assert_eq!(e.starts_in_bonding_curve, false);
-            assert_eq!(e.close_price_q64, (1128118906863219 as i64).into());
+            assert!(!e.starts_in_bonding_curve);
+            assert_eq!(e.close_price_q64, 1128118906863219_i64.into());
             assert_eq!(e.periodic_state_metadata.trigger, Trigger::ProvideLiquidity);
         } else {
             panic!("Failed to parse periodic state event");
@@ -141,7 +141,7 @@ mod tests {
             .unwrap();
         if let Some(EventWithMarket::Liquidity(e)) = liquidity_event {
             assert_eq!(e.market_nonce, 40278);
-            assert_eq!(e.liquidity_provided, true);
+            assert!(e.liquidity_provided);
             assert_eq!(e.lp_coin_amount, 4272180527);
             assert_eq!(e.base_amount, 1639206334780);
             assert_eq!(e.quote_amount, 100000000);
@@ -185,14 +185,14 @@ mod tests {
             .map(|e| Some(EventWithMarket::Swap(e)))
             .unwrap();
         if let Some(EventWithMarket::Swap(e)) = swap_event {
-            assert_eq!(e.avg_execution_price_q64, (150622935860149 as i64).into());
+            assert_eq!(e.avg_execution_price_q64, 150622935860149_i64.into());
             assert_eq!(e.base_volume, 12124499186451);
             assert_eq!(e.integrator_fee, 1000000);
             assert_eq!(e.input_amount, 100000000);
-            assert_eq!(e.is_sell, false);
+            assert!(!e.is_sell);
             assert_eq!(e.integrator_fee_rate_bps, 100);
-            assert_eq!(e.results_in_state_transition, false);
-            assert_eq!(e.starts_in_bonding_curve, true);
+            assert!(!e.results_in_state_transition);
+            assert!(e.starts_in_bonding_curve);
             assert_eq!(e.market_id, 3523452345);
             assert_eq!(e.market_nonce, 2);
             assert_eq!(e.time, 1723253663706846);
@@ -285,27 +285,27 @@ mod tests {
                 assert_eq!(global_state_event.cumulative_chat_messages, 16891);
                 assert_eq!(
                     global_state_event.cumulative_integrator_fees,
-                    (249444000000 as i64).into()
+                    249444000000_i64.into()
                 );
                 assert_eq!(
                     global_state_event.cumulative_quote_volume,
-                    (200576291031 as i64).into()
+                    200576291031_i64.into()
                 );
                 assert_eq!(global_state_event.cumulative_swaps, 14209);
                 assert_eq!(global_state_event.emit_time, 1723350357240102);
                 assert_eq!(
                     global_state_event.fully_diluted_value,
-                    (912838434139348 as i64).into()
+                    912838434139348_i64.into()
                 );
-                assert_eq!(global_state_event.market_cap, (213923864245 as i64).into());
+                assert_eq!(global_state_event.market_cap, 213923864245_i64.into());
                 assert_eq!(global_state_event.registry_nonce, 33586);
                 assert_eq!(
                     global_state_event.total_quote_locked,
-                    (165704422193 as i64).into()
+                    165704422193_i64.into()
                 );
                 assert_eq!(
                     global_state_event.total_value_locked,
-                    (5075928984264 as i64).into()
+                    5075928984264_i64.into()
                 );
                 assert_eq!(global_state_event.trigger, Trigger::MarketRegistration);
             },

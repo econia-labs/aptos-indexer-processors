@@ -22,7 +22,7 @@ impl RecentOneMinutePeriodicStateEvent {
                     pse.periodic_state_metadata.start_time,
                 );
 
-                if period == Period::Period1M && start_time > one_day_ago_micros {
+                if period == Period::OneMinute && start_time > one_day_ago_micros {
                     Some(RecentOneMinutePeriodicStateEvent {
                         market_id: pse.market_metadata.market_id,
                         market_nonce: pse.periodic_state_metadata.emit_market_nonce,

@@ -77,9 +77,9 @@ impl MarketLatestStateEventModel {
         // Note that we can examine the tracker for info here because it's the latest value on-chain.
         let (mut maybe_tracker_1m, mut maybe_tracker_1d) = (None, None);
         periodic_state_trackers.into_iter().for_each(|tracker| {
-            if tracker.period == Period::Period1M {
+            if tracker.period == Period::OneMinute {
                 maybe_tracker_1m = Some(tracker);
-            } else if tracker.period == Period::Period1D {
+            } else if tracker.period == Period::OneDay {
                 maybe_tracker_1d = Some(tracker);
             }
         });

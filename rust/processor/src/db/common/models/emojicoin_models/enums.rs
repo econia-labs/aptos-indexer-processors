@@ -54,19 +54,19 @@ where
 #[ExistingTypePath = "crate::schema::sql_types::PeriodType"]
 pub enum Period {
     #[db_rename = "period_1m"]
-    Period1M,
+    OneMinute,
     #[db_rename = "period_5m"]
-    Period5M,
+    FiveMinutes,
     #[db_rename = "period_15m"]
-    Period15M,
+    FifteenMinutes,
     #[db_rename = "period_30m"]
-    Period30M,
+    ThirtyMinutes,
     #[db_rename = "period_1h"]
-    Period1H,
+    OneHour,
     #[db_rename = "period_4h"]
-    Period4H,
+    FourHours,
     #[db_rename = "period_1d"]
-    Period1D,
+    OneDay,
 }
 
 pub fn deserialize_state_period<'de, D>(deserializer: D) -> core::result::Result<Period, D::Error>
@@ -76,13 +76,13 @@ where
     use serde::de::Error;
     let period = <String>::deserialize(deserializer)?;
     match period.as_str() {
-        "60000000" => Ok(Period::Period1M),
-        "300000000" => Ok(Period::Period5M),
-        "900000000" => Ok(Period::Period15M),
-        "1800000000" => Ok(Period::Period30M),
-        "3600000000" => Ok(Period::Period1H),
-        "14400000000" => Ok(Period::Period4H),
-        "86400000000" => Ok(Period::Period1D),
+        "60000000" => Ok(Period::OneMinute),
+        "300000000" => Ok(Period::FiveMinutes),
+        "900000000" => Ok(Period::FifteenMinutes),
+        "1800000000" => Ok(Period::ThirtyMinutes),
+        "3600000000" => Ok(Period::OneHour),
+        "14400000000" => Ok(Period::FourHours),
+        "86400000000" => Ok(Period::OneDay),
         _ => Err(D::Error::custom(format!(
             "Failed to deserialize PeriodType from string: {}",
             period
