@@ -1,4 +1,6 @@
-use crate::db::common::models::emojicoin_models::{enums::Period, json_types::EventWithMarket};
+use crate::db::common::models::emojicoin_models::{
+    enums::Period, json_types::EventWithMarket, utils::one_day_ago_micros,
+};
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 
@@ -10,19 +12,20 @@ pub struct RecentOneMinutePeriodicStateEvent {
     pub start_time: i64,
 }
 
-// Recent being defined as within the time frame defined in the function logic below.
+// Recent being defined as within the last day.
+// Note that the time filtering logic here is primarily to avoid calculating volume
+// and inserting 1m events while backfilling.
+// The actual time filtering logic for the API is in the database view.
 impl RecentOneMinutePeriodicStateEvent {
     pub fn try_from_event(event: EventWithMarket) -> Option<Self> {
         match event {
             EventWithMarket::PeriodicState(pse) => {
-                let one_day_ago = chrono::Utc::now() - chrono::Duration::days(1);
-                let one_day_ago_micros = one_day_ago.timestamp_millis() * 1000;
                 let (period, start_time) = (
                     pse.periodic_state_metadata.period,
                     pse.periodic_state_metadata.start_time,
                 );
 
-                if period == Period::OneMinute && start_time > one_day_ago_micros {
+                if period == Period::OneMinute && start_time > one_day_ago_micros() {
                     Some(RecentOneMinutePeriodicStateEvent {
                         market_id: pse.market_metadata.market_id,
                         market_nonce: pse.periodic_state_metadata.emit_market_nonce,

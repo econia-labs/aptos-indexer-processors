@@ -1,4 +1,5 @@
 use crate::{
+    db::common::models::emojicoin_models::utils::one_day_ago_micros,
     schema::{self, market_1m_periods_in_last_day},
     utils::database::ArcDbPool,
 };
@@ -74,12 +75,11 @@ impl MarketOneMinutePeriodsInLastDayModel {
                 )
                 .await?;
 
-                let one_day_ago_micros =
-                    (chrono::Utc::now() - chrono::Duration::days(1)).timestamp_micros();
+                let one_day_ago = one_day_ago_micros();
 
                 let deleted = diesel_async::RunQueryDsl::execute(
                     diesel::delete(schema::market_1m_periods_in_last_day::table)
-                        .filter(start_time.le(one_day_ago_micros)),
+                        .filter(start_time.le(one_day_ago)),
                     conn,
                 )
                 .await?;
