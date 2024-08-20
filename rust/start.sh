@@ -1,5 +1,11 @@
 #!/bin/bash
 
+STARTING_VERSION=$(psql -d "$DATABASE_URL" -t -c "SELECT last_success_version FROM processor_status;" 2>/dev/null | tr -d '[:space:]')
+if [ -z "$STARTING_VERSION" ]; then
+  STARTING_VERSION=0
+fi
+export STARTING_VERSION
+
 echo "health_check_port: 8084
 server_config:
   processor_config:
@@ -15,4 +21,4 @@ server_config:
   transaction_filter:
     focus_user_transactions: true" > /app/config.yaml
 
-/usr/local/bin/processor -c /app/config.yaml
+/usr/local/bin/processor --config-path /app/config.yaml
