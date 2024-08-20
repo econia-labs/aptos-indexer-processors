@@ -104,14 +104,14 @@ pub enum EmojicoinTypeTag {
 impl EmojicoinTypeTag {
     pub fn from_type_str(type_str: &str) -> Option<Self> {
         match type_str {
-            SWAP_EVENT => Some(Self::Swap),
-            CHAT_EVENT => Some(Self::Chat),
-            MARKET_REGISTRATION_EVENT => Some(Self::MarketRegistration),
-            PERIODIC_STATE_EVENT => Some(Self::PeriodicState),
-            STATE_EVENT => Some(Self::State),
-            GLOBAL_STATE_EVENT => Some(Self::GlobalState),
-            LIQUIDITY_EVENT => Some(Self::Liquidity),
-            MARKET_RESOURCE => Some(Self::Market),
+            str if str == SWAP_EVENT.as_str() => Some(Self::Swap),
+            str if str == CHAT_EVENT.as_str() => Some(Self::Chat),
+            str if str == MARKET_REGISTRATION_EVENT.as_str() => Some(Self::MarketRegistration),
+            str if str == PERIODIC_STATE_EVENT.as_str() => Some(Self::PeriodicState),
+            str if str == STATE_EVENT.as_str() => Some(Self::State),
+            str if str == GLOBAL_STATE_EVENT.as_str() => Some(Self::GlobalState),
+            str if str == LIQUIDITY_EVENT.as_str() => Some(Self::Liquidity),
+            str if str == MARKET_RESOURCE.as_str() => Some(Self::Market),
             _ => None,
         }
     }
