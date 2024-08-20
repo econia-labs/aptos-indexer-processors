@@ -48,7 +48,7 @@ CREATE TABLE market_latest_state_event (
 );
 
 CREATE INDEX mkts_in_bonding_curve_idx
-ON market_latest_state_event (in_bonding_curve, market_id, market_nonce DESC)
+ON market_latest_state_event (in_bonding_curve, market_id)
 WHERE in_bonding_curve = TRUE;
 
 CREATE INDEX unique_mkts_idx

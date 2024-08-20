@@ -294,6 +294,7 @@ CREATE INDEX chats_by_mkt_and_time_idx
 ON chat_events (market_id, market_nonce DESC);
 
 -- Querying the candlestick data for a market by its period,
--- descending chronologically by the candlestick open time.
+-- ascending chronologically by the candlestick open/start time.
+-- This should match the query we use in the charting library.
 CREATE UNIQUE INDEX prdc_evts_by_res_idx
-ON periodic_state_events (market_id, period, start_time DESC);
+ON periodic_state_events (market_id, period, start_time ASC);
