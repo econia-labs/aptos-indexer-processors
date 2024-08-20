@@ -95,7 +95,8 @@ async fn insert_to_db(
             per_table_chunk_sizes,
         ),
     );
-    // TODO: Do we need to chunk this?
+
+    // Note that this is currently not chunked and could result in a query that deletes several hundred rows at once.
     let update_one_min_periods = MarketOneMinutePeriodsInLastDayModel::insert_and_delete_periods(
         market_1m_periods,
         conn.clone(),
@@ -370,8 +371,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                 }
             }
         }
-        // @CRBl69 Perhaps this is where we could emit the state event paired with the event data? That way we don't have to store
-        // it in the last state event table, but it's still emitted.
+
         let market_latest_state_events = latest_market_resources
             .into_values()
             .map(|(txn_info, market, trigger, instant_stats)| {
