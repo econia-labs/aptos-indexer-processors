@@ -1,1 +1,1 @@
-pub mod market_resource_wsc;
+pub mod market_resource;

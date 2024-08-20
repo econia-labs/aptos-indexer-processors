@@ -314,8 +314,10 @@ impl ProcessorTrait for EmojicoinProcessor {
                                 if latest_resource.sequence_info.nonce < market_nonce {
                                     // Writeset changes reflect the final state changes from the transaction; same version == same changes.
                                     if txn_info_for_latest.version != txn_version {
-                                        *latest_resource =
-                                            MarketResource::from_wsc(txn, market_addr);
+                                        *latest_resource = MarketResource::from_write_set_changes(
+                                            txn,
+                                            market_addr,
+                                        );
                                         *txn_info_for_latest = txn_info.clone();
                                     }
                                     *latest_trigger = state_event.state_metadata.trigger;
@@ -326,7 +328,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                         .or_insert_with(|| {
                             (
                                 txn_info.clone(),
-                                MarketResource::from_wsc(txn, market_addr),
+                                MarketResource::from_write_set_changes(txn, market_addr),
                                 state_event.state_metadata.trigger,
                                 state_event.instantaneous_stats.clone(),
                             )

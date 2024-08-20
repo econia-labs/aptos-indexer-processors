@@ -6,7 +6,7 @@ use crate::{
 };
 
 impl MarketResource {
-    pub fn from_wsc(txn: &Transaction, market_address: &str) -> Self {
+    pub fn from_write_set_changes(txn: &Transaction, market_address: &str) -> Self {
         txn.info
             .as_ref()
             .expect("Transaction info should exist.")
