@@ -66,20 +66,19 @@ impl MarketRegistrationEventModel {
     }
 }
 
-// NOTE: We don't store most of the state event data for a market registration event
-// because it is largely identical for every single market, and we never query by that data.
-// The only fields that are variable are:
-//   - emoji_bytes
-//   - market_address
-//   - market_id
-//   - bump_time
-//
-// If this ever changes, we can easily update the rows retroactively with a join on the market_id
-// with a market nonce of 1.
-
-// The StateEvent data emitted alongside a MarketRegistrationEvent looks like this:
 /*
-    {
+ The below is an example JSON response of the State event data emitted upon market registration.
+
+ This data is here to clarify why the data model above is so small compared to the event data actually emitted
+ upon market registration.
+
+ This is because the only fields that change from market to market are:
+   - emoji_bytes
+   - market_address
+   - market_id
+   - bump_time
+
+{
     "clamm_virtual_reserves": {
         "base": "49000000000000000",
         "quote": "400000000000"
@@ -113,14 +112,14 @@ impl MarketRegistrationEventModel {
     },
     "lp_coin_supply": "0",
     "market_metadata": {
-        "emoji_bytes": "0xf09fa5b9e298baefb88f",                                                //  <-- Unique per market.
-        "market_address": "0x190a6cba6faf4768b72a3b8604c30a6b7badecbed38e0733a8411c0f0b3d7aac", //  <-- Unique per market.
-        "market_id": "1777"                                                                     //  <-- Unique per market.
+        "emoji_bytes": "0xf09fa5b9e298baefb88f",     <-- Unique per market.
+        "market_address": "0x190a6cba6...0b3d7aac",  <-- Unique per market.
+        "market_id": "1777"                          <-- Unique per market.
     },
     "state_metadata": {
-        "bump_time": "1720313606499938",                                                        //  <-- Unique per market.
+        "bump_time": "1720313606499938",             <-- Unique per market.
         "market_nonce": "1",
         "trigger": 1
     }
-    }
+}
 */
