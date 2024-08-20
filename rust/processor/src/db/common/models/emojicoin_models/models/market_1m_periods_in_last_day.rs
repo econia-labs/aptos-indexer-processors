@@ -1,10 +1,14 @@
 use crate::{
-    db::common::models::emojicoin_models::utils::one_day_ago_micros,
     schema::{self, market_1m_periods_in_last_day},
     utils::database::ArcDbPool,
 };
 use bigdecimal::BigDecimal;
-use diesel::{result::Error, QueryResult};
+use chrono::NaiveDateTime;
+use diesel::{
+    dsl::{now, IntervalDsl},
+    result::Error,
+    QueryResult,
+};
 use diesel_async::{scoped_futures::ScopedFutureExt, AsyncConnection};
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
@@ -17,8 +21,9 @@ use super::market_24h_rolling_volume::RecentOneMinutePeriodicStateEvent;
 pub struct MarketOneMinutePeriodsInLastDayModel {
     pub market_id: i64,
     pub nonce: i64,
+    pub transaction_version: i64,
     pub volume: BigDecimal,
-    pub start_time: i64,
+    pub start_time: NaiveDateTime,
 }
 
 impl From<RecentOneMinutePeriodicStateEvent> for MarketOneMinutePeriodsInLastDayModel {
@@ -26,6 +31,7 @@ impl From<RecentOneMinutePeriodicStateEvent> for MarketOneMinutePeriodsInLastDay
         MarketOneMinutePeriodsInLastDayModel {
             market_id: event.market_id,
             nonce: event.market_nonce,
+            transaction_version: event.transaction_version,
             volume: event.period_volume,
             start_time: event.start_time,
         }
@@ -59,11 +65,9 @@ impl MarketOneMinutePeriodsInLastDayModel {
                 )
                 .await?;
 
-                let one_day_ago = one_day_ago_micros();
-
                 let deleted = diesel_async::RunQueryDsl::execute(
                     diesel::delete(schema::market_1m_periods_in_last_day::table)
-                        .filter(start_time.le(one_day_ago)),
+                        .filter(start_time.lt(now - 24.hours())),
                     conn,
                 )
                 .await?;

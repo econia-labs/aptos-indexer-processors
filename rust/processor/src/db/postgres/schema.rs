@@ -997,9 +997,10 @@ diesel::table! {
     market_1m_periods_in_last_day (market_id, nonce) {
         market_id -> Int8,
         inserted_at -> Timestamp,
+        transaction_version -> Int8,
         nonce -> Int8,
         volume -> Numeric,
-        start_time -> Int8,
+        start_time -> Timestamp,
     }
 }
 

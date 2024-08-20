@@ -6,6 +6,8 @@ pub fn micros_to_naive_datetime(microseconds: i64) -> NaiveDateTime {
         .naive_utc()
 }
 
-pub fn one_day_ago_micros() -> i64 {
-    (chrono::Utc::now() - chrono::Duration::days(1)).timestamp_micros()
+pub fn within_past_day(time: NaiveDateTime) -> bool {
+    let one_day_ago = chrono::Utc::now() - chrono::Duration::hours(24);
+
+    time.and_utc() > one_day_ago
 }

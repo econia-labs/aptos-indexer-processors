@@ -248,7 +248,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                         Some(evt) => {
                             market_events.push(evt.clone());
                             if let Some(one_min_pse) =
-                                RecentOneMinutePeriodicStateEvent::try_from_event(evt)
+                                RecentOneMinutePeriodicStateEvent::try_from_event(evt, txn_version)
                             {
                                 period_data.push(one_min_pse);
                             }

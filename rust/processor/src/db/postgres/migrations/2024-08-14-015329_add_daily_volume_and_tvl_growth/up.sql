@@ -16,28 +16,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION one_day_ago_micros() RETURNS BIGINT AS $$
-    SELECT (EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) * 1000000 - 86400000000)::BIGINT;
-$$ LANGUAGE SQL IMMUTABLE;
-
 CREATE TABLE market_1m_periods_in_last_day (
     market_id BIGINT NOT NULL,
     inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    transaction_version BIGINT NOT NULL,
     nonce BIGINT NOT NULL, -- Market nonce.
     volume NUMERIC NOT NULL, -- Quote volume.
-    start_time BIGINT NOT NULL, -- In microseconds.
+    start_time TIMESTAMP NOT NULL,
 
     PRIMARY KEY (market_id, nonce)
 );
 
-CREATE INDEX mkt_1m_24h_idx
-ON market_1m_periods_in_last_day (market_id, start_time)
-INCLUDE (volume)
-WHERE start_time > one_day_ago_micros();
-
-CREATE INDEX mkt_expired_1m_periods_idx
-ON market_1m_periods_in_last_day (start_time)
-WHERE start_time <= one_day_ago_micros();
+CREATE INDEX mkt_1m_prds_last_24h_idx
+ON market_1m_periods_in_last_day (market_id)
+INCLUDE (start_time, volume);
 
 -- Calculate the 24h rolling volume for each market.
 CREATE VIEW market_daily_volume AS
@@ -47,7 +39,7 @@ WITH recent_volumes AS (
         COALESCE(SUM(volume), 0::NUMERIC) AS volume
     FROM market_1m_periods_in_last_day
     WHERE
-        start_time > one_day_ago_micros()
+        start_time > NOW() - INTERVAL '24' HOUR
     GROUP BY
         market_id
 ),
@@ -57,9 +49,12 @@ latest_state_volumes AS (
     SELECT
         market_id,
         -- Don't include the volume in the state tracker if the bump time is older than 1 day.
-        -- I think this means the volume calculation period is technically 24 hours + up to 1 minute.
+        -- This means the volume calculation period is technically 24 hours + up to 1 minute.
+        -- Note that we use `INTERVAL '24' HOUR` because `'1' DAY` does not always equal 24h.
+        -- See: https://www.postgresql.org/docs/9.1/functions-datetime.html, quote below:
+        -- | this means interval '1 day' does not necessarily equal interval '24 hours'.
         CASE
-            WHEN bump_time > NOW() - INTERVAL '1 day'
+            WHEN bump_time > NOW() - INTERVAL '24' HOUR
             THEN COALESCE(volume_in_1m_state_tracker, 0::NUMERIC)
             ELSE 0::NUMERIC
         END AS volume_in_1m_state_tracker
