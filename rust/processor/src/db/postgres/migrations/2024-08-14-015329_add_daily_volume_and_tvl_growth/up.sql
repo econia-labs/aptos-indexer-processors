@@ -41,22 +41,11 @@ WHERE start_time <= one_day_ago_micros();
 
 -- Calculate the 24h rolling volume for each market.
 CREATE VIEW market_daily_volume AS
-WITH all_markets AS (
-    SELECT DISTINCT market_id FROM market_latest_state_event
-),
--- Sum all markets with non-expired times.
-recent_volumes AS (
+WITH recent_volumes AS (
     SELECT 
         market_id,
         COALESCE(SUM(volume), 0::NUMERIC) AS volume
-    FROM (
-        SELECT 
-            market_id,
-            volume,
-            start_time
-        FROM 
-            market_1m_periods_in_last_day
-    ) AS unpacked
+    FROM market_1m_periods_in_last_day
     WHERE
         start_time > one_day_ago_micros()
     GROUP BY
@@ -79,11 +68,9 @@ latest_state_volumes AS (
 )
 -- Left join zero volume markets with > 0 volume markets and latest state volumes, then sum the volumes.
 SELECT 
-    am.market_id,
-    COALESCE(rv.volume, 0::NUMERIC) + COALESCE(lsv.volume_in_1m_state_tracker, 0::NUMERIC) AS total_volume
+    lsv.market_id,
+    COALESCE(rv.volume, 0::NUMERIC) + COALESCE(lsv.volume_in_1m_state_tracker, 0::NUMERIC) AS daily_volume
 FROM 
-    all_markets am
-LEFT JOIN 
-    recent_volumes rv ON am.market_id = rv.market_id
+    latest_state_volumes lsv
 LEFT JOIN
-    latest_state_volumes lsv ON am.market_id = lsv.market_id;
+    recent_volumes rv ON lsv.market_id = rv.market_id;
