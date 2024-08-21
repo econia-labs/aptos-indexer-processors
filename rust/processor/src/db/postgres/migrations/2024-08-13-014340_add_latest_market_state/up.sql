@@ -47,7 +47,7 @@ CREATE TABLE market_latest_state_event (
   PRIMARY KEY (market_id)
 );
 
-CREATE INDEX mkts_out_of_bonding_curve_idx
+CREATE INDEX mkts_post_bonding_curve_idx
 ON market_latest_state_event (market_id)
 WHERE in_bonding_curve = FALSE;
 
