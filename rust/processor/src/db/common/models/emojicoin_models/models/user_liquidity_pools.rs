@@ -24,8 +24,8 @@ pub struct UserLiquidityPoolsModel {
     pub quote_amount: i64,
     pub lp_coin_amount: i64,
     pub liquidity_provided: bool,
-    pub pro_rata_base_donation_claim_amount: i64,
-    pub pro_rata_quote_donation_claim_amount: i64,
+    pub base_donation_claim_amount: i64,
+    pub quote_donation_claim_amount: i64,
 }
 
 impl From<LiquidityEventModel> for UserLiquidityPoolsModel {
@@ -43,8 +43,8 @@ impl From<LiquidityEventModel> for UserLiquidityPoolsModel {
             quote_amount: evt.quote_amount,
             lp_coin_amount: evt.lp_coin_amount,
             liquidity_provided: evt.liquidity_provided,
-            pro_rata_base_donation_claim_amount: evt.pro_rata_base_donation_claim_amount,
-            pro_rata_quote_donation_claim_amount: evt.pro_rata_quote_donation_claim_amount,
+            base_donation_claim_amount: evt.base_donation_claim_amount,
+            quote_donation_claim_amount: evt.quote_donation_claim_amount,
         }
     }
 }

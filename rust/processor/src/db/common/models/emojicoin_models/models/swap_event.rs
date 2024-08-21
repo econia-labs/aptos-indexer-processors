@@ -37,6 +37,8 @@ pub struct SwapEventModel {
     pub pool_fee: i64,
     pub starts_in_bonding_curve: bool,
     pub results_in_state_transition: bool,
+    pub balance_as_fraction_of_circulating_supply_before_q64: BigDecimal,
+    pub balance_as_fraction_of_circulating_supply_after_q64: BigDecimal,
 
     // State event data.
     pub clamm_virtual_reserves_base: i64,
@@ -74,6 +76,28 @@ impl SwapEventModel {
             ..
         } = state_event;
 
+        let SwapEvent {
+            market_id,
+            market_nonce,
+            swapper,
+            integrator,
+            integrator_fee,
+            input_amount,
+            is_sell,
+            integrator_fee_rate_bps,
+            net_proceeds,
+            base_volume,
+            quote_volume,
+            avg_execution_price_q64,
+            pool_fee,
+            starts_in_bonding_curve,
+            results_in_state_transition,
+            time,
+            balance_as_fraction_of_circulating_supply_before_q64,
+            balance_as_fraction_of_circulating_supply_after_q64,
+            ..
+        } = swap_event;
+
         SwapEventModel {
             // Transaction metadata.
             transaction_version: txn_info.version,
@@ -82,26 +106,28 @@ impl SwapEventModel {
             transaction_timestamp: txn_info.timestamp,
 
             // Market and state metadata.
-            market_id: swap_event.market_id,
+            market_id,
             symbol_bytes: market_metadata.emoji_bytes,
-            bump_time: micros_to_naive_datetime(swap_event.time),
-            market_nonce: swap_event.market_nonce,
+            bump_time: micros_to_naive_datetime(time),
+            market_nonce,
             trigger: state_metadata.trigger,
 
             // Swap event data.
-            swapper: swap_event.swapper,
-            integrator: swap_event.integrator,
-            integrator_fee: swap_event.integrator_fee,
-            input_amount: swap_event.input_amount,
-            is_sell: swap_event.is_sell,
-            integrator_fee_rate_bps: swap_event.integrator_fee_rate_bps,
-            net_proceeds: swap_event.net_proceeds,
-            base_volume: swap_event.base_volume,
-            quote_volume: swap_event.quote_volume,
-            avg_execution_price_q64: swap_event.avg_execution_price_q64,
-            pool_fee: swap_event.pool_fee,
-            starts_in_bonding_curve: swap_event.starts_in_bonding_curve,
-            results_in_state_transition: swap_event.results_in_state_transition,
+            swapper,
+            integrator,
+            integrator_fee,
+            input_amount,
+            is_sell,
+            integrator_fee_rate_bps,
+            net_proceeds,
+            base_volume,
+            quote_volume,
+            avg_execution_price_q64,
+            pool_fee,
+            starts_in_bonding_curve,
+            results_in_state_transition,
+            balance_as_fraction_of_circulating_supply_before_q64,
+            balance_as_fraction_of_circulating_supply_after_q64,
 
             // State event data.
             clamm_virtual_reserves_base: clamm.base,

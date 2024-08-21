@@ -29,8 +29,8 @@ pub struct LiquidityEventModel {
     pub quote_amount: i64,
     pub lp_coin_amount: i64,
     pub liquidity_provided: bool,
-    pub pro_rata_base_donation_claim_amount: i64,
-    pub pro_rata_quote_donation_claim_amount: i64,
+    pub base_donation_claim_amount: i64,
+    pub quote_donation_claim_amount: i64,
 
     // State event data.
     pub clamm_virtual_reserves_base: i64,
@@ -82,8 +82,8 @@ impl LiquidityEventModel {
             quote_amount,
             lp_coin_amount,
             liquidity_provided,
-            pro_rata_base_donation_claim_amount,
-            pro_rata_quote_donation_claim_amount,
+            base_donation_claim_amount,
+            quote_donation_claim_amount,
             ..
         } = liquidity_event;
 
@@ -107,8 +107,8 @@ impl LiquidityEventModel {
             quote_amount,
             lp_coin_amount,
             liquidity_provided,
-            pro_rata_base_donation_claim_amount,
-            pro_rata_quote_donation_claim_amount,
+            base_donation_claim_amount,
+            quote_donation_claim_amount,
 
             // State event data.
             clamm_virtual_reserves_base: clamm.base,

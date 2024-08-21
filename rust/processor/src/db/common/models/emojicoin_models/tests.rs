@@ -128,8 +128,8 @@ mod json_tests {
             "lp_coin_amount": "4272180527",
             "market_id": "328",
             "market_nonce": "40278",
-            "pro_rata_base_donation_claim_amount": "0",
-            "pro_rata_quote_donation_claim_amount": "0",
+            "base_donation_claim_amount": "0",
+            "quote_donation_claim_amount": "0",
             "provider": "0x000006d68589500aa64d92f4f0e14d2f9d8075d003b8adf1e90ae6037f100000",
             "quote_amount": "100000000",
             "time": "1723246374791035"
@@ -145,8 +145,8 @@ mod json_tests {
             assert_eq!(e.lp_coin_amount, 4272180527);
             assert_eq!(e.base_amount, 1639206334780);
             assert_eq!(e.quote_amount, 100000000);
-            assert_eq!(e.pro_rata_base_donation_claim_amount, 0);
-            assert_eq!(e.pro_rata_quote_donation_claim_amount, 0);
+            assert_eq!(e.base_donation_claim_amount, 0);
+            assert_eq!(e.quote_donation_claim_amount, 0);
             assert_eq!(e.market_id, 328);
             assert_eq!(e.time, 1723246374791035);
             assert_eq!(

@@ -966,8 +966,8 @@ diesel::table! {
         quote_amount -> Int8,
         lp_coin_amount -> Int8,
         liquidity_provided -> Bool,
-        pro_rata_base_donation_claim_amount -> Int8,
-        pro_rata_quote_donation_claim_amount -> Int8,
+        base_donation_claim_amount -> Int8,
+        quote_donation_claim_amount -> Int8,
         clamm_virtual_reserves_base -> Int8,
         clamm_virtual_reserves_quote -> Int8,
         cpamm_real_reserves_base -> Int8,
@@ -1287,6 +1287,8 @@ diesel::table! {
         instantaneous_stats_total_value_locked -> Numeric,
         instantaneous_stats_market_cap -> Numeric,
         instantaneous_stats_fully_diluted_value -> Numeric,
+        balance_as_fraction_of_circulating_supply_before_q64 -> Numeric,
+        balance_as_fraction_of_circulating_supply_after_q64 -> Numeric,
     }
 }
 
@@ -1563,8 +1565,8 @@ diesel::table! {
         quote_amount -> Int8,
         lp_coin_amount -> Int8,
         liquidity_provided -> Bool,
-        pro_rata_base_donation_claim_amount -> Int8,
-        pro_rata_quote_donation_claim_amount -> Int8,
+        base_donation_claim_amount -> Int8,
+        quote_donation_claim_amount -> Int8,
     }
 }
 

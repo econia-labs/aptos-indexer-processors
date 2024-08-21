@@ -130,10 +130,8 @@ pub fn insert_user_liquidity_pools_query(
                 quote_amount.eq(excluded(quote_amount)),
                 lp_coin_amount.eq(excluded(lp_coin_amount)),
                 liquidity_provided.eq(excluded(liquidity_provided)),
-                pro_rata_base_donation_claim_amount
-                    .eq(excluded(pro_rata_base_donation_claim_amount)),
-                pro_rata_quote_donation_claim_amount
-                    .eq(excluded(pro_rata_quote_donation_claim_amount)),
+                base_donation_claim_amount.eq(excluded(base_donation_claim_amount)),
+                quote_donation_claim_amount.eq(excluded(quote_donation_claim_amount)),
             ))
             .filter(market_nonce.le(excluded(market_nonce))),
         None,
