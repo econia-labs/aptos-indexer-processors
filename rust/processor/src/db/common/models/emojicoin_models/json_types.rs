@@ -1,19 +1,22 @@
 use anyhow::{Context, Result};
 use aptos_protos::transaction::v1::WriteResource;
 use bigdecimal::BigDecimal;
-use num::FromPrimitive;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
     db::common::models::emojicoin_models::enums::{
-        deserialize_state_period, serialize_state_period, deserialize_state_trigger, serialize_state_trigger,
+        deserialize_state_period, deserialize_state_trigger, serialize_state_period,
+        serialize_state_trigger,
     },
     utils::util::{
-        serialize_to_string, deserialize_from_string, hex_to_raw_bytes, standardize_address, AggregatorSnapshot,
+        deserialize_from_string, hex_to_raw_bytes, serialize_to_string, AggregatorSnapshot,
     },
 };
 
-use super::enums::{EmojicoinTypeTag, Period, Trigger};
+use super::{
+    enums::{EmojicoinTypeTag, Period, Trigger},
+    utils::normalize_address,
+};
 
 pub fn serialize_bytes_to_hex_string<S>(element: &Vec<u8>, s: S) -> Result<S::Ok, S::Error>
 where
@@ -41,7 +44,7 @@ where
     D: Deserializer<'de>,
 {
     let s = <String>::deserialize(deserializer)?;
-    Ok(standardize_address(&s))
+    Ok(normalize_address(&s))
 }
 
 pub fn serialize_aggregator_snapshot_u128<S>(element: &BigDecimal, s: S) -> Result<S::Ok, S::Error>
@@ -49,8 +52,9 @@ where
     S: Serializer,
 {
     (AggregatorSnapshot {
-        value: element.clone()
-    }).serialize(s)
+        value: element.clone(),
+    })
+    .serialize(s)
 }
 
 pub fn deserialize_aggregator_snapshot_u128<'de, D>(
@@ -69,7 +73,8 @@ where
 {
     (AggregatorSnapshotI64 {
         value: element.clone(),
-    }).serialize(s)
+    })
+    .serialize(s)
 }
 
 pub fn deserialize_aggregator_snapshot_u64<'de, D>(
@@ -244,6 +249,10 @@ pub struct SwapEvent {
     pub pool_fee: i64,
     pub starts_in_bonding_curve: bool,
     pub results_in_state_transition: bool,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub balance_as_fraction_of_circulating_supply_before_q64: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub balance_as_fraction_of_circulating_supply_after_q64: BigDecimal,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -404,10 +413,10 @@ pub struct LiquidityEvent {
     pub liquidity_provided: bool,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub pro_rata_base_donation_claim_amount: i64,
+    pub base_donation_claim_amount: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub pro_rata_quote_donation_claim_amount: i64,
+    pub quote_donation_claim_amount: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

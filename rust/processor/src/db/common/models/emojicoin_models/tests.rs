@@ -60,7 +60,7 @@ mod json_tests {
         if let Some(EventWithMarket::State(e)) = state_event {
             assert_eq!(
                 e.market_metadata.market_address,
-                "0x066fb901175394d0883e28262c4c40cb8228e47a36e6a813d5117805c3c26a5c"
+                "0x66fb901175394d0883e28262c4c40cb8228e47a36e6a813d5117805c3c26a5c"
             );
             assert_eq!(e.market_metadata.market_id, 328);
             assert_eq!(e.state_metadata.trigger, Trigger::ProvideLiquidity);
@@ -109,7 +109,7 @@ mod json_tests {
         if let Some(EventWithMarket::PeriodicState(e)) = periodic_state_event {
             assert_eq!(
                 e.market_metadata.market_address,
-                "0x00000000175394d0883e28262c4c40cb8228e47a36e6a813d5117805c3c26a5c"
+                "0x175394d0883e28262c4c40cb8228e47a36e6a813d5117805c3c26a5c"
             );
             assert!(!e.starts_in_bonding_curve);
             assert_eq!(e.close_price_q64, 1128118906863219_i64.into());
@@ -128,8 +128,8 @@ mod json_tests {
             "lp_coin_amount": "4272180527",
             "market_id": "328",
             "market_nonce": "40278",
-            "pro_rata_base_donation_claim_amount": "0",
-            "pro_rata_quote_donation_claim_amount": "0",
+            "base_donation_claim_amount": "0",
+            "quote_donation_claim_amount": "0",
             "provider": "0x000006d68589500aa64d92f4f0e14d2f9d8075d003b8adf1e90ae6037f100000",
             "quote_amount": "100000000",
             "time": "1723246374791035"
@@ -145,13 +145,13 @@ mod json_tests {
             assert_eq!(e.lp_coin_amount, 4272180527);
             assert_eq!(e.base_amount, 1639206334780);
             assert_eq!(e.quote_amount, 100000000);
-            assert_eq!(e.pro_rata_base_donation_claim_amount, 0);
-            assert_eq!(e.pro_rata_quote_donation_claim_amount, 0);
+            assert_eq!(e.base_donation_claim_amount, 0);
+            assert_eq!(e.quote_donation_claim_amount, 0);
             assert_eq!(e.market_id, 328);
             assert_eq!(e.time, 1723246374791035);
             assert_eq!(
                 e.provider,
-                "0x000006d68589500aa64d92f4f0e14d2f9d8075d003b8adf1e90ae6037f100000"
+                "0x6d68589500aa64d92f4f0e14d2f9d8075d003b8adf1e90ae6037f100000"
             );
         } else {
             panic!("Failed to parse periodic state event");
@@ -176,6 +176,8 @@ mod json_tests {
             "quote_volume": "99000000",
             "results_in_state_transition": false,
             "starts_in_bonding_curve": true,
+            "balance_as_fraction_of_circulating_supply_before_q64": "0",
+            "balance_as_fraction_of_circulating_supply_after_q64": "1",
             "swapper": "0xbad225596d685895aa64d92f4f0e14d2f9d8075d3b8adf1e90ae6037f1fcbabe",
             "time": "1723253663706846"
           }
@@ -196,6 +198,14 @@ mod json_tests {
             assert_eq!(e.market_id, 3523452345);
             assert_eq!(e.market_nonce, 2);
             assert_eq!(e.time, 1723253663706846);
+            assert_eq!(
+                e.balance_as_fraction_of_circulating_supply_before_q64,
+                0.into()
+            );
+            assert_eq!(
+                e.balance_as_fraction_of_circulating_supply_after_q64,
+                1.into()
+            );
         } else {
             panic!("Failed to parse periodic state event");
         }

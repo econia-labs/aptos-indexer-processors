@@ -1,7 +1,17 @@
-use super::{constants::{
-    CHAT_EVENT, GLOBAL_STATE_EVENT, LIQUIDITY_EVENT, MARKET_REGISTRATION_EVENT, MARKET_RESOURCE,
-    PERIODIC_STATE_EVENT, STATE_EVENT, SWAP_EVENT,
-}, json_types::{EventWithMarket, GlobalStateEvent}, models::{chat_event::ChatEventModel, global_state_event::GlobalStateEventModel, liquidity_event::LiquidityEventModel, market_latest_state_event::MarketLatestStateEventModel, market_registration_event::MarketRegistrationEventModel, periodic_state_event::PeriodicStateEventModel, swap_event::SwapEventModel}};
+use super::{
+    constants::{
+        CHAT_EVENT, GLOBAL_STATE_EVENT, LIQUIDITY_EVENT, MARKET_REGISTRATION_EVENT,
+        MARKET_RESOURCE, PERIODIC_STATE_EVENT, STATE_EVENT, SWAP_EVENT,
+    },
+    json_types::{EventWithMarket, GlobalStateEvent},
+    models::{
+        chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
+        liquidity_event::LiquidityEventModel,
+        market_latest_state_event::MarketLatestStateEventModel,
+        market_registration_event::MarketRegistrationEventModel,
+        periodic_state_event::PeriodicStateEventModel, swap_event::SwapEventModel,
+    },
+};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(
@@ -54,9 +64,7 @@ where
     s.serialize_i16(element.into())
 }
 
-pub fn deserialize_state_trigger<'de, D>(
-    deserializer: D,
-) -> core::result::Result<Trigger, D::Error>
+pub fn deserialize_state_trigger<'de, D>(deserializer: D) -> core::result::Result<Trigger, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -182,17 +190,15 @@ pub enum EmojicoinDbEventType {
 impl From<&EmojicoinEvent> for EmojicoinEventType {
     fn from(value: &EmojicoinEvent) -> Self {
         match value {
-            EmojicoinEvent::EventWithMarket(e) => {
-                match e {
-                    EventWithMarket::PeriodicState(_) => EmojicoinEventType::PeriodicState,
-                    EventWithMarket::State(_) => EmojicoinEventType::State,
-                    EventWithMarket::Swap(_) => EmojicoinEventType::Swap,
-                    EventWithMarket::Chat(_) => EmojicoinEventType::Chat,
-                    EventWithMarket::Liquidity(_) => EmojicoinEventType::Liquidity,
-                    EventWithMarket::MarketRegistration(_) => EmojicoinEventType::MarketRegistration,
-                }
+            EmojicoinEvent::EventWithMarket(e) => match e {
+                EventWithMarket::PeriodicState(_) => EmojicoinEventType::PeriodicState,
+                EventWithMarket::State(_) => EmojicoinEventType::State,
+                EventWithMarket::Swap(_) => EmojicoinEventType::Swap,
+                EventWithMarket::Chat(_) => EmojicoinEventType::Chat,
+                EventWithMarket::Liquidity(_) => EmojicoinEventType::Liquidity,
+                EventWithMarket::MarketRegistration(_) => EmojicoinEventType::MarketRegistration,
             },
-            EmojicoinEvent::EventWithoutMarket(_) => EmojicoinEventType::GlobalState
+            EmojicoinEvent::EventWithoutMarket(_) => EmojicoinEventType::GlobalState,
         }
     }
 }
@@ -224,5 +230,43 @@ impl EmojicoinTypeTag {
             str if str == MARKET_RESOURCE.as_str() => Some(Self::Market),
             _ => None,
         }
+    }
+}
+
+impl EmojicoinDbEvent {
+    pub fn from_market_registration_events(events: &[MarketRegistrationEventModel]) -> Vec<Self> {
+        events
+            .iter()
+            .cloned()
+            .map(Self::MarketRegistration)
+            .collect()
+    }
+
+    pub fn from_swap_events(events: &[SwapEventModel]) -> Vec<Self> {
+        events.iter().cloned().map(Self::Swap).collect()
+    }
+
+    pub fn from_chat_events(events: &[ChatEventModel]) -> Vec<Self> {
+        events.iter().cloned().map(Self::Chat).collect()
+    }
+
+    pub fn from_liquidity_events(events: &[LiquidityEventModel]) -> Vec<Self> {
+        events.iter().cloned().map(Self::Liquidity).collect()
+    }
+
+    pub fn from_periodic_state_events(events: &[PeriodicStateEventModel]) -> Vec<Self> {
+        events.iter().cloned().map(Self::PeriodicState).collect()
+    }
+
+    pub fn from_global_state_events(events: &[GlobalStateEventModel]) -> Vec<Self> {
+        events.iter().cloned().map(Self::GlobalState).collect()
+    }
+
+    pub fn from_market_latest_state_events(events: &[MarketLatestStateEventModel]) -> Vec<Self> {
+        events
+            .iter()
+            .cloned()
+            .map(Self::MarketLatestState)
+            .collect()
     }
 }
