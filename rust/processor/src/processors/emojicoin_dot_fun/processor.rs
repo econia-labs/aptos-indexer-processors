@@ -3,8 +3,7 @@ use crate::{
         enums::Trigger,
         event_utils::EventGroupBuilder,
         json_types::{
-            BumpEvent, EventGroup, EventWithMarket, GlobalStateEvent, InstantaneousStats,
-            MarketResource, TxnInfo,
+            BumpEvent, EventGroup, EventWithMarket, GlobalStateEvent, InstantaneousStats, MarketResource, TxnInfo
         },
         models::{
             chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
@@ -23,6 +22,7 @@ use crate::{
             insert_user_liquidity_pools_query,
         },
     },
+    emojicoin_dot_fun::EmojicoinDbEvent,
     gap_detectors::ProcessingResult,
     processors::{DefaultProcessingResult, ProcessorName, ProcessorTrait},
     utils::{
@@ -36,19 +36,22 @@ use anyhow::bail;
 use aptos_protos::transaction::v1::{transaction::TxnData, Transaction};
 use async_trait::async_trait;
 use itertools::Itertools;
+use tokio::sync::mpsc::UnboundedSender;
 use std::fmt::Debug;
 use tracing::error;
 
 pub struct EmojicoinProcessor {
     connection_pool: ArcDbPool,
     per_table_chunk_sizes: AHashMap<String, usize>,
+    notif_sender: UnboundedSender<EmojicoinDbEvent>,
 }
 
 impl EmojicoinProcessor {
-    pub fn new(connection_pool: ArcDbPool, per_table_chunk_sizes: AHashMap<String, usize>) -> Self {
+    pub fn new(connection_pool: ArcDbPool, per_table_chunk_sizes: AHashMap<String, usize>, notif_sender: UnboundedSender<EmojicoinDbEvent>) -> Self {
         Self {
             connection_pool,
             per_table_chunk_sizes,
+            notif_sender,
         }
     }
 }
@@ -267,6 +270,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                     }
                 }
 
+
                 // Keep in mind that these are collecting events and changes within the context of a single transaction,
                 // not all transactions.
                 let mut builders: AHashMap<(i64, i64), EventGroupBuilder> = AHashMap::new();
@@ -392,6 +396,55 @@ impl ProcessorTrait for EmojicoinProcessor {
 
         let processing_duration_in_secs = processing_start.elapsed().as_secs_f64();
         let db_insertion_start = std::time::Instant::now();
+
+        for event in &register_events_db {
+            let event = EmojicoinDbEvent::MarketRegistration(event.clone());
+            let _ = self.notif_sender
+                .send(event)
+                .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
+        }
+
+        for event in &swap_events_db {
+            let event = EmojicoinDbEvent::Swap(event.clone());
+            let _ = self.notif_sender
+                .send(event)
+                .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
+        }
+
+        for event in &chat_events_db {
+            let event = EmojicoinDbEvent::Chat(event.clone());
+            let _ = self.notif_sender
+                .send(event)
+                .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
+        }
+
+        for event in &liquidity_events_db {
+            let event = EmojicoinDbEvent::Liquidity(event.clone());
+            let _ = self.notif_sender
+                .send(event)
+                .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
+        }
+
+        for event in &periodic_state_events_db {
+            let event = EmojicoinDbEvent::PeriodicState(event.clone());
+            let _ = self.notif_sender
+                .send(event)
+                .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
+        }
+
+        for event in &global_state_events_db {
+            let event = EmojicoinDbEvent::GlobalState(event.clone());
+            let _ = self.notif_sender
+                .send(event)
+                .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
+        }
+
+        for event in &market_latest_state_events {
+            let event = EmojicoinDbEvent::MarketLatestState(event.clone());
+            let _ = self.notif_sender
+                .send(event)
+                .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
+        }
 
         let tx_result = insert_to_db(
             self.get_pool(),

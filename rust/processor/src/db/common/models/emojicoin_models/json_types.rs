@@ -1,18 +1,27 @@
 use anyhow::{Context, Result};
 use aptos_protos::transaction::v1::WriteResource;
 use bigdecimal::BigDecimal;
-use serde::{Deserialize, Deserializer, Serialize};
+use num::FromPrimitive;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
     db::common::models::emojicoin_models::enums::{
-        deserialize_state_period, deserialize_state_trigger,
+        deserialize_state_period, serialize_state_period, deserialize_state_trigger, serialize_state_trigger,
     },
     utils::util::{
-        deserialize_from_string, hex_to_raw_bytes, standardize_address, AggregatorSnapshot,
+        serialize_to_string, deserialize_from_string, hex_to_raw_bytes, standardize_address, AggregatorSnapshot,
     },
 };
 
 use super::enums::{EmojicoinTypeTag, Period, Trigger};
+
+pub fn serialize_bytes_to_hex_string<S>(element: &Vec<u8>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let r = hex::encode(element);
+    s.serialize_str(&format!("0x{r}"))
+}
 
 pub fn deserialize_bytes_from_hex_string<'de, D>(
     deserializer: D,
@@ -35,6 +44,15 @@ where
     Ok(standardize_address(&s))
 }
 
+pub fn serialize_aggregator_snapshot_u128<S>(element: &BigDecimal, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    (AggregatorSnapshot {
+        value: element.clone()
+    }).serialize(s)
+}
+
 pub fn deserialize_aggregator_snapshot_u128<'de, D>(
     deserializer: D,
 ) -> core::result::Result<BigDecimal, D::Error>
@@ -43,6 +61,15 @@ where
 {
     let aggregator_snapshot = <AggregatorSnapshot>::deserialize(deserializer)?;
     Ok(aggregator_snapshot.value)
+}
+
+pub fn serialize_aggregator_snapshot_u64<S>(element: &i64, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    (AggregatorSnapshotI64 {
+        value: element.clone(),
+    }).serialize(s)
 }
 
 pub fn deserialize_aggregator_snapshot_u64<'de, D>(
@@ -58,78 +85,102 @@ where
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AggregatorSnapshotI64 {
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub value: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MarketMetadata {
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub market_id: i64,
     #[serde(deserialize_with = "deserialize_and_normalize_account_address")]
     pub market_address: String,
     #[serde(deserialize_with = "deserialize_bytes_from_hex_string")]
+    #[serde(serialize_with = "serialize_bytes_to_hex_string")]
     pub emoji_bytes: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Reserves {
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub base: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub quote: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PeriodicStateMetadata {
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub start_time: i64,
     #[serde(deserialize_with = "deserialize_state_period")]
+    #[serde(serialize_with = "serialize_state_period")]
     pub period: Period,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub emit_time: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub emit_market_nonce: i64,
     #[serde(deserialize_with = "deserialize_state_trigger")]
+    #[serde(serialize_with = "serialize_state_trigger")]
     pub trigger: Trigger,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StateMetadata {
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub market_nonce: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub bump_time: i64,
     #[serde(deserialize_with = "deserialize_state_trigger")]
+    #[serde(serialize_with = "serialize_state_trigger")]
     pub trigger: Trigger,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CumulativeStats {
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub base_volume: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub quote_volume: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub integrator_fees: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub pool_fees_base: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub pool_fees_quote: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub n_swaps: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub n_chat_messages: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InstantaneousStats {
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub total_quote_locked: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub total_value_locked: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub market_cap: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub fully_diluted_value: BigDecimal,
 }
 
@@ -137,44 +188,59 @@ pub struct InstantaneousStats {
 pub struct LastSwap {
     pub is_sell: bool,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub avg_execution_price_q64: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub base_volume: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub quote_volume: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub nonce: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub time: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SwapEvent {
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub market_id: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub time: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub market_nonce: i64,
     #[serde(deserialize_with = "deserialize_and_normalize_account_address")]
     pub swapper: String,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub input_amount: i64,
     pub is_sell: bool,
     #[serde(deserialize_with = "deserialize_and_normalize_account_address")]
     pub integrator: String,
     pub integrator_fee_rate_bps: i16,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub net_proceeds: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub base_volume: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub quote_volume: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub avg_execution_price_q64: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub integrator_fee: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub pool_fee: i64,
     pub starts_in_bonding_curve: bool,
     pub results_in_state_transition: bool,
@@ -184,17 +250,22 @@ pub struct SwapEvent {
 pub struct ChatEvent {
     pub market_metadata: MarketMetadata,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub emit_time: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub emit_market_nonce: i64,
     #[serde(deserialize_with = "deserialize_and_normalize_account_address")]
     pub user: String,
     pub message: String,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub user_emojicoin_balance: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub circulating_supply: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub balance_as_fraction_of_circulating_supply_q64: BigDecimal,
 }
 
@@ -202,12 +273,14 @@ pub struct ChatEvent {
 pub struct MarketRegistrationEvent {
     pub market_metadata: MarketMetadata,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub time: i64,
     #[serde(deserialize_with = "deserialize_and_normalize_account_address")]
     pub registrant: String,
     #[serde(deserialize_with = "deserialize_and_normalize_account_address")]
     pub integrator: String,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub integrator_fee: i64,
 }
 
@@ -216,30 +289,42 @@ pub struct PeriodicStateEvent {
     pub market_metadata: MarketMetadata,
     pub periodic_state_metadata: PeriodicStateMetadata,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub open_price_q64: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub high_price_q64: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub low_price_q64: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub close_price_q64: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub volume_base: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub volume_quote: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub integrator_fees: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub pool_fees_base: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub pool_fees_quote: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub n_swaps: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub n_chat_messages: i64,
     pub starts_in_bonding_curve: bool,
     pub ends_in_bonding_curve: bool,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub tvl_per_lp_coin_growth_q64: BigDecimal,
 }
 
@@ -250,6 +335,7 @@ pub struct StateEvent {
     pub clamm_virtual_reserves: Reserves,
     pub cpamm_real_reserves: Reserves,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub lp_coin_supply: BigDecimal,
     pub cumulative_stats: CumulativeStats,
     pub instantaneous_stats: InstantaneousStats,
@@ -259,49 +345,68 @@ pub struct StateEvent {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GlobalStateEvent {
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub emit_time: i64,
     #[serde(deserialize_with = "deserialize_aggregator_snapshot_u64")]
+    #[serde(serialize_with = "serialize_aggregator_snapshot_u64")]
     pub registry_nonce: i64,
     #[serde(deserialize_with = "deserialize_state_trigger")]
+    #[serde(serialize_with = "serialize_state_trigger")]
     pub trigger: Trigger,
     #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]
+    #[serde(serialize_with = "serialize_aggregator_snapshot_u128")]
     pub cumulative_quote_volume: BigDecimal,
     #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]
+    #[serde(serialize_with = "serialize_aggregator_snapshot_u128")]
     pub total_quote_locked: BigDecimal,
     #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]
+    #[serde(serialize_with = "serialize_aggregator_snapshot_u128")]
     pub total_value_locked: BigDecimal,
     #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]
+    #[serde(serialize_with = "serialize_aggregator_snapshot_u128")]
     pub market_cap: BigDecimal,
     #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]
+    #[serde(serialize_with = "serialize_aggregator_snapshot_u128")]
     pub fully_diluted_value: BigDecimal,
     #[serde(deserialize_with = "deserialize_aggregator_snapshot_u128")]
+    #[serde(serialize_with = "serialize_aggregator_snapshot_u128")]
     pub cumulative_integrator_fees: BigDecimal,
     #[serde(deserialize_with = "deserialize_aggregator_snapshot_u64")]
+    #[serde(serialize_with = "serialize_aggregator_snapshot_u64")]
     pub cumulative_swaps: i64,
     #[serde(deserialize_with = "deserialize_aggregator_snapshot_u64")]
+    #[serde(serialize_with = "serialize_aggregator_snapshot_u64")]
     pub cumulative_chat_messages: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LiquidityEvent {
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub market_id: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub time: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub market_nonce: i64,
     #[serde(deserialize_with = "deserialize_and_normalize_account_address")]
     pub provider: String,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub base_amount: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub quote_amount: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub lp_coin_amount: i64,
     pub liquidity_provided: bool,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub pro_rata_base_donation_claim_amount: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub pro_rata_quote_donation_claim_amount: i64,
 }
 
@@ -421,6 +526,7 @@ pub struct MarketResource {
     pub clamm_virtual_reserves: Reserves,
     pub cpamm_real_reserves: Reserves,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub lp_coin_supply: BigDecimal,
     pub cumulative_stats: CumulativeStats,
     pub last_swap: LastSwap,
@@ -430,8 +536,10 @@ pub struct MarketResource {
 
 pub struct SequenceInfo {
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub nonce: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub last_bump_time: i64,
 }
 
@@ -448,30 +556,43 @@ pub struct ExtendRef {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PeriodicStateTracker {
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub start_time: i64,
     #[serde(deserialize_with = "deserialize_state_period")]
+    #[serde(serialize_with = "serialize_state_period")]
     pub period: Period,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub open_price_q64: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub high_price_q64: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub low_price_q64: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub close_price_q64: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub volume_base: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub volume_quote: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub integrator_fees: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub pool_fees_base: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub pool_fees_quote: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub n_swaps: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub n_chat_messages: i64,
     pub starts_in_bonding_curve: bool,
     pub ends_in_bonding_curve: bool,
@@ -482,8 +603,10 @@ pub struct PeriodicStateTracker {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TVLtoLPCoinRatio {
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub tvl: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub lp_coins: BigDecimal,
 }
 

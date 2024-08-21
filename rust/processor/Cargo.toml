@@ -60,6 +60,7 @@ tiny-keccak = { workspace = true }
 tokio-postgres = { workspace = true }
 diesel-derive-enum = { version = "2.1.0", features = ["postgres"] }
 dotenvy = "0.15.7"
+axum = { version = "0.7.5", features = ["ws"] }
 
 [target.'cfg(unix)'.dependencies]
 jemallocator = { workspace = true }
