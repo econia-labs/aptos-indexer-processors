@@ -9,12 +9,14 @@ use crate::{
         serialize_state_trigger,
     },
     utils::util::{
-        deserialize_from_string, hex_to_raw_bytes, serialize_to_string, standardize_address,
-        AggregatorSnapshot,
+        deserialize_from_string, hex_to_raw_bytes, serialize_to_string, AggregatorSnapshot,
     },
 };
 
-use super::enums::{EmojicoinTypeTag, Period, Trigger};
+use super::{
+    enums::{EmojicoinTypeTag, Period, Trigger},
+    utils::normalize_address,
+};
 
 pub fn serialize_bytes_to_hex_string<S>(element: &Vec<u8>, s: S) -> Result<S::Ok, S::Error>
 where
@@ -42,7 +44,7 @@ where
     D: Deserializer<'de>,
 {
     let s = <String>::deserialize(deserializer)?;
-    Ok(standardize_address(&s))
+    Ok(normalize_address(&s))
 }
 
 pub fn serialize_aggregator_snapshot_u128<S>(element: &BigDecimal, s: S) -> Result<S::Ok, S::Error>

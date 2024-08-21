@@ -30,16 +30,15 @@ pub const INITIAL_MARKET_NONCE: i64 = 1;
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::util::standardize_address;
+    use crate::db::common::models::emojicoin_models::utils::normalize_address;
 
     #[test]
     fn ensure_contract_address_is_standardized() {
-        if standardize_address(env!("EMOJICOIN_MODULE_ADDRESS")) != env!("EMOJICOIN_MODULE_ADDRESS")
-        {
+        if normalize_address(env!("EMOJICOIN_MODULE_ADDRESS")) != env!("EMOJICOIN_MODULE_ADDRESS") {
             panic!(
                 "The non-standardized contract address: {} is invalid because it doesn't match the standardized address: {}",
                 env!("EMOJICOIN_MODULE_ADDRESS"),
-                standardize_address(env!("EMOJICOIN_MODULE_ADDRESS"))
+                normalize_address(env!("EMOJICOIN_MODULE_ADDRESS"))
             );
         }
     }
