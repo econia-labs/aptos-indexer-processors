@@ -22,7 +22,7 @@ use crate::{
             insert_user_liquidity_pools_query,
         },
     },
-    emojicoin_dot_fun::EmojicoinEvent,
+    emojicoin_dot_fun::EmojicoinDbEvent,
     gap_detectors::ProcessingResult,
     processors::{DefaultProcessingResult, ProcessorName, ProcessorTrait},
     utils::{
@@ -43,11 +43,11 @@ use tracing::error;
 pub struct EmojicoinProcessor {
     connection_pool: ArcDbPool,
     per_table_chunk_sizes: AHashMap<String, usize>,
-    notif_sender: UnboundedSender<EmojicoinEvent>,
+    notif_sender: UnboundedSender<EmojicoinDbEvent>,
 }
 
 impl EmojicoinProcessor {
-    pub fn new(connection_pool: ArcDbPool, per_table_chunk_sizes: AHashMap<String, usize>, notif_sender: UnboundedSender<EmojicoinEvent>) -> Self {
+    pub fn new(connection_pool: ArcDbPool, per_table_chunk_sizes: AHashMap<String, usize>, notif_sender: UnboundedSender<EmojicoinDbEvent>) -> Self {
         Self {
             connection_pool,
             per_table_chunk_sizes,
@@ -244,14 +244,12 @@ impl ProcessorTrait for EmojicoinProcessor {
 
                 // Group the market events in this transaction.
                 let mut market_events = vec![];
-                let mut all_events = vec![];
                 for event in user_txn.events.iter() {
                     let type_str = event.type_str.as_str();
                     let data = event.data.as_str();
 
                     match EventWithMarket::from_event_type(type_str, data, txn_version)? {
                         Some(evt) => {
-                            all_events.push(EmojicoinEvent::EventWithMarket(evt.clone()));
                             market_events.push(evt.clone());
                             if let Some(one_min_pse) =
                                 RecentOneMinutePeriodicStateEvent::try_from_event(evt, txn_version)
@@ -263,7 +261,6 @@ impl ProcessorTrait for EmojicoinProcessor {
                             if let Some(global_event) =
                                 GlobalStateEvent::from_event_type(type_str, data, txn_version)?
                             {
-                                all_events.push(EmojicoinEvent::EventWithoutMarket(global_event.clone()));
                                 global_state_events_db.push(GlobalStateEventModel::new(
                                     txn_info.clone(),
                                     global_event,
@@ -271,12 +268,6 @@ impl ProcessorTrait for EmojicoinProcessor {
                             }
                         },
                     }
-                }
-
-                for event in all_events {
-                    let _ = self.notif_sender
-                        .send(event)
-                        .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
                 }
 
 
@@ -405,6 +396,55 @@ impl ProcessorTrait for EmojicoinProcessor {
 
         let processing_duration_in_secs = processing_start.elapsed().as_secs_f64();
         let db_insertion_start = std::time::Instant::now();
+
+        for event in &register_events_db {
+            let event = EmojicoinDbEvent::MarketRegistration(event.clone());
+            let _ = self.notif_sender
+                .send(event)
+                .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
+        }
+
+        for event in &swap_events_db {
+            let event = EmojicoinDbEvent::Swap(event.clone());
+            let _ = self.notif_sender
+                .send(event)
+                .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
+        }
+
+        for event in &chat_events_db {
+            let event = EmojicoinDbEvent::Chat(event.clone());
+            let _ = self.notif_sender
+                .send(event)
+                .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
+        }
+
+        for event in &liquidity_events_db {
+            let event = EmojicoinDbEvent::Liquidity(event.clone());
+            let _ = self.notif_sender
+                .send(event)
+                .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
+        }
+
+        for event in &periodic_state_events_db {
+            let event = EmojicoinDbEvent::PeriodicState(event.clone());
+            let _ = self.notif_sender
+                .send(event)
+                .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
+        }
+
+        for event in &global_state_events_db {
+            let event = EmojicoinDbEvent::GlobalState(event.clone());
+            let _ = self.notif_sender
+                .send(event)
+                .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
+        }
+
+        for event in &market_latest_state_events {
+            let event = EmojicoinDbEvent::MarketLatestState(event.clone());
+            let _ = self.notif_sender
+                .send(event)
+                .inspect_err(|e| tracing::error!("Could not send events to websocket server: {e}"));
+        }
 
         let tx_result = insert_to_db(
             self.get_pool(),

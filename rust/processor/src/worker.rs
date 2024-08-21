@@ -4,7 +4,7 @@
 use crate::{
     config::IndexerGrpcHttp2Config,
     db::common::models::{ledger_info::LedgerInfo, processor_status::ProcessorStatusQuery},
-    emojicoin_dot_fun::EmojicoinEvent,
+    emojicoin_dot_fun::EmojicoinDbEvent,
     gap_detectors::{
         create_gap_detector_status_tracker_loop, gap_detector::DefaultGapDetector,
         parquet_gap_detector::ParquetFileGapDetector, GapDetector, ProcessingResult,
@@ -128,7 +128,7 @@ pub struct Worker {
     pub transaction_filter: TransactionFilter,
     pub grpc_response_item_timeout_in_secs: u64,
     pub deprecated_tables: TableFlags,
-    pub notif_sender: UnboundedSender<EmojicoinEvent>,
+    pub notif_sender: UnboundedSender<EmojicoinDbEvent>,
 }
 
 impl Worker {
@@ -152,7 +152,7 @@ impl Worker {
         transaction_filter: TransactionFilter,
         grpc_response_item_timeout_in_secs: u64,
         deprecated_tables: HashSet<String>,
-        notif_sender: UnboundedSender<EmojicoinEvent>,
+        notif_sender: UnboundedSender<EmojicoinDbEvent>,
     ) -> Result<Self> {
         let processor_name = processor_config.name();
         info!(processor_name = processor_name, "[Parser] Kicking off");
@@ -864,7 +864,7 @@ pub fn build_processor(
     deprecated_tables: TableFlags,
     db_pool: ArcDbPool,
     gap_detector_sender: Option<AsyncSender<ProcessingResult>>, // Parquet only
-    notif_sender: UnboundedSender<EmojicoinEvent>,
+    notif_sender: UnboundedSender<EmojicoinDbEvent>,
 ) -> Processor {
     match config {
         ProcessorConfig::AccountTransactionsProcessor => Processor::from(

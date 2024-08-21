@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    emojicoin_dot_fun::EmojicoinEvent, gap_detectors::DEFAULT_GAP_DETECTION_BATCH_SIZE, processors::ProcessorConfig, transaction_filter::TransactionFilter, worker::Worker, ws_server
+    emojicoin_dot_fun::EmojicoinDbEvent, gap_detectors::DEFAULT_GAP_DETECTION_BATCH_SIZE, processors::ProcessorConfig, transaction_filter::TransactionFilter, worker::Worker, ws_server
 };
 use ahash::AHashMap;
 use anyhow::{Context, Result};
@@ -84,7 +84,7 @@ impl IndexerGrpcProcessorConfig {
 #[async_trait::async_trait]
 impl RunnableConfig for IndexerGrpcProcessorConfig {
     async fn run(&self) -> Result<()> {
-        let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<EmojicoinEvent>();
+        let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<EmojicoinDbEvent>();
         let mut worker = Worker::new(
             self.processor_config.clone(),
             self.postgres_connection_string.clone(),

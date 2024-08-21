@@ -1,7 +1,7 @@
 use super::{constants::{
     CHAT_EVENT, GLOBAL_STATE_EVENT, LIQUIDITY_EVENT, MARKET_REGISTRATION_EVENT, MARKET_RESOURCE,
     PERIODIC_STATE_EVENT, STATE_EVENT, SWAP_EVENT,
-}, json_types::{EventWithMarket, GlobalStateEvent}};
+}, json_types::{EventWithMarket, GlobalStateEvent}, models::{chat_event::ChatEventModel, global_state_event::GlobalStateEventModel, liquidity_event::LiquidityEventModel, market_latest_state_event::MarketLatestStateEventModel, market_registration_event::MarketRegistrationEventModel, periodic_state_event::PeriodicStateEventModel, swap_event::SwapEventModel}};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(
@@ -146,6 +146,17 @@ pub enum EmojicoinEvent {
     EventWithoutMarket(GlobalStateEvent),
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum EmojicoinDbEvent {
+    Swap(SwapEventModel),
+    Chat(ChatEventModel),
+    MarketRegistration(MarketRegistrationEventModel),
+    PeriodicState(PeriodicStateEventModel),
+    MarketLatestState(MarketLatestStateEventModel),
+    GlobalState(GlobalStateEventModel),
+    Liquidity(LiquidityEventModel),
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum EmojicoinEventType {
     Swap,
@@ -153,6 +164,17 @@ pub enum EmojicoinEventType {
     MarketRegistration,
     PeriodicState,
     State,
+    GlobalState,
+    Liquidity,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub enum EmojicoinDbEventType {
+    Swap,
+    Chat,
+    MarketRegistration,
+    PeriodicState,
+    MarketLatestState,
     GlobalState,
     Liquidity,
 }
@@ -171,6 +193,20 @@ impl From<&EmojicoinEvent> for EmojicoinEventType {
                 }
             },
             EmojicoinEvent::EventWithoutMarket(_) => EmojicoinEventType::GlobalState
+        }
+    }
+}
+
+impl From<&EmojicoinDbEvent> for EmojicoinDbEventType {
+    fn from(value: &EmojicoinDbEvent) -> Self {
+        match value {
+            EmojicoinDbEvent::Swap(_) => Self::Swap,
+            EmojicoinDbEvent::Chat(_) => Self::Chat,
+            EmojicoinDbEvent::MarketRegistration(_) => Self::MarketRegistration,
+            EmojicoinDbEvent::PeriodicState(_) => Self::PeriodicState,
+            EmojicoinDbEvent::MarketLatestState(_) => Self::MarketLatestState,
+            EmojicoinDbEvent::GlobalState(_) => Self::GlobalState,
+            EmojicoinDbEvent::Liquidity(_) => Self::Liquidity,
         }
     }
 }

@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::{atomic::{AtomicU64, Ordering}, Arc}};
 use axum::{extract::{ws::{Message, WebSocket}, State, WebSocketUpgrade}, response::Response, routing::get, Router};
 use tokio::sync::{mpsc::UnboundedReceiver, Mutex};
 
-use crate::emojicoin_dot_fun::EmojicoinEvent;
+use crate::emojicoin_dot_fun::EmojicoinDbEvent;
 
 struct Connection {
     socket: WebSocket,
@@ -14,7 +14,7 @@ struct AppState {
     connections: Mutex<HashMap<u64, Connection>>,
 }
 
-pub async fn start(mut receiver: UnboundedReceiver<EmojicoinEvent>) {
+pub async fn start(mut receiver: UnboundedReceiver<EmojicoinDbEvent>) {
     let app_state = AppState {
         connections: Mutex::new(HashMap::new())
     };
