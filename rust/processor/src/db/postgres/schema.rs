@@ -1,5 +1,15 @@
 // @generated automatically by Diesel CLI.
 
+pub mod sql_types {
+    #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "period_type"))]
+    pub struct PeriodType;
+
+    #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "trigger_type"))]
+    pub struct TriggerType;
+}
+
 diesel::table! {
     account_transactions (account_address, transaction_version) {
         transaction_version -> Int8,
@@ -98,6 +108,54 @@ diesel::table! {
         failed_proposer_indices -> Jsonb,
         timestamp -> Timestamp,
         inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::TriggerType;
+
+    chat_events (market_id, market_nonce) {
+        transaction_version -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+        market_id -> Int8,
+        symbol_bytes -> Bytea,
+        bump_time -> Timestamp,
+        market_nonce -> Int8,
+        trigger -> TriggerType,
+        #[max_length = 66]
+        user -> Varchar,
+        message -> Text,
+        user_emojicoin_balance -> Int8,
+        circulating_supply -> Int8,
+        balance_as_fraction_of_circulating_supply_q64 -> Numeric,
+        clamm_virtual_reserves_base -> Int8,
+        clamm_virtual_reserves_quote -> Int8,
+        cpamm_real_reserves_base -> Int8,
+        cpamm_real_reserves_quote -> Int8,
+        lp_coin_supply -> Numeric,
+        cumulative_stats_base_volume -> Numeric,
+        cumulative_stats_quote_volume -> Numeric,
+        cumulative_stats_integrator_fees -> Numeric,
+        cumulative_stats_pool_fees_base -> Numeric,
+        cumulative_stats_pool_fees_quote -> Numeric,
+        cumulative_stats_n_swaps -> Int8,
+        cumulative_stats_n_chat_messages -> Int8,
+        instantaneous_stats_total_quote_locked -> Int8,
+        instantaneous_stats_total_value_locked -> Numeric,
+        instantaneous_stats_market_cap -> Numeric,
+        instantaneous_stats_fully_diluted_value -> Numeric,
+        last_swap_is_sell -> Bool,
+        last_swap_avg_execution_price_q64 -> Numeric,
+        last_swap_base_volume -> Int8,
+        last_swap_quote_volume -> Int8,
+        last_swap_nonce -> Int8,
+        last_swap_time -> Timestamp,
     }
 }
 
@@ -845,6 +903,32 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::TriggerType;
+
+    global_state_events (registry_nonce) {
+        transaction_version -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+        emit_time -> Timestamp,
+        registry_nonce -> Int8,
+        trigger -> TriggerType,
+        cumulative_quote_volume -> Numeric,
+        total_quote_locked -> Numeric,
+        total_value_locked -> Numeric,
+        market_cap -> Numeric,
+        fully_diluted_value -> Numeric,
+        cumulative_integrator_fees -> Numeric,
+        cumulative_swaps -> Int8,
+        cumulative_chat_messages -> Int8,
+    }
+}
+
+diesel::table! {
     indexer_status (db) {
         #[max_length = 50]
         db -> Varchar,
@@ -856,6 +940,137 @@ diesel::table! {
 diesel::table! {
     ledger_infos (chain_id) {
         chain_id -> Int8,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::TriggerType;
+
+    liquidity_events (market_id, market_nonce) {
+        transaction_version -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+        market_id -> Int8,
+        symbol_bytes -> Bytea,
+        bump_time -> Timestamp,
+        market_nonce -> Int8,
+        trigger -> TriggerType,
+        #[max_length = 66]
+        provider -> Varchar,
+        base_amount -> Int8,
+        quote_amount -> Int8,
+        lp_coin_amount -> Int8,
+        liquidity_provided -> Bool,
+        pro_rata_base_donation_claim_amount -> Int8,
+        pro_rata_quote_donation_claim_amount -> Int8,
+        clamm_virtual_reserves_base -> Int8,
+        clamm_virtual_reserves_quote -> Int8,
+        cpamm_real_reserves_base -> Int8,
+        cpamm_real_reserves_quote -> Int8,
+        lp_coin_supply -> Numeric,
+        cumulative_stats_base_volume -> Numeric,
+        cumulative_stats_quote_volume -> Numeric,
+        cumulative_stats_integrator_fees -> Numeric,
+        cumulative_stats_pool_fees_base -> Numeric,
+        cumulative_stats_pool_fees_quote -> Numeric,
+        cumulative_stats_n_swaps -> Int8,
+        cumulative_stats_n_chat_messages -> Int8,
+        instantaneous_stats_total_quote_locked -> Int8,
+        instantaneous_stats_total_value_locked -> Numeric,
+        instantaneous_stats_market_cap -> Numeric,
+        instantaneous_stats_fully_diluted_value -> Numeric,
+        last_swap_is_sell -> Bool,
+        last_swap_avg_execution_price_q64 -> Numeric,
+        last_swap_base_volume -> Int8,
+        last_swap_quote_volume -> Int8,
+        last_swap_nonce -> Int8,
+        last_swap_time -> Timestamp,
+    }
+}
+
+diesel::table! {
+    market_1m_periods_in_last_day (market_id, nonce) {
+        market_id -> Int8,
+        inserted_at -> Timestamp,
+        transaction_version -> Int8,
+        nonce -> Int8,
+        volume -> Numeric,
+        start_time -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::TriggerType;
+
+    market_latest_state_event (market_id) {
+        transaction_version -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+        market_id -> Int8,
+        symbol_bytes -> Bytea,
+        bump_time -> Timestamp,
+        market_nonce -> Int8,
+        trigger -> TriggerType,
+        clamm_virtual_reserves_base -> Int8,
+        clamm_virtual_reserves_quote -> Int8,
+        cpamm_real_reserves_base -> Int8,
+        cpamm_real_reserves_quote -> Int8,
+        lp_coin_supply -> Numeric,
+        cumulative_stats_base_volume -> Numeric,
+        cumulative_stats_quote_volume -> Numeric,
+        cumulative_stats_integrator_fees -> Numeric,
+        cumulative_stats_pool_fees_base -> Numeric,
+        cumulative_stats_pool_fees_quote -> Numeric,
+        cumulative_stats_n_swaps -> Int8,
+        cumulative_stats_n_chat_messages -> Int8,
+        instantaneous_stats_total_quote_locked -> Int8,
+        instantaneous_stats_total_value_locked -> Numeric,
+        instantaneous_stats_market_cap -> Numeric,
+        instantaneous_stats_fully_diluted_value -> Numeric,
+        last_swap_is_sell -> Bool,
+        last_swap_avg_execution_price_q64 -> Numeric,
+        last_swap_base_volume -> Int8,
+        last_swap_quote_volume -> Int8,
+        last_swap_nonce -> Int8,
+        last_swap_time -> Timestamp,
+        daily_tvl_per_lp_coin_growth_q64 -> Numeric,
+        in_bonding_curve -> Bool,
+        volume_in_1m_state_tracker -> Numeric,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::TriggerType;
+
+    market_registration_events (market_id) {
+        transaction_version -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+        market_id -> Int8,
+        symbol_bytes -> Bytea,
+        bump_time -> Timestamp,
+        market_nonce -> Int8,
+        trigger -> TriggerType,
+        #[max_length = 66]
+        registrant -> Varchar,
+        #[max_length = 66]
+        integrator -> Varchar,
+        integrator_fee -> Int8,
     }
 }
 
@@ -928,6 +1143,49 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::TriggerType;
+    use super::sql_types::PeriodType;
+
+    periodic_state_events (market_id, period, market_nonce) {
+        transaction_version -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+        market_id -> Int8,
+        symbol_bytes -> Bytea,
+        emit_time -> Timestamp,
+        market_nonce -> Int8,
+        trigger -> TriggerType,
+        last_swap_is_sell -> Bool,
+        last_swap_avg_execution_price_q64 -> Numeric,
+        last_swap_base_volume -> Int8,
+        last_swap_quote_volume -> Int8,
+        last_swap_nonce -> Int8,
+        last_swap_time -> Timestamp,
+        period -> PeriodType,
+        start_time -> Timestamp,
+        open_price_q64 -> Numeric,
+        high_price_q64 -> Numeric,
+        low_price_q64 -> Numeric,
+        close_price_q64 -> Numeric,
+        volume_base -> Numeric,
+        volume_quote -> Numeric,
+        integrator_fees -> Numeric,
+        pool_fees_base -> Numeric,
+        pool_fees_quote -> Numeric,
+        n_swaps -> Int8,
+        n_chat_messages -> Int8,
+        starts_in_bonding_curve -> Bool,
+        ends_in_bonding_curve -> Bool,
+        tvl_per_lp_coin_growth_q64 -> Numeric,
+    }
+}
+
+diesel::table! {
     processor_status (processor) {
         #[max_length = 50]
         processor -> Varchar,
@@ -978,6 +1236,57 @@ diesel::table! {
         asset -> Varchar,
         is_spam -> Bool,
         last_updated -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::TriggerType;
+
+    swap_events (market_id, market_nonce) {
+        transaction_version -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+        market_id -> Int8,
+        symbol_bytes -> Bytea,
+        bump_time -> Timestamp,
+        market_nonce -> Int8,
+        trigger -> TriggerType,
+        #[max_length = 66]
+        swapper -> Varchar,
+        #[max_length = 66]
+        integrator -> Varchar,
+        integrator_fee -> Int8,
+        input_amount -> Int8,
+        is_sell -> Bool,
+        integrator_fee_rate_bps -> Int2,
+        net_proceeds -> Int8,
+        base_volume -> Int8,
+        quote_volume -> Int8,
+        avg_execution_price_q64 -> Numeric,
+        pool_fee -> Int8,
+        starts_in_bonding_curve -> Bool,
+        results_in_state_transition -> Bool,
+        clamm_virtual_reserves_base -> Int8,
+        clamm_virtual_reserves_quote -> Int8,
+        cpamm_real_reserves_base -> Int8,
+        cpamm_real_reserves_quote -> Int8,
+        lp_coin_supply -> Numeric,
+        cumulative_stats_base_volume -> Numeric,
+        cumulative_stats_quote_volume -> Numeric,
+        cumulative_stats_integrator_fees -> Numeric,
+        cumulative_stats_pool_fees_base -> Numeric,
+        cumulative_stats_pool_fees_quote -> Numeric,
+        cumulative_stats_n_swaps -> Int8,
+        cumulative_stats_n_chat_messages -> Int8,
+        instantaneous_stats_total_quote_locked -> Int8,
+        instantaneous_stats_total_value_locked -> Numeric,
+        instantaneous_stats_market_cap -> Numeric,
+        instantaneous_stats_fully_diluted_value -> Numeric,
     }
 }
 
@@ -1236,6 +1545,30 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::TriggerType;
+
+    user_liquidity_pools (provider, market_id) {
+        #[max_length = 66]
+        provider -> Varchar,
+        transaction_version -> Int8,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+        market_id -> Int8,
+        symbol_bytes -> Bytea,
+        bump_time -> Timestamp,
+        market_nonce -> Int8,
+        trigger -> TriggerType,
+        base_amount -> Int8,
+        quote_amount -> Int8,
+        lp_coin_amount -> Int8,
+        liquidity_provided -> Bool,
+        pro_rata_base_donation_claim_amount -> Int8,
+        pro_rata_quote_donation_claim_amount -> Int8,
+    }
+}
+
+diesel::table! {
     user_transactions (version) {
         version -> Int8,
         block_height -> Int8,
@@ -1287,6 +1620,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     ans_primary_name,
     ans_primary_name_v2,
     block_metadata_transactions,
+    chat_events,
     coin_activities,
     coin_balances,
     coin_infos,
@@ -1324,16 +1658,23 @@ diesel::allow_tables_to_appear_in_same_query!(
     fungible_asset_activities,
     fungible_asset_balances,
     fungible_asset_metadata,
+    global_state_events,
     indexer_status,
     ledger_infos,
+    liquidity_events,
+    market_1m_periods_in_last_day,
+    market_latest_state_event,
+    market_registration_events,
     move_modules,
     move_resources,
     nft_points,
     objects,
+    periodic_state_events,
     processor_status,
     proposal_votes,
     signatures,
     spam_assets,
+    swap_events,
     table_items,
     table_metadatas,
     token_activities,
@@ -1345,6 +1686,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     tokens,
     transaction_size_info,
     transactions,
+    user_liquidity_pools,
     user_transactions,
     write_set_changes,
     write_set_size_info,

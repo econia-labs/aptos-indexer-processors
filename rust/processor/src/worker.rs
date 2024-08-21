@@ -14,6 +14,7 @@ use crate::{
         ans_processor::AnsProcessor,
         coin_processor::CoinProcessor,
         default_processor::DefaultProcessor,
+        emojicoin_dot_fun::processor::EmojicoinProcessor,
         events_processor::EventsProcessor,
         fungible_asset_processor::FungibleAssetProcessor,
         monitoring_processor::MonitoringProcessor,
@@ -875,6 +876,9 @@ pub fn build_processor(
             per_table_chunk_sizes,
             deprecated_tables,
         )),
+        ProcessorConfig::EmojicoinProcessor => {
+            Processor::from(EmojicoinProcessor::new(db_pool, per_table_chunk_sizes))
+        },
         ProcessorConfig::EventsProcessor => {
             Processor::from(EventsProcessor::new(db_pool, per_table_chunk_sizes))
         },

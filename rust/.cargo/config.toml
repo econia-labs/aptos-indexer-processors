@@ -15,3 +15,6 @@ xclippy = [
 
 [build]
 rustflags = ["--cfg", "tokio_unstable"]
+
+[env]
+EMOJICOIN_MODULE_ADDRESS = "0xf000000d12c21b4170c7165010a4373b9ebc47bb9be9f0e48091645308a14136"

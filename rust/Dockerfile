@@ -2,7 +2,7 @@
 
 # Stage 1: Build the binary
 
-FROM rust:slim-bullseye as builder
+FROM rust:slim-bullseye AS builder
 
 WORKDIR /app
 
@@ -53,7 +53,12 @@ ENV GIT_BRANCH ${GIT_BRANCH}
 ARG GIT_SHA
 ENV GIT_SHA ${GIT_SHA}
 
+WORKDIR /app
+COPY ./start.sh .
+RUN chmod u+x /app/start.sh
+WORKDIR /
+
 # The health check port
 EXPOSE 8084
 
-ENTRYPOINT ["/usr/local/bin/processor"]
+CMD /app/start.sh
