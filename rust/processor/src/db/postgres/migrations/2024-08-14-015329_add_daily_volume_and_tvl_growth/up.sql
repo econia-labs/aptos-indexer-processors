@@ -1,21 +1,5 @@
 -- Your SQL goes here
 
-CREATE OR REPLACE FUNCTION assert_arrays_equal_length(BIGINT[], NUMERIC[]) RETURNS void AS $$
-BEGIN
-    IF array_length($1, 1) != array_length($2, 1) THEN
-        RAISE EXCEPTION 'Arrays are not of equal length';
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION assert_arrays_equal_length(BIGINT[], BIGINT[]) RETURNS void AS $$
-BEGIN
-    IF array_length($1, 1) != array_length($2, 1) THEN
-        RAISE EXCEPTION 'Arrays are not of equal length';
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
-
 CREATE TABLE market_1m_periods_in_last_day (
     market_id BIGINT NOT NULL,
     inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
