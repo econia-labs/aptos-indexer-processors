@@ -104,7 +104,7 @@ impl EventGroupBuilder {
         if self.periodic_state_events.len() >= 7 {
             let msg = "EventGroups can only have up to seven PeriodicStateEvents.";
             panic!(
-                "{} Existing {:?}, attemped to add: {:?}",
+                "{} Existing {:?}, attempted to add: {:?}",
                 msg, self.periodic_state_events, periodic_state_event
             );
         }
