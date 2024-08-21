@@ -69,8 +69,11 @@ impl EventGroupBuilder {
     }
 
     pub fn add_event(&mut self, event: EventWithMarket) {
-        debug_assert!(event.get_market_id() == self.market_id);
-        debug_assert!(event.get_market_nonce() == self.market_nonce);
+        if event.get_market_id() != self.market_id || event.get_market_nonce() != self.market_nonce
+        {
+            let msg = "EventGroupBuilder can only have one market_id and market_nonce.";
+            panic!("{} New event: {:?} Initial event: {:?}", msg, event, self);
+        }
         match event {
             EventWithMarket::MarketRegistration(e) => {
                 self.add_bump(BumpEvent::MarketRegistration(e))
@@ -98,7 +101,13 @@ impl EventGroupBuilder {
     }
 
     pub fn add_periodic_state(&mut self, periodic_state_event: PeriodicStateEvent) {
-        debug_assert!(self.periodic_state_events.len() < 7);
+        if self.periodic_state_events.len() >= 7 {
+            let msg = "EventGroups can only have up to seven PeriodicStateEvents.";
+            panic!(
+                "{} Existing {:?}, attemped to add: {:?}",
+                msg, self.periodic_state_events, periodic_state_event
+            );
+        }
         self.periodic_state_events.push(periodic_state_event);
     }
 
