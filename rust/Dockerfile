@@ -3,8 +3,14 @@ ARG BUILDER_VERSION=1.0.0
 FROM econialabs/rust-builder:$BUILDER_VERSION AS base
 WORKDIR /app
 
-# Install build dependencies, plan build recipe.
+# Plan build recipe.
 FROM base AS planner
+COPY . .
+RUN cargo chef prepare
+
+# Install buildtime dependencies, cache runtime dependencies, then compile
+# package binaries.
+FROM base AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     curl \
@@ -15,11 +21,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     lld \
     && rm -rf /var/lib/apt/lists/*
-COPY . .
-RUN cargo chef prepare
-
-# Cache build dependencies then compile package binaries.
-FROM base AS builder
 COPY --from=planner app/recipe.json recipe.json
 RUN cargo chef cook --release --locked
 COPY . .
