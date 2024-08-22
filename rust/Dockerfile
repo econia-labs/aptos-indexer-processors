@@ -31,13 +31,11 @@ FROM base AS metrics-builder
 COPY --from=metrics-planner app/recipe.json recipe.json
 RUN cargo chef cook \
     --bin indexer-metrics \
-    --locked \
     --package indexer-metrics \
     --release
 COPY . .
 RUN cargo build \
     --bin indexer-metrics \
-    --frozen \
     --package indexer-metrics \
     --release
 RUN cp target/release/indexer-metrics /usr/local/bin
@@ -47,19 +45,17 @@ FROM base AS processor-builder
 COPY --from=processor-planner app/recipe.json recipe.json
 RUN cargo chef cook \
     --bin processor \
-    --locked \
     --package processor \
     --release
 COPY . .
 RUN cargo build \
     --bin processor \
-    --frozen \
     --package processor \
     --release
 RUN cp target/release/processor /usr/local/bin
 
 # Install runtime dependencies, copy over binaries.
-FROM debian:bullseye-slim
+FROM debian:bullseye-slim AS runtime
 RUN apt-get update && apt-get install --no-install-recommends -y \
     libssl1.1 \
     ca-certificates \
