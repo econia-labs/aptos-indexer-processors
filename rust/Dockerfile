@@ -61,7 +61,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     net-tools \
     tcpdump \
     iproute2 \
-    netcat-traditional \
+    netcat-openbsd \
     libdw-dev \
     libpq-dev \
     libssl-dev \
