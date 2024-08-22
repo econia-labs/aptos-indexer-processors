@@ -12,12 +12,14 @@ RUN cargo chef prepare
 # package binaries.
 FROM base AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     cmake \
     curl \
     clang \
     pkg-config \
     libssl-dev \
     libdw-dev \
+    libjemalloc-dev \
     libpq-dev \
     lld \
     && rm -rf /var/lib/apt/lists/*
