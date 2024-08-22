@@ -1,16 +1,8 @@
 ARG BUILDER_VERSION=1.0.0
 
+# Configure base image with buildtime dependencies.
 FROM econialabs/rust-builder:$BUILDER_VERSION AS base
 WORKDIR /app
-
-# Plan build recipe.
-FROM base AS planner
-COPY . .
-RUN cargo chef prepare
-
-# Install buildtime dependencies, cache runtime dependencies, then compile
-# package binaries.
-FROM base AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
@@ -23,18 +15,51 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     lld \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=planner app/recipe.json recipe.json
-RUN cargo chef cook --release --locked
+
+# Plan build recipe for metrics binary.
+FROM base AS metrics-planner
 COPY . .
-RUN cargo build --frozen --package processor --release
-RUN cargo build --frozen --package indexer-metrics --release
-RUN cp target/release/processor /usr/local/bin
+RUN cargo chef prepare --bin indexer-metrics
+
+# Plan build recipe for processor binary.
+FROM base AS processor-planner
+COPY . .
+RUN cargo chef prepare --bin processor
+
+# Cache crate dependencies, then compile metrics binary.
+FROM base AS metrics-builder
+COPY --from=metrics-planner app/recipe.json recipe.json
+RUN cargo chef cook \
+    --bin indexer-metrics \
+    --locked \
+    --package indexer-metrics \
+    --release
+COPY . .
+RUN cargo build \
+    --bin indexer-metrics \
+    --frozen \
+    --package indexer-metrics \
+    --release
 RUN cp target/release/indexer-metrics /usr/local/bin
 
-# Copy over package binaries, install runtime dependencies.
+# Cache crate dependencies, then compile processor binary.
+FROM base AS processor-builder
+COPY --from=processor-planner app/recipe.json recipe.json
+RUN cargo chef cook \
+    --bin processor \
+    --locked \
+    --package processor \
+    --release
+COPY . .
+RUN cargo build \
+    --bin processor \
+    --frozen \
+    --package processor \
+    --release
+RUN cp target/release/processor /usr/local/bin
+
+# Install runtime dependencies, copy over binaries.
 FROM debian:bullseye-slim
-COPY --from=builder /usr/local/bin/processor /usr/local/bin
-COPY --from=builder /usr/local/bin/indexer-metrics /usr/local/bin
 RUN apt-get update && apt-get install --no-install-recommends -y \
     libssl1.1 \
     ca-certificates \
@@ -46,6 +71,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     libpq-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
+COPY --from=metrics-builder /usr/local/bin/indexer-metrics /usr/local/bin
+COPY --from=processor-builder /usr/local/bin/processor /usr/local/bin
 
 # Configure logging format, executable startup script.
 ENV RUST_LOG_FORMAT=json
