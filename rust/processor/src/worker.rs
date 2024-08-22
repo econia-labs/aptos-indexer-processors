@@ -55,7 +55,7 @@ use anyhow::{Context, Result};
 use aptos_moving_average::MovingAverage;
 use bitflags::bitflags;
 use kanal::AsyncSender;
-use std::collections::HashSet;
+use std::{cmp::max, collections::HashSet};
 use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
 use tracing::{debug, error, info};
 use url::Url;
@@ -116,7 +116,7 @@ pub struct Worker {
     pub indexer_grpc_data_service_address: Url,
     pub grpc_http2_config: IndexerGrpcHttp2Config,
     pub auth_token: String,
-    pub starting_version: Option<u64>,
+    pub minimum_starting_version: Option<u64>,
     pub ending_version: Option<u64>,
     pub number_concurrent_processing_tasks: usize,
     pub gap_detection_batch_size: u64,
@@ -139,7 +139,7 @@ impl Worker {
         indexer_grpc_data_service_address: Url,
         grpc_http2_config: IndexerGrpcHttp2Config,
         auth_token: String,
-        starting_version: Option<u64>,
+        minimum_starting_version: Option<u64>,
         ending_version: Option<u64>,
         number_concurrent_processing_tasks: Option<usize>,
         db_pool_size: Option<u32>,
@@ -185,7 +185,7 @@ impl Worker {
             postgres_connection_string,
             indexer_grpc_data_service_address,
             grpc_http2_config,
-            starting_version,
+            minimum_starting_version,
             ending_version,
             auth_token,
             number_concurrent_processing_tasks,
@@ -237,14 +237,17 @@ impl Worker {
                 0
             });
 
-        let starting_version = self.starting_version.unwrap_or(starting_version_from_db);
+        let starting_version = max(
+            starting_version_from_db,
+            self.minimum_starting_version.unwrap_or(0),
+        );
 
         info!(
             processor_name = processor_name,
             service_type = PROCESSOR_SERVICE_TYPE,
             stream_address = self.indexer_grpc_data_service_address.to_string(),
             final_start_version = starting_version,
-            start_version_from_config = self.starting_version,
+            start_version_from_config = self.minimum_starting_version,
             start_version_from_db = starting_version_from_db,
             "[Parser] Building processor",
         );
@@ -884,9 +887,11 @@ pub fn build_processor(
             per_table_chunk_sizes,
             deprecated_tables,
         )),
-        ProcessorConfig::EmojicoinProcessor => {
-            Processor::from(EmojicoinProcessor::new(db_pool, per_table_chunk_sizes, notif_sender))
-        },
+        ProcessorConfig::EmojicoinProcessor => Processor::from(EmojicoinProcessor::new(
+            db_pool,
+            per_table_chunk_sizes,
+            notif_sender,
+        )),
         ProcessorConfig::EventsProcessor => {
             Processor::from(EventsProcessor::new(db_pool, per_table_chunk_sizes))
         },
