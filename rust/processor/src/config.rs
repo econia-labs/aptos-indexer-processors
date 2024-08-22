@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    emojicoin_dot_fun::EmojicoinDbEvent, gap_detectors::DEFAULT_GAP_DETECTION_BATCH_SIZE, processors::ProcessorConfig, transaction_filter::TransactionFilter, worker::Worker, ws_server
+    emojicoin_dot_fun::EmojicoinDbEvent, gap_detectors::DEFAULT_GAP_DETECTION_BATCH_SIZE,
+    processors::ProcessorConfig, transaction_filter::TransactionFilter, worker::Worker, ws_server,
 };
 use ahash::AHashMap;
 use anyhow::{Context, Result};
@@ -24,8 +25,9 @@ pub struct IndexerGrpcProcessorConfig {
     #[serde(flatten)]
     pub grpc_http2_config: IndexerGrpcHttp2Config,
     pub auth_token: String,
-    // Version to start indexing from
-    pub starting_version: Option<u64>,
+    // The minimum version to start indexing from. If the processor's latest processed version is
+    // greater than this value, it will use that instead.
+    pub minimum_starting_version: Option<u64>,
     // Version to end indexing at
     pub ending_version: Option<u64>,
     // Number of tasks waiting to pull transaction batches from the channel and process them
@@ -91,7 +93,7 @@ impl RunnableConfig for IndexerGrpcProcessorConfig {
             self.indexer_grpc_data_service_address.clone(),
             self.grpc_http2_config.clone(),
             self.auth_token.clone(),
-            self.starting_version,
+            self.minimum_starting_version,
             self.ending_version,
             self.number_concurrent_processing_tasks,
             self.db_pool_size,
