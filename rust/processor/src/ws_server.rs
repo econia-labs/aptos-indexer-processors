@@ -15,6 +15,18 @@ struct AppState {
 }
 
 pub async fn start(mut receiver: UnboundedReceiver<EmojicoinDbEvent>) {
+    let port = std::env::var("WS_PORT");
+    if port.is_err() {
+        tracing::error!("Environment variable WS_PORT is not set.");
+        return;
+    }
+    let port: Result<u16,_> = port.unwrap().parse();
+    if port.is_err() {
+        tracing::error!("Environment variable WS_PORT is not a valid port number.");
+        return;
+    }
+    let port = port.unwrap();
+
     let app_state = AppState {
         connections: Mutex::new(HashMap::new())
     };
@@ -45,7 +57,7 @@ pub async fn start(mut receiver: UnboundedReceiver<EmojicoinDbEvent>) {
     });
 
     let server_handle = tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind("0.0.0.0:3008").await.unwrap();
+        let listener = tokio::net::TcpListener::bind(&format!("0.0.0.0:{port}")).await.unwrap();
         axum::serve(listener, app).await.unwrap();
     });
 
