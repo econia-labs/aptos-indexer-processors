@@ -55,16 +55,17 @@ RUN cargo build \
 RUN cp target/release/processor /usr/local/bin
 
 # Install runtime dependencies, copy over binaries.
-FROM debian:bullseye-slim AS runtime
+FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install --no-install-recommends -y \
-    libssl1.1 \
     ca-certificates \
     net-tools \
     tcpdump \
     iproute2 \
-    netcat \
+    netcat-traditional \
     libdw-dev \
     libpq-dev \
+    libssl-dev \
+    libssl3 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=metrics-builder /usr/local/bin/indexer-metrics /usr/local/bin
