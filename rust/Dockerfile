@@ -80,4 +80,4 @@ WORKDIR /
 # Expose health check port.
 EXPOSE 8084
 
-CMD /app/start.sh
+CMD ["/app/start.sh"]
