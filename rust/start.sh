@@ -1,10 +1,15 @@
 #!/bin/bash
 
-STARTING_VERSION=$(psql -d "$DATABASE_URL" -t -c "SELECT last_success_version FROM processor_status;" 2>/dev/null | tr -d '[:space:]')
-if [ -z "$STARTING_VERSION" ]; then
-  STARTING_VERSION=0
+# Attempt to get the latest processed transaction version from the database.
+psql $DATABASE_URL -c '\copy processor_status to /app/out.csv csv'
+
+# If the file is not empty, then the database has been initialized and there
+# is a starting version to use. In this case, overwrite the environment
+# variable set by the container with the value from the database.
+if [ -s "/app/out.csv" ];then
+    export STARTING_VERSION=$(cut -d, -f2 /app/out.csv)
 fi
-export STARTING_VERSION
+rm /app/out.csv
 
 echo "health_check_port: 8084
 server_config:
