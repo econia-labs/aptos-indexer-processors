@@ -81,4 +81,7 @@ WORKDIR /
 # Expose health check port.
 EXPOSE 8084
 
+HEALTHCHECK --interval=2m --timeout=1s --start-period=20s --start-interval=1s --retries=1 \
+  CMD curl -f http://localhost:$WS_PORT/ || exit 1
+
 CMD ["/app/start.sh"]
