@@ -123,8 +123,7 @@ impl MarketLatestStateEventModel {
             last_swap_time: micros_to_naive_datetime(last_swap.time),
 
             daily_tvl_per_lp_coin_growth_q64: calculate_tvl_growth(tracker_1d),
-            in_bonding_curve: tracker_1m.starts_in_bonding_curve
-                || tracker_1m.ends_in_bonding_curve,
+            in_bonding_curve: tracker_1m.ends_in_bonding_curve,
             volume_in_1m_state_tracker: tracker_1m.volume_quote,
         }
     }
