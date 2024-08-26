@@ -154,7 +154,7 @@ pub enum EmojicoinEvent {
     EventWithoutMarket(GlobalStateEvent),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, strum::Display)]
 pub enum EmojicoinDbEvent {
     Swap(SwapEventModel),
     Chat(ChatEventModel),
