@@ -39,7 +39,7 @@ use aptos_protos::transaction::v1::{transaction::TxnData, Transaction};
 use async_trait::async_trait;
 use itertools::Itertools;
 use std::fmt::Debug;
-use tokio::sync::mpsc::{error::SendError, UnboundedSender};
+use tokio::sync::mpsc::UnboundedSender;
 use tracing::error;
 
 pub struct EmojicoinProcessor {
@@ -64,13 +64,12 @@ impl EmojicoinProcessor {
     pub fn publish_events(
         &self,
         events: Vec<EmojicoinDbEvent>,
-    ) -> Result<(), SendError<EmojicoinDbEvent>> {
+    ) {
         for event in events {
-            self.notif_sender.send(event).inspect_err(|e| {
+            if let Err(e) = self.notif_sender.send(event) {
                 tracing::error!("Could not send events to websocket server: {e}")
-            })?;
+            }
         }
-        Ok(())
     }
 }
 
@@ -427,7 +426,7 @@ impl ProcessorTrait for EmojicoinProcessor {
         .flatten()
         .collect_vec();
 
-        let _ = self.publish_events(all_db_events);
+        self.publish_events(all_db_events);
 
         let tx_result = insert_to_db(
             self.get_pool(),

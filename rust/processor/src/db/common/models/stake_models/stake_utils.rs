@@ -188,7 +188,7 @@ impl StakeResource {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum StakeEvent {
+#[allow(clippy::enum_variant_names)] pub enum StakeEvent {
     GovernanceVoteEvent(GovernanceVoteEvent),
     DistributeRewardsEvent(DistributeRewardsEvent),
     AddStakeEvent(AddStakeEvent),

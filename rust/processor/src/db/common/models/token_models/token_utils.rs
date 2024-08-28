@@ -381,7 +381,7 @@ impl TokenWriteSet {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum TokenEvent {
+#[allow(clippy::enum_variant_names)] pub enum TokenEvent {
     MintTokenEvent(MintTokenEventType),
     BurnTokenEvent(BurnTokenEventType),
     MutateTokenPropertyMapEvent(MutateTokenPropertyMapEventType),
@@ -427,7 +427,7 @@ impl TokenEvent {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum TokenResource {
+#[allow(clippy::enum_variant_names)] pub enum TokenResource {
     CollectionResource(CollectionResourceType),
     TokenStoreResource(TokenStoreResourceType),
     PendingClaimsResource(PendingClaimsResourceType),
