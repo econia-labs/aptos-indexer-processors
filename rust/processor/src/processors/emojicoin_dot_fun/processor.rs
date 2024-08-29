@@ -22,7 +22,6 @@ use crate::{
             insert_periodic_state_events_query, insert_swap_events_query,
             insert_user_liquidity_pools_query,
         },
-        utils::normalize_address,
     },
     emojicoin_dot_fun::EmojicoinDbEvent,
     gap_detectors::ProcessingResult,
@@ -30,7 +29,7 @@ use crate::{
     utils::{
         counters::PROCESSOR_UNKNOWN_TYPE_COUNT,
         database::{execute_in_chunks, get_config_table_chunk_size, ArcDbPool},
-        util::{get_entry_function_from_user_request, parse_timestamp},
+        util::{get_entry_function_from_user_request, parse_timestamp, standardize_address},
     },
 };
 use ahash::AHashMap;
@@ -254,7 +253,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                 let entry_function = get_entry_function_from_user_request(user_request);
                 let txn_info = TxnInfo {
                     version: txn_version,
-                    sender: normalize_address(user_request.sender.as_ref()),
+                    sender: standardize_address(user_request.sender.as_ref()),
                     entry_function,
                     timestamp: parse_timestamp(txn.timestamp.as_ref().unwrap(), txn_version),
                 };
