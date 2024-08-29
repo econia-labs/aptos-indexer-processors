@@ -72,7 +72,7 @@ where
     S: Serializer,
 {
     (AggregatorSnapshotI64 {
-        value: element.clone(),
+        value: *element,
     })
     .serialize(s)
 }
