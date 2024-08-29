@@ -15,6 +15,8 @@ struct AppState {
     connections: Mutex<HashMap<u64, Connection>>,
 }
 
+async fn health() {}
+
 pub async fn start(mut receiver: UnboundedReceiver<EmojicoinDbEvent>) {
     let port = std::env::var("WS_PORT");
     if port.is_err() {
@@ -33,7 +35,7 @@ pub async fn start(mut receiver: UnboundedReceiver<EmojicoinDbEvent>) {
     };
     let app_state = Arc::new(app_state);
     let app_state_clone = app_state.clone();
-    let app = Router::new().route("/ws", get(handler)).with_state(app_state);
+    let app = Router::new().route("/", get(health)).route("/ws", get(handler)).with_state(app_state);
 
     let sender_handler = tokio::spawn(async move {
         let app_state = app_state_clone;
