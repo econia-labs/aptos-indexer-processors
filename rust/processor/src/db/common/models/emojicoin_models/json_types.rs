@@ -9,14 +9,12 @@ use crate::{
         serialize_state_trigger,
     },
     utils::util::{
-        deserialize_from_string, hex_to_raw_bytes, serialize_to_string, AggregatorSnapshot,
+        deserialize_from_string, hex_to_raw_bytes, serialize_to_string, standardize_address,
+        AggregatorSnapshot,
     },
 };
 
-use super::{
-    enums::{EmojicoinTypeTag, Period, Trigger},
-    utils::normalize_address,
-};
+use super::enums::{EmojicoinTypeTag, Period, Trigger};
 
 pub fn serialize_bytes_to_hex_string<S>(element: &Vec<u8>, s: S) -> Result<S::Ok, S::Error>
 where
@@ -37,14 +35,14 @@ where
     hex_to_raw_bytes(&s).map_err(D::Error::custom)
 }
 
-pub fn deserialize_and_normalize_account_address<'de, D>(
+pub fn deserialize_and_standardize_address<'de, D>(
     deserializer: D,
 ) -> core::result::Result<String, D::Error>
 where
     D: Deserializer<'de>,
 {
     let s = <String>::deserialize(deserializer)?;
-    Ok(normalize_address(&s))
+    Ok(standardize_address(&s))
 }
 
 pub fn serialize_aggregator_snapshot_u128<S>(element: &BigDecimal, s: S) -> Result<S::Ok, S::Error>
@@ -99,7 +97,7 @@ pub struct MarketMetadata {
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
     pub market_id: i64,
-    #[serde(deserialize_with = "deserialize_and_normalize_account_address")]
+    #[serde(deserialize_with = "deserialize_and_standardize_address")]
     pub market_address: String,
     #[serde(deserialize_with = "deserialize_bytes_from_hex_string")]
     #[serde(serialize_with = "serialize_bytes_to_hex_string")]
@@ -220,13 +218,13 @@ pub struct SwapEvent {
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
     pub market_nonce: i64,
-    #[serde(deserialize_with = "deserialize_and_normalize_account_address")]
+    #[serde(deserialize_with = "deserialize_and_standardize_address")]
     pub swapper: String,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
     pub input_amount: i64,
     pub is_sell: bool,
-    #[serde(deserialize_with = "deserialize_and_normalize_account_address")]
+    #[serde(deserialize_with = "deserialize_and_standardize_address")]
     pub integrator: String,
     pub integrator_fee_rate_bps: i16,
     #[serde(deserialize_with = "deserialize_from_string")]
@@ -264,7 +262,7 @@ pub struct ChatEvent {
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
     pub emit_market_nonce: i64,
-    #[serde(deserialize_with = "deserialize_and_normalize_account_address")]
+    #[serde(deserialize_with = "deserialize_and_standardize_address")]
     pub user: String,
     pub message: String,
     #[serde(deserialize_with = "deserialize_from_string")]
@@ -284,9 +282,9 @@ pub struct MarketRegistrationEvent {
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
     pub time: i64,
-    #[serde(deserialize_with = "deserialize_and_normalize_account_address")]
+    #[serde(deserialize_with = "deserialize_and_standardize_address")]
     pub registrant: String,
-    #[serde(deserialize_with = "deserialize_and_normalize_account_address")]
+    #[serde(deserialize_with = "deserialize_and_standardize_address")]
     pub integrator: String,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
@@ -399,7 +397,7 @@ pub struct LiquidityEvent {
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
     pub market_nonce: i64,
-    #[serde(deserialize_with = "deserialize_and_normalize_account_address")]
+    #[serde(deserialize_with = "deserialize_and_standardize_address")]
     pub provider: String,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
@@ -556,7 +554,7 @@ pub struct SequenceInfo {
 pub struct ExtendRef {
     // We need to rename the `self` field because it's a reserved keyword in Rust.
     #[serde(
-        deserialize_with = "deserialize_and_normalize_account_address",
+        deserialize_with = "deserialize_and_standardize_address",
         rename = "self"
     )]
     pub self_address: String,
