@@ -155,6 +155,7 @@ pub trait ProcessorTrait: Send + Sync + Debug {
 }
 
 /// This enum captures the configs for all the different processors that are defined.
+///
 /// The configs for each processor should only contain configuration specific to that
 /// processor. For configuration that is common to all processors, put it in
 /// IndexerGrpcProcessorConfig.
@@ -221,9 +222,11 @@ impl ProcessorConfig {
     }
 }
 
-/// This enum contains all the processors defined in this crate. We use enum_dispatch
-/// as it is more efficient than using dynamic dispatch (Box<dyn ProcessorTrait>) and
-/// it enables nice safety checks like in we do in `test_processor_names_complete`.
+/// This enum contains all the processors defined in this crate.
+///
+/// We use enum_dispatch as it is more efficient than using dynamic dispatch (Box<dyn
+/// ProcessorTrait>) and it enables nice safety checks like in we do in
+/// `test_processor_names_complete`.
 #[enum_dispatch(ProcessorTrait)]
 #[derive(Debug)]
 // To ensure that the variants of ProcessorConfig and Processor line up, in the testing
