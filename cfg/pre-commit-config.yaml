@@ -7,4 +7,26 @@ repos:
     files: 'rust/Dockerfile'
   repo: 'https://github.com/hadolint/hadolint'
   rev: 'v2.12.0'
+-
+  hooks:
+  -
+    args:
+    - '--manifest-path'
+    - 'rust/processor/Cargo.toml'
+    - '--config'
+    - 'build.rustflags=["--cfg", "tokio_unstable"]'
+    - '--'
+    id: 'cargo-check'
+  -
+    args:
+    - '--manifest-path'
+    - 'rust/processor/Cargo.toml'
+    - '--config'
+    - 'build.rustflags=["--cfg", "tokio_unstable"]'
+    - '--'
+    - '--deny'
+    - 'clippy::all'
+    id: 'clippy'
+  repo: 'https://github.com/doublify/pre-commit-rust'
+  rev: 'v1.0'
 ...
