@@ -1,0 +1,10 @@
+---
+repos:
+-
+  hooks:
+  -
+    id: 'hadolint-docker'
+    files: 'rust/Dockerfile'
+  repo: 'https://github.com/hadolint/hadolint'
+  rev: 'v2.12.0'
+...

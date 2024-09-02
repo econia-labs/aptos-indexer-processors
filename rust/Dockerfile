@@ -4,16 +4,16 @@ ARG BUILDER_VERSION=1.0.0
 FROM econialabs/rust-builder:$BUILDER_VERSION AS base
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    cmake \
-    curl \
-    clang \
-    pkg-config \
-    libssl-dev \
-    libdw-dev \
-    libjemalloc-dev \
-    libpq-dev \
-    lld \
+    build-essential=12.9 \
+    cmake=3.25* \
+    curl=7.88* \
+    clang=1:14* \
+    pkg-config=1.8* \
+    libdw-dev=0.188* \
+    libpq-dev=15* \
+    libssl-dev=3.0* \
+    libjemalloc-dev=5.3* \
+    lld=1:14* \
     && rm -rf /var/lib/apt/lists/*
 
 # Plan build recipe for metrics binary.
@@ -37,8 +37,8 @@ COPY . .
 RUN cargo build \
     --bin indexer-metrics \
     --package indexer-metrics \
-    --release
-RUN cp target/release/indexer-metrics /usr/local/bin
+    --release \
+    && cp target/release/indexer-metrics /usr/local/bin
 
 # Cache crate dependencies, then compile processor binary.
 FROM base AS processor-builder
@@ -51,22 +51,22 @@ COPY . .
 RUN cargo build \
     --bin processor \
     --package processor \
-    --release
-RUN cp target/release/processor /usr/local/bin
+    --release \
+    && cp target/release/processor /usr/local/bin
 
 # Install runtime dependencies, copy over binaries.
 FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install --no-install-recommends -y \
-    ca-certificates \
-    net-tools \
-    tcpdump \
-    iproute2 \
-    netcat-openbsd \
-    libdw-dev \
-    libpq-dev \
-    libssl-dev \
-    libssl3 \
-    curl \
+    ca-certificates=* \
+    net-tools=2.10* \
+    tcpdump=4.99* \
+    iproute2=6.1* \
+    netcat-openbsd=1.219* \
+    libdw-dev=0.188* \
+    libpq-dev=15* \
+    libssl-dev=3.0* \
+    libssl3=3.0* \
+    curl=7.88* \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=metrics-builder /usr/local/bin/indexer-metrics /usr/local/bin
 COPY --from=processor-builder /usr/local/bin/processor /usr/local/bin
