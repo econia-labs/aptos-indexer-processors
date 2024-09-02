@@ -1,0 +1,22 @@
+---
+env:
+  PYTHON_VERSION: '3.10'
+jobs:
+  pre-commit:
+    runs-on: 'ubuntu-latest'
+    steps:
+    - uses: 'actions/checkout@v3'
+    - uses: 'actions/setup-python@v3'
+      with:
+        python-version: '${{ env.PYTHON_VERSION }}'
+    - uses: 'pre-commit/action@v3.0.0'
+      with:
+        extra_args: '--all-files --config cfg/pre-commit-config.yaml --verbose'
+name: 'pre-commit'
+'on':
+  pull_request: null
+  push:
+    branches:
+    - 'main'
+  workflow_dispatch: null
+...
