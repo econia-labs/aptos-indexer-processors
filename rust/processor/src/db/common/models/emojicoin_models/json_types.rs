@@ -1,8 +1,4 @@
-use anyhow::{Context, Result};
-use aptos_protos::transaction::v1::WriteResource;
-use bigdecimal::BigDecimal;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
+use super::enums::{EmojicoinTypeTag, Period, Trigger};
 use crate::{
     db::common::models::emojicoin_models::enums::{
         deserialize_state_period, deserialize_state_trigger, serialize_state_period,
@@ -13,8 +9,10 @@ use crate::{
         AggregatorSnapshot,
     },
 };
-
-use super::enums::{EmojicoinTypeTag, Period, Trigger};
+use anyhow::{Context, Result};
+use aptos_protos::transaction::v1::WriteResource;
+use bigdecimal::BigDecimal;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub fn serialize_bytes_to_hex_string<S>(element: &Vec<u8>, s: S) -> Result<S::Ok, S::Error>
 where
@@ -69,10 +67,7 @@ pub fn serialize_aggregator_snapshot_u64<S>(element: &i64, s: S) -> Result<S::Ok
 where
     S: Serializer,
 {
-    (AggregatorSnapshotI64 {
-        value: *element,
-    })
-    .serialize(s)
+    (AggregatorSnapshotI64 { value: *element }).serialize(s)
 }
 
 pub fn deserialize_aggregator_snapshot_u64<'de, D>(

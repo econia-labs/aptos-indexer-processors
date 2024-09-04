@@ -27,6 +27,12 @@ repos:
     - '--deny'
     - 'clippy::all'
     id: 'clippy'
+  -
+    args:
+    - '--manifest-path'
+    - 'rust/processor/Cargo.toml'
+    - '--'
+    id: 'fmt'
   repo: 'https://github.com/doublify/pre-commit-rust'
   rev: 'v1.0'
 ...

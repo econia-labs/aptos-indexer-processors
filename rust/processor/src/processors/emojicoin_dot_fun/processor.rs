@@ -60,10 +60,7 @@ impl EmojicoinProcessor {
         }
     }
 
-    pub fn publish_events(
-        &self,
-        events: Vec<EmojicoinDbEvent>,
-    ) {
+    pub fn publish_events(&self, events: Vec<EmojicoinDbEvent>) {
         for event in events {
             if let Err(e) = self.notif_sender.send(event) {
                 tracing::error!("Could not send events to websocket server: {e}")

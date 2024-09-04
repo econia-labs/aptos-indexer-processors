@@ -1,3 +1,4 @@
+use super::market_24h_rolling_volume::RecentOneMinutePeriodicStateEvent;
 use crate::{
     schema::{self, market_1m_periods_in_last_day},
     utils::database::ArcDbPool,
@@ -12,8 +13,6 @@ use diesel::{
 use diesel_async::{scoped_futures::ScopedFutureExt, AsyncConnection};
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
-
-use super::market_24h_rolling_volume::RecentOneMinutePeriodicStateEvent;
 
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(market_id, nonce))]

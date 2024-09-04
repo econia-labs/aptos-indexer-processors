@@ -219,7 +219,8 @@ impl CoinInfoType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[allow(clippy::enum_variant_names)] pub enum CoinResource {
+#[allow(clippy::enum_variant_names)]
+pub enum CoinResource {
     CoinInfoResource(CoinInfoResource),
     CoinStoreResource(CoinStoreResource),
     CoinInfoDeletion,
