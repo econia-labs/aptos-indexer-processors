@@ -99,7 +99,7 @@ pub trait ProcessorTrait: Send + Sync + Debug {
 
     /// Gets the connection.
     /// If it was unable to do so (default timeout: 30s), it will keep retrying until it can.
-    async fn get_conn(&self) -> DbPoolConnection {
+    async fn get_conn<'a>(&'a self) -> DbPoolConnection<'a> {
         let pool = self.connection_pool();
         loop {
             match pool.get().await {
