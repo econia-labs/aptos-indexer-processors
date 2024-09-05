@@ -1,7 +1,11 @@
-use crate::db::common::models::emojicoin_models::json_types::{LiquidityEvent, StateEvent};
-use crate::db::common::models::emojicoin_models::utils::micros_to_naive_datetime;
-use crate::db::common::models::emojicoin_models::{enums, json_types::TxnInfo};
-use crate::schema::liquidity_events;
+use crate::{
+    db::common::models::emojicoin_models::{
+        enums,
+        json_types::{LiquidityEvent, StateEvent, TxnInfo},
+        utils::micros_to_naive_datetime,
+    },
+    schema::liquidity_events,
+};
 use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};

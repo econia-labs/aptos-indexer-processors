@@ -1,15 +1,18 @@
-use diesel::query_dsl::methods::FilterDsl;
-use diesel::ExpressionMethods;
-use diesel::{pg::Pg, query_builder::QueryFragment, upsert::excluded};
-
-use crate::db::common::models::emojicoin_models::models::{
-    chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
-    liquidity_event::LiquidityEventModel, market_latest_state_event::MarketLatestStateEventModel,
-    market_registration_event::MarketRegistrationEventModel,
-    periodic_state_event::PeriodicStateEventModel, swap_event::SwapEventModel,
-    user_liquidity_pools::UserLiquidityPoolsModel,
+use crate::{
+    db::common::models::emojicoin_models::models::{
+        chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
+        liquidity_event::LiquidityEventModel,
+        market_latest_state_event::MarketLatestStateEventModel,
+        market_registration_event::MarketRegistrationEventModel,
+        periodic_state_event::PeriodicStateEventModel, swap_event::SwapEventModel,
+        user_liquidity_pools::UserLiquidityPoolsModel,
+    },
+    schema,
 };
-use crate::schema;
+use diesel::{
+    pg::Pg, query_builder::QueryFragment, query_dsl::methods::FilterDsl, upsert::excluded,
+    ExpressionMethods,
+};
 
 pub fn insert_chat_events_query(
     items_to_insert: Vec<ChatEventModel>,

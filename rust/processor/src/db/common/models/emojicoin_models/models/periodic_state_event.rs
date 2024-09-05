@@ -1,9 +1,11 @@
-use crate::db::common::models::emojicoin_models::{
-    enums,
-    json_types::{LastSwap, PeriodicStateEvent, TxnInfo},
-    utils::micros_to_naive_datetime,
+use crate::{
+    db::common::models::emojicoin_models::{
+        enums,
+        json_types::{LastSwap, PeriodicStateEvent, TxnInfo},
+        utils::micros_to_naive_datetime,
+    },
+    schema::periodic_state_events,
 };
-use crate::schema::periodic_state_events;
 use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};

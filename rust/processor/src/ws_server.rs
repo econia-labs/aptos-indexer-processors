@@ -1,10 +1,22 @@
-use std::{collections::HashMap, sync::{atomic::{AtomicU64, Ordering}, Arc}};
-
-use axum::{extract::{ws::{Message, WebSocket}, State, WebSocketUpgrade}, response::Response, routing::get, Router};
+use crate::emojicoin_dot_fun::EmojicoinDbEvent;
+use axum::{
+    extract::{
+        ws::{Message, WebSocket},
+        State, WebSocketUpgrade,
+    },
+    response::Response,
+    routing::get,
+    Router,
+};
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+};
 use tokio::sync::{mpsc::UnboundedReceiver, Mutex};
 use tracing::{debug, error, info, trace};
-
-use crate::emojicoin_dot_fun::EmojicoinDbEvent;
 
 struct Connection {
     socket: WebSocket,
@@ -23,7 +35,7 @@ pub async fn start(mut receiver: UnboundedReceiver<EmojicoinDbEvent>) {
         error!("Environment variable WS_PORT is not set.");
         return;
     }
-    let port: Result<u16,_> = port.unwrap().parse();
+    let port: Result<u16, _> = port.unwrap().parse();
     if port.is_err() {
         error!("Environment variable WS_PORT is not a valid port number.");
         return;
@@ -31,11 +43,14 @@ pub async fn start(mut receiver: UnboundedReceiver<EmojicoinDbEvent>) {
     let port = port.unwrap();
 
     let app_state = AppState {
-        connections: Mutex::new(HashMap::new())
+        connections: Mutex::new(HashMap::new()),
     };
     let app_state = Arc::new(app_state);
     let app_state_clone = app_state.clone();
-    let app = Router::new().route("/", get(health)).route("/ws", get(handler)).with_state(app_state);
+    let app = Router::new()
+        .route("/", get(health))
+        .route("/ws", get(handler))
+        .with_state(app_state);
 
     let sender_handler = tokio::spawn(async move {
         let app_state = app_state_clone;
@@ -46,7 +61,10 @@ pub async fn start(mut receiver: UnboundedReceiver<EmojicoinDbEvent>) {
             let mut connections_mut = app_state.connections.lock().await;
             for connection in connections_mut.values_mut() {
                 trace!("Sending event to {}", connection.id);
-                let res = connection.socket.send(Message::Text(value_string.clone())).await;
+                let res = connection
+                    .socket
+                    .send(Message::Text(value_string.clone()))
+                    .await;
                 if res.is_err() {
                     to_remove.push(connection.id);
                 }
@@ -62,7 +80,9 @@ pub async fn start(mut receiver: UnboundedReceiver<EmojicoinDbEvent>) {
     });
 
     let server_handle = tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind(&format!("0.0.0.0:{port}")).await.unwrap();
+        let listener = tokio::net::TcpListener::bind(&format!("0.0.0.0:{port}"))
+            .await
+            .unwrap();
         info!("Web server started.");
         axum::serve(listener, app).await.unwrap();
         info!("Web server stopped.");
@@ -87,9 +107,12 @@ static NEXT_USER_ID: AtomicU64 = AtomicU64::new(0);
 async fn handle_websocket(socket: WebSocket, app_state: Arc<AppState>) {
     let user_id = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
     info!("New connection with ID {user_id}");
-    app_state.connections.lock().await.insert(user_id, Connection {
-        socket,
-        id: user_id,
-    });
+    app_state
+        .connections
+        .lock()
+        .await
+        .insert(user_id, Connection {
+            socket,
+            id: user_id,
+        });
 }
-

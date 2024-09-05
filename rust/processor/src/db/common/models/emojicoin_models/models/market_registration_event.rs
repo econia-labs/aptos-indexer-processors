@@ -1,8 +1,11 @@
-use crate::db::common::models::emojicoin_models::json_types::{
-    MarketRegistrationEvent, StateEvent, TxnInfo,
+use crate::{
+    db::common::models::emojicoin_models::{
+        enums,
+        json_types::{MarketRegistrationEvent, StateEvent, TxnInfo},
+        utils::micros_to_naive_datetime,
+    },
+    schema::market_registration_events,
 };
-use crate::db::common::models::emojicoin_models::{enums, utils::micros_to_naive_datetime};
-use crate::schema::market_registration_events;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 

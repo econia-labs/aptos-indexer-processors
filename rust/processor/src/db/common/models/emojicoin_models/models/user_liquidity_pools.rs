@@ -1,9 +1,7 @@
-use crate::db::common::models::emojicoin_models::enums;
-use crate::schema::user_liquidity_pools;
+use super::liquidity_event::LiquidityEventModel;
+use crate::{db::common::models::emojicoin_models::enums, schema::user_liquidity_pools};
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
-
-use super::liquidity_event::LiquidityEventModel;
 
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(provider, market_nonce))]

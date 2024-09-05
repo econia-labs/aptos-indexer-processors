@@ -1,10 +1,12 @@
-use crate::db::common::models::emojicoin_models::enums::{Period, Trigger};
-use crate::db::common::models::emojicoin_models::json_types::{
-    InstantaneousStats, PeriodicStateTracker, TxnInfo,
+use crate::{
+    db::common::models::emojicoin_models::{
+        enums,
+        enums::{Period, Trigger},
+        json_types::{InstantaneousStats, MarketResource, PeriodicStateTracker, TxnInfo},
+        utils::micros_to_naive_datetime,
+    },
+    schema::market_latest_state_event,
 };
-use crate::db::common::models::emojicoin_models::utils::micros_to_naive_datetime;
-use crate::db::common::models::emojicoin_models::{enums, json_types::MarketResource};
-use crate::schema::market_latest_state_event;
 use bigdecimal::{BigDecimal, Zero};
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};

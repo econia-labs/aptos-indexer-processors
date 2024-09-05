@@ -1,5 +1,7 @@
-use crate::db::common::models::emojicoin_models::json_types::MarketResource;
-use crate::utils::util::standardize_address;
+use crate::{
+    db::common::models::emojicoin_models::json_types::MarketResource,
+    utils::util::standardize_address,
+};
 use aptos_protos::transaction::v1::{write_set_change::Change as WriteSetChangeEnum, Transaction};
 
 impl MarketResource {
