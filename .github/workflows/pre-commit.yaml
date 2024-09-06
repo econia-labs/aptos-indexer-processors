@@ -13,8 +13,6 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libdw-dev
-    - name: 'Use nigthly toolchain'
-      run: rustup default nightly && rustup component add rustfmt && rustup component add clippy
     - uses: 'pre-commit/action@v3.0.0'
       with:
         extra_args: '--all-files --config cfg/pre-commit-config.yaml --verbose'
