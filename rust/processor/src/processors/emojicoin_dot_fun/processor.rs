@@ -374,7 +374,12 @@ impl ProcessorTrait for EmojicoinProcessor {
                             // only the latest interaction is used to insert/update the user's row for that pool.
                             // Otherwise we'd needlessly overwrite the same row multiple times from one transaction.
                             let key = (evt_model.provider.clone(), evt_model.market_id);
-                            let new_pool: UserLiquidityPoolsModel = UserLiquidityPoolsModel::from_event_and_writeset(&txn, evt_model, &market_addr);
+                            let new_pool: UserLiquidityPoolsModel =
+                                UserLiquidityPoolsModel::from_event_and_writeset(
+                                    &txn,
+                                    evt_model,
+                                    &market_addr,
+                                );
                             user_pools_db
                                 .entry(key)
                                 .and_modify(|pool| {
