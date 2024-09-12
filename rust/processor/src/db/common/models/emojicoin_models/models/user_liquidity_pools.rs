@@ -53,17 +53,13 @@ impl UserLiquidityPoolsModel {
                     if !ADDRESSES_REGEX.is_match(&write.type_str) {
                         return None;
                     }
-                    let Some(caps) = ADDRESSES_REGEX.captures(&write.type_str) else {
-                        return None;
-                    };
+                    let caps = ADDRESSES_REGEX.captures(&write.type_str)?;
                     if standardize_address(&caps[1]) == standardize_address(market_address) {
                         let Ok(data) = serde_json::from_str::<serde_json::Value>(&write.data)
                         else {
                             return None;
                         };
-                        let Some(amount) = data["coin"]["value"].as_str() else {
-                            return None;
-                        };
+                        let amount = data["coin"]["value"].as_str()?;
                         Some(UserLiquidityPoolsModel {
                             provider: evt.provider.clone(),
                             transaction_version: evt.transaction_version,

@@ -376,7 +376,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                             let key = (evt_model.provider.clone(), evt_model.market_id);
                             let new_pool: UserLiquidityPoolsModel =
                                 UserLiquidityPoolsModel::from_event_and_writeset(
-                                    &txn,
+                                    txn,
                                     evt_model,
                                     &market_addr,
                                 );
