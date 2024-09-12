@@ -135,6 +135,7 @@ pub fn insert_user_liquidity_pools_query(
                 liquidity_provided.eq(excluded(liquidity_provided)),
                 base_donation_claim_amount.eq(excluded(base_donation_claim_amount)),
                 quote_donation_claim_amount.eq(excluded(quote_donation_claim_amount)),
+                lp_coin_balance.eq(excluded(lp_coin_balance)),
             ))
             .filter(market_nonce.le(excluded(market_nonce))),
         None,
