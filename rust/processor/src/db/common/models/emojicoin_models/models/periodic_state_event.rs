@@ -2,6 +2,7 @@ use crate::{
     db::common::models::emojicoin_models::{
         enums,
         json_types::{LastSwap, PeriodicStateEvent, TxnInfo},
+        parsers::emojis::parser::symbol_bytes_to_emojis,
         utils::micros_to_naive_datetime,
     },
     schema::periodic_state_events,
@@ -24,6 +25,7 @@ pub struct PeriodicStateEventModel {
     pub market_id: i64,
     pub symbol_bytes: Vec<u8>,
     pub market_address: String,
+    pub symbol_emojis: Vec<String>,
 
     // State metadata.
     pub emit_time: chrono::NaiveDateTime,
@@ -74,7 +76,8 @@ impl PeriodicStateEventModel {
                 transaction_timestamp: txn_info.timestamp,
                 market_id: ps_event.market_metadata.market_id,
                 market_address: ps_event.market_metadata.market_address,
-                symbol_bytes: ps_event.market_metadata.emoji_bytes,
+                symbol_bytes: ps_event.market_metadata.emoji_bytes.clone(),
+                symbol_emojis: symbol_bytes_to_emojis(&ps_event.market_metadata.emoji_bytes),
                 emit_time: micros_to_naive_datetime(ps_event.periodic_state_metadata.emit_time),
                 market_nonce: ps_event.periodic_state_metadata.emit_market_nonce,
                 trigger: ps_event.periodic_state_metadata.trigger,

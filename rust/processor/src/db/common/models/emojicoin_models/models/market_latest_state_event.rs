@@ -1,8 +1,8 @@
 use crate::{
     db::common::models::emojicoin_models::{
-        enums,
-        enums::{Period, Trigger},
+        enums::{self, Period, Trigger},
         json_types::{InstantaneousStats, MarketResource, PeriodicStateTracker, TxnInfo},
+        parsers::emojis::parser::symbol_bytes_to_emojis,
         utils::micros_to_naive_datetime,
     },
     schema::market_latest_state_event,
@@ -24,6 +24,7 @@ pub struct MarketLatestStateEventModel {
     // Market and state metadata.
     pub market_id: i64,
     pub symbol_bytes: Vec<u8>,
+    pub symbol_emojis: Vec<String>,
     pub bump_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
     pub trigger: enums::Trigger,
@@ -97,7 +98,8 @@ impl MarketLatestStateEventModel {
             transaction_timestamp: txn_info.timestamp,
 
             market_id: metadata.market_id,
-            symbol_bytes: metadata.emoji_bytes,
+            symbol_bytes: metadata.emoji_bytes.clone(),
+            symbol_emojis: symbol_bytes_to_emojis(&metadata.emoji_bytes),
             bump_time: micros_to_naive_datetime(sequence_info.last_bump_time),
             market_nonce: sequence_info.nonce,
             trigger,

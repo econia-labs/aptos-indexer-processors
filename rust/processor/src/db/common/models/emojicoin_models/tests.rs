@@ -236,9 +236,10 @@ mod json_tests {
                 "0xd00db145c047cd3619ecba69e45b4ad77f43737d309d8113d6c1c35f7a8dd00d"
             );
             assert_eq!(e.integrator_fee, 100000000);
-            assert_eq!(e.market_metadata.emoji_bytes, [
-                240, 159, 152, 141, 240, 159, 152, 156
-            ]);
+            assert_eq!(
+                e.market_metadata.emoji_bytes,
+                [240, 159, 152, 141, 240, 159, 152, 156]
+            );
             assert_eq!(
                 e.market_metadata.market_address,
                 "0xd3cbef2c5d489228ae5304f39d94bd794847b5c0e9d7968ab0391999926d3679"

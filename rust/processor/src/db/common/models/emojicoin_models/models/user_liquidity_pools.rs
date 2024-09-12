@@ -20,6 +20,7 @@ pub struct UserLiquidityPoolsModel {
     // Market and state metadata.
     pub market_id: i64,
     pub symbol_bytes: Vec<u8>,
+    pub symbol_emojis: Vec<String>,
     pub bump_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
     pub trigger: enums::Trigger,
@@ -67,6 +68,7 @@ impl UserLiquidityPoolsModel {
                             transaction_timestamp: evt.transaction_timestamp,
                             market_id: evt.market_id,
                             symbol_bytes: evt.symbol_bytes.clone(),
+                            symbol_emojis: symbol_bytes_to_emojis(&evt.symbol_bytes),
                             bump_time: evt.bump_time,
                             market_nonce: evt.market_nonce,
                             trigger: evt.trigger,
