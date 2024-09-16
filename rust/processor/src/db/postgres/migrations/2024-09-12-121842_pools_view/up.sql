@@ -51,4 +51,5 @@ FROM
     user_liquidity_pools AS ulp
 WHERE mlse.market_id = ulp.market_id
 AND provider = $1
+AND lp_coin_balance <> 0
 $$ LANGUAGE SQL;
