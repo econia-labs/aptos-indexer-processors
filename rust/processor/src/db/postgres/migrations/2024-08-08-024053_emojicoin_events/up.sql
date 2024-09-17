@@ -116,6 +116,7 @@ CREATE TABLE market_registration_events (
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
   trigger trigger_type NOT NULL,
+  market_address VARCHAR(66) NOT NULL,
 
   -- Market registration event data.
   registrant VARCHAR(66) NOT NULL,

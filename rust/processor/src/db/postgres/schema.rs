@@ -1067,6 +1067,8 @@ diesel::table! {
         market_nonce -> Int8,
         trigger -> TriggerType,
         #[max_length = 66]
+        market_address -> Varchar,
+        #[max_length = 66]
         registrant -> Varchar,
         #[max_length = 66]
         integrator -> Varchar,
