@@ -38,7 +38,7 @@ CREATE TABLE market_latest_state_event (
   last_swap_quote_volume BIGINT NOT NULL,
   last_swap_nonce BIGINT NOT NULL,
   last_swap_time TIMESTAMP NOT NULL,
-  
+
   -- Querying all post-bonding curve markets. i.e., markets with liquidity pools.
   daily_tvl_per_lp_coin_growth_q64 NUMERIC NOT NULL,
   in_bonding_curve BOOLEAN NOT NULL,
@@ -74,6 +74,8 @@ CREATE TABLE user_liquidity_pools (
   liquidity_provided BOOLEAN NOT NULL,
   pro_rata_base_donation_claim_amount BIGINT NOT NULL,
   pro_rata_quote_donation_claim_amount BIGINT NOT NULL,
+
+  lp_coin_balance BIGINT NOT NULL,
 
   PRIMARY KEY (provider, market_id)
 );

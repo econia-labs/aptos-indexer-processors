@@ -365,6 +365,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                             swap_events_db.push(swap_model);
                         },
                         BumpEvent::Liquidity(event) => {
+                            let market_addr = market_addr.clone();
                             let evt_model = LiquidityEventModel::new(txn_info, event, state_event);
                             liquidity_events_db.push(evt_model.clone());
 
@@ -373,7 +374,12 @@ impl ProcessorTrait for EmojicoinProcessor {
                             // only the latest interaction is used to insert/update the user's row for that pool.
                             // Otherwise we'd needlessly overwrite the same row multiple times from one transaction.
                             let key = (evt_model.provider.clone(), evt_model.market_id);
-                            let new_pool: UserLiquidityPoolsModel = evt_model.into();
+                            let new_pool: UserLiquidityPoolsModel =
+                                UserLiquidityPoolsModel::from_event_and_writeset(
+                                    txn,
+                                    evt_model,
+                                    &market_addr,
+                                );
                             user_pools_db
                                 .entry(key)
                                 .and_modify(|pool| {

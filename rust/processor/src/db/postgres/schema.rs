@@ -1567,6 +1567,7 @@ diesel::table! {
         liquidity_provided -> Bool,
         base_donation_claim_amount -> Int8,
         quote_donation_claim_amount -> Int8,
+        lp_coin_balance -> Int8,
     }
 }
 
