@@ -1,6 +1,6 @@
 -- Your SQL goes here
 
-CREATE VIEW market_latest_state AS
+CREATE VIEW market_state AS
 SELECT
     mlse.*,
     dv.daily_volume
@@ -9,8 +9,8 @@ FROM
 INNER JOIN
     market_daily_volume dv ON mlse.market_id = dv.market_id;
 
-CREATE INDEX mkt_state_by_mkt_nonce_idx
-ON market_latest_state_event (market_nonce DESC);
+CREATE INDEX mkt_state_by_bump_time_idx
+ON market_latest_state_event (bump_time DESC);
 
 CREATE INDEX mkt_state_by_mkt_cap_idx
 ON market_latest_state_event (instantaneous_stats_market_cap DESC);
