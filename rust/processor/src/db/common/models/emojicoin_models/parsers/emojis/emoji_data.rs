@@ -4,17 +4,17 @@ use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Deserialize)]
-struct EmojiMap(#[serde(with = "emoji_json")] HashMap<String, String>);
+struct EmojiMap(#[serde(with = "emoji_json")] HashSet<String>);
 
 mod emoji_json {
     use serde::Deserialize;
-    use std::collections::HashMap;
+    use std::collections::HashSet;
 
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<HashMap<String, String>, D::Error>
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<HashSet<String>, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let string_map = HashMap::<String, String>::deserialize(deserializer)?;
+        let string_map = HashSet::<String>::deserialize(deserializer)?;
         Ok(string_map)
     }
 }
@@ -33,8 +33,8 @@ static SYMBOL_EMOJIS: Lazy<HashSet<String>> = Lazy::new(|| {
     );
     let emoji_map: EmojiMap = serde_json::from_str(EMOJI_JSON).expect(msg);
 
-    let emojis = HashSet::from_iter(emoji_map.0.values().cloned());
-    emojis
+    
+    HashSet::from_iter(emoji_map.0)
 });
 
 static EMOJI_DICTIONARY_BY_NUM_BYTES: Lazy<HashMap<usize, HashSet<Vec<u8>>>> = Lazy::new(|| {
