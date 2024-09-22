@@ -1,6 +1,9 @@
 use super::liquidity_event::LiquidityEventModel;
 use crate::{
-    db::common::models::emojicoin_models::enums, schema::user_liquidity_pools,
+    db::common::models::emojicoin_models::{
+        enums, parsers::emojis::parser::symbol_bytes_to_emojis,
+    },
+    schema::user_liquidity_pools,
     utils::util::standardize_address,
 };
 use aptos_protos::transaction::v1::{write_set_change::Change, Transaction};
