@@ -26,6 +26,7 @@ pub struct LiquidityEventModel {
     pub bump_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
     pub trigger: enums::Trigger,
+    pub market_address: String,
 
     // Liquidity event data.
     pub provider: String,
@@ -104,6 +105,7 @@ impl LiquidityEventModel {
             bump_time: micros_to_naive_datetime(time),
             market_nonce: liquidity_event.market_nonce,
             trigger: state_metadata.trigger,
+            market_address: market_metadata.market_address,
 
             // Liquidity event data.
             provider,
