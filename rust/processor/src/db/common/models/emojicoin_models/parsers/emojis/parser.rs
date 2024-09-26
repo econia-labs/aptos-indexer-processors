@@ -1,6 +1,5 @@
-use itertools::Itertools;
-
 use super::emoji_data::{get_emojis_by_num_bytes, get_sorted_symbol_lengths};
+use itertools::Itertools;
 
 // Parses a sequence of bytes to separate symbol emojis as a vector of `String` values.
 pub fn symbol_bytes_to_emojis(symbol_bytes: &[u8]) -> Vec<String> {

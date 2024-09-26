@@ -1,8 +1,10 @@
-use super::emoji_data::emoji_data_test_helpers::{
-    get_all_possible_symbol_emojis, permutations_with_repetition,
+use super::{
+    emoji_data::{
+        emoji_data_test_helpers::{get_all_possible_symbol_emojis, permutations_with_repetition},
+        get_emojis_by_num_bytes, get_sorted_symbol_lengths,
+    },
+    parser::symbol_bytes_to_emojis,
 };
-use super::emoji_data::{get_emojis_by_num_bytes, get_sorted_symbol_lengths};
-use super::parser::symbol_bytes_to_emojis;
 use itertools::Itertools;
 
 #[test]

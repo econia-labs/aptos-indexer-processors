@@ -33,7 +33,6 @@ static SYMBOL_EMOJIS: Lazy<HashSet<String>> = Lazy::new(|| {
     );
     let emoji_map: EmojiMap = serde_json::from_str(EMOJI_JSON).expect(msg);
 
-    
     HashSet::from_iter(emoji_map.0)
 });
 
@@ -73,10 +72,9 @@ pub fn get_emojis_by_num_bytes(length: usize) -> Option<&'static HashSet<Vec<u8>
 
 #[cfg(test)]
 pub mod emoji_data_test_helpers {
+    use super::{get_emojis_by_num_bytes, get_sorted_symbol_lengths};
     use itertools::Itertools;
     use std::collections::HashMap;
-
-    use super::{get_emojis_by_num_bytes, get_sorted_symbol_lengths};
 
     const MAX_SYMBOL_LENGTH: usize = 10;
 
