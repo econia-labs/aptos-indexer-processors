@@ -23,6 +23,7 @@ pub struct UserLiquidityPoolsModel {
     pub bump_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
     pub trigger: enums::Trigger,
+    pub market_address: String,
 
     pub base_amount: i64,
     pub quote_amount: i64,
@@ -76,6 +77,7 @@ impl UserLiquidityPoolsModel {
                             base_donation_claim_amount: evt.base_donation_claim_amount,
                             quote_donation_claim_amount: evt.quote_donation_claim_amount,
                             lp_coin_balance: amount.parse().unwrap(),
+                            market_address: evt.market_address.clone(),
                         })
                     } else {
                         None

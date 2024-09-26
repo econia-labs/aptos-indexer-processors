@@ -14,6 +14,7 @@ CREATE TABLE market_latest_state_event (
   bump_time TIMESTAMP NOT NULL, -- Note that bump and emit time are interchangeable.
   market_nonce BIGINT NOT NULL,
   trigger trigger_type NOT NULL,
+  market_address VARCHAR(66) NOT NULL,
 
   -- State event data.
   clamm_virtual_reserves_base BIGINT NOT NULL,
@@ -66,6 +67,7 @@ CREATE TABLE user_liquidity_pools (
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
   trigger trigger_type NOT NULL,
+  market_address VARCHAR(66) NOT NULL,
 
   -- Liquidity event data.
   base_amount BIGINT NOT NULL,

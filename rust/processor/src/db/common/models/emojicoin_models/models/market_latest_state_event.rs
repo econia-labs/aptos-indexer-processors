@@ -27,6 +27,7 @@ pub struct MarketLatestStateEventModel {
     pub bump_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
     pub trigger: enums::Trigger,
+    pub market_address: String,
 
     // State event data.
     pub clamm_virtual_reserves_base: i64,
@@ -100,6 +101,7 @@ impl MarketLatestStateEventModel {
             bump_time: micros_to_naive_datetime(sequence_info.last_bump_time),
             market_nonce: sequence_info.nonce,
             trigger,
+            market_address: metadata.market_address,
 
             clamm_virtual_reserves_base: clamm_virtual_reserves.base,
             clamm_virtual_reserves_quote: clamm_virtual_reserves.quote,

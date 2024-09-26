@@ -70,6 +70,7 @@ CREATE TABLE periodic_state_events (
   emit_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
   trigger trigger_type NOT NULL,
+  market_address VARCHAR(66) NOT NULL,
 
   -- Last swap data.
   last_swap_is_sell BOOLEAN NOT NULL,
@@ -116,6 +117,7 @@ CREATE TABLE market_registration_events (
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
   trigger trigger_type NOT NULL,
+  market_address VARCHAR(66) NOT NULL,
 
   -- Market registration event data.
   registrant VARCHAR(66) NOT NULL,
@@ -139,6 +141,7 @@ CREATE TABLE swap_events (
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
   trigger trigger_type NOT NULL,
+  market_address VARCHAR(66) NOT NULL,
 
   -- Swap event data.
   swapper VARCHAR(66) NOT NULL,
@@ -193,6 +196,7 @@ CREATE TABLE chat_events (
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
   trigger trigger_type NOT NULL,
+  market_address VARCHAR(66) NOT NULL,
 
   -- Chat event data.
   "user" VARCHAR(66) NOT NULL,
@@ -242,6 +246,7 @@ CREATE TABLE liquidity_events (
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
   trigger trigger_type NOT NULL,
+  market_address VARCHAR(66) NOT NULL,
 
   -- Liquidity event data.
   provider VARCHAR(66) NOT NULL,

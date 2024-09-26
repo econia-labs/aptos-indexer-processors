@@ -23,6 +23,7 @@ pub struct PeriodicStateEventModel {
     // Market metadata.
     pub market_id: i64,
     pub symbol_bytes: Vec<u8>,
+    pub market_address: String,
 
     // State metadata.
     pub emit_time: chrono::NaiveDateTime,
@@ -72,6 +73,7 @@ impl PeriodicStateEventModel {
                 entry_function: txn_info.entry_function.clone(),
                 transaction_timestamp: txn_info.timestamp,
                 market_id: ps_event.market_metadata.market_id,
+                market_address: ps_event.market_metadata.market_address,
                 symbol_bytes: ps_event.market_metadata.emoji_bytes,
                 emit_time: micros_to_naive_datetime(ps_event.periodic_state_metadata.emit_time),
                 market_nonce: ps_event.periodic_state_metadata.emit_market_nonce,

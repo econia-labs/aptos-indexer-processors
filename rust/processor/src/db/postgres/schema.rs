@@ -129,6 +129,8 @@ diesel::table! {
         market_nonce -> Int8,
         trigger -> TriggerType,
         #[max_length = 66]
+        market_address -> Varchar,
+        #[max_length = 66]
         user -> Varchar,
         message -> Text,
         user_emojicoin_balance -> Int8,
@@ -961,6 +963,8 @@ diesel::table! {
         market_nonce -> Int8,
         trigger -> TriggerType,
         #[max_length = 66]
+        market_address -> Varchar,
+        #[max_length = 66]
         provider -> Varchar,
         base_amount -> Int8,
         quote_amount -> Int8,
@@ -1021,6 +1025,8 @@ diesel::table! {
         bump_time -> Timestamp,
         market_nonce -> Int8,
         trigger -> TriggerType,
+        #[max_length = 66]
+        market_address -> Varchar,
         clamm_virtual_reserves_base -> Int8,
         clamm_virtual_reserves_quote -> Int8,
         cpamm_real_reserves_base -> Int8,
@@ -1066,6 +1072,8 @@ diesel::table! {
         bump_time -> Timestamp,
         market_nonce -> Int8,
         trigger -> TriggerType,
+        #[max_length = 66]
+        market_address -> Varchar,
         #[max_length = 66]
         registrant -> Varchar,
         #[max_length = 66]
@@ -1160,6 +1168,8 @@ diesel::table! {
         emit_time -> Timestamp,
         market_nonce -> Int8,
         trigger -> TriggerType,
+        #[max_length = 66]
+        market_address -> Varchar,
         last_swap_is_sell -> Bool,
         last_swap_avg_execution_price_q64 -> Numeric,
         last_swap_base_volume -> Int8,
@@ -1256,6 +1266,8 @@ diesel::table! {
         bump_time -> Timestamp,
         market_nonce -> Int8,
         trigger -> TriggerType,
+        #[max_length = 66]
+        market_address -> Varchar,
         #[max_length = 66]
         swapper -> Varchar,
         #[max_length = 66]
@@ -1561,6 +1573,8 @@ diesel::table! {
         bump_time -> Timestamp,
         market_nonce -> Int8,
         trigger -> TriggerType,
+        #[max_length = 66]
+        market_address -> Varchar,
         base_amount -> Int8,
         quote_amount -> Int8,
         lp_coin_amount -> Int8,

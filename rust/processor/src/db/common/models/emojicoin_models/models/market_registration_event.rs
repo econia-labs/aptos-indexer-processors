@@ -25,6 +25,7 @@ pub struct MarketRegistrationEventModel {
     pub bump_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
     pub trigger: enums::Trigger,
+    pub market_address: String,
 
     // Market registration event data.
     pub registrant: String,
@@ -60,6 +61,7 @@ impl MarketRegistrationEventModel {
             bump_time: micros_to_naive_datetime(time),
             market_nonce: state_event.state_metadata.market_nonce,
             trigger: state_event.state_metadata.trigger,
+            market_address: market_metadata.market_address,
 
             // Market registration event data.
             registrant,

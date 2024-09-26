@@ -26,6 +26,7 @@ pub struct ChatEventModel {
     pub bump_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
     pub trigger: enums::Trigger,
+    pub market_address: String,
 
     // Chat event data.
     pub user: String,
@@ -99,6 +100,7 @@ impl ChatEventModel {
             bump_time: micros_to_naive_datetime(state_metadata.bump_time),
             market_nonce: state_metadata.market_nonce,
             trigger: state_metadata.trigger,
+            market_address: market_metadata.market_address,
 
             // Chat event data.
             user,

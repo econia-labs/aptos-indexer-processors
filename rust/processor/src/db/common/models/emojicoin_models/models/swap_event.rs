@@ -26,6 +26,7 @@ pub struct SwapEventModel {
     pub bump_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
     pub trigger: enums::Trigger,
+    pub market_address: String,
 
     // Swap event data.
     pub swapper: String,
@@ -115,6 +116,7 @@ impl SwapEventModel {
             bump_time: micros_to_naive_datetime(time),
             market_nonce,
             trigger: state_metadata.trigger,
+            market_address: market_metadata.market_address,
 
             // Swap event data.
             swapper,
