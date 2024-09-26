@@ -17,10 +17,7 @@ use crate::{
             user_liquidity_pools::UserLiquidityPoolsModel,
         },
         queries::insertion_queries::{
-            insert_chat_events_query, insert_global_events, insert_liquidity_events_query,
-            insert_market_latest_state_event_query, insert_market_registration_events_query,
-            insert_periodic_state_events_query, insert_swap_events_query,
-            insert_user_liquidity_pools_query,
+            delete_unregistered_markets_query, insert_chat_events_query, insert_global_events, insert_liquidity_events_query, insert_market_latest_state_event_query, insert_market_registration_events_query, insert_periodic_state_events_query, insert_swap_events_query, insert_user_liquidity_pools_query
         },
     },
     emojicoin_dot_fun::EmojicoinDbEvent,
@@ -111,6 +108,15 @@ async fn insert_to_db(
             per_table_chunk_sizes,
         ),
     );
+    let market_unregistration = execute_in_chunks(
+        conn.clone(),
+        delete_unregistered_markets_query,
+        market_registration_events,
+        get_config_table_chunk_size::<MarketRegistrationEventModel>(
+            "unregistered_markets",
+            per_table_chunk_sizes,
+        ),
+    );
 
     // Note that this is currently not chunked and could result in a query that deletes several hundred rows at once.
     let update_one_min_periods = MarketOneMinutePeriodsInLastDayModel::insert_and_delete_periods(
@@ -175,8 +181,9 @@ async fn insert_to_db(
         ),
     );
 
-    let (m, s, c, l, per, g, pools, lse, update_1mins) = tokio::join!(
+    let (m, u, s, c, l, per, g, pools, lse, update_1mins) = tokio::join!(
         market_registration,
+        market_unregistration,
         swap,
         chat,
         liquidity,
@@ -187,7 +194,7 @@ async fn insert_to_db(
         update_one_min_periods,
     );
 
-    for res in [m, s, c, l, per, g, pools, lse] {
+    for res in [m, u, s, c, l, per, g, pools, lse] {
         res?;
     }
 
