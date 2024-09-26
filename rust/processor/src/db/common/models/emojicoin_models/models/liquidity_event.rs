@@ -56,6 +56,8 @@ pub struct LiquidityEventModel {
     pub instantaneous_stats_total_value_locked: BigDecimal,
     pub instantaneous_stats_market_cap: BigDecimal,
     pub instantaneous_stats_fully_diluted_value: BigDecimal,
+
+    // Last swap data.
     pub last_swap_is_sell: bool,
     pub last_swap_avg_execution_price_q64: BigDecimal,
     pub last_swap_base_volume: i64,

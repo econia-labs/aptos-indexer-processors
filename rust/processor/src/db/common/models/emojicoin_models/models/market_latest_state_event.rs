@@ -47,6 +47,8 @@ pub struct MarketLatestStateEventModel {
     pub instantaneous_stats_total_value_locked: BigDecimal,
     pub instantaneous_stats_market_cap: BigDecimal,
     pub instantaneous_stats_fully_diluted_value: BigDecimal,
+
+    // Last swap data.
     pub last_swap_is_sell: bool,
     pub last_swap_avg_execution_price_q64: BigDecimal,
     pub last_swap_base_volume: i64,
@@ -54,6 +56,7 @@ pub struct MarketLatestStateEventModel {
     pub last_swap_nonce: i64,
     pub last_swap_time: chrono::NaiveDateTime,
 
+    // Processed data.
     pub daily_tvl_per_lp_coin_growth_q64: BigDecimal,
     pub in_bonding_curve: bool,
     pub volume_in_1m_state_tracker: BigDecimal,
