@@ -13,7 +13,7 @@ CREATE FUNCTION user_pools(provider text) RETURNS TABLE(
   bump_time TIMESTAMP, -- Note that bump and emit time are interchangeable.
   market_nonce BIGINT,
   trigger trigger_type,
-  market_address VARCHAR(66) NOT NULL,
+  market_address VARCHAR(66),
 
   -- State event data.
   clamm_virtual_reserves_base BIGINT,
