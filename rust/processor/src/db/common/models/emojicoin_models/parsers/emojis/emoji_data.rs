@@ -116,11 +116,12 @@ pub mod emoji_data_test_helpers {
     /// a bottoms-up dynamic programming solution- more specifically, a non-recursive solution.
     ///
     /// The `tuples` below refer to the valid combination of various emoji lengths to form a whole
-    /// symbol. That is, a tuple of (3, 4, 3) would indicate a symbol with an emoji of length 3, 4, and
-    /// 3, in that order. The tuples represent all combinations of 3-byte, 4-byte, and 3-byte emojis
-    /// as symbols. The various combinations are fairly trivial to calculate manually, but this was
-    /// created with the possibility of a more expansive set of emojis down the road, or even as an
-    /// exhaustive set of all emojis to test a more general rust-based emoji pattern matcher.
+    /// symbol. That is, a tuple of (3, 4, 3) would indicate a symbol with an emoji of length 3, 4,
+    /// and 3, in that order. The tuples represent all combinations of 3-byte, 4-byte, and 3-byte
+    /// emojis as symbols. The various combinations are fairly trivial to calculate manually, but
+    /// this was created with the possibility of a more expansive set of emojis down the road, or
+    /// even as an exhaustive set of all emojis to test a more general rust-based emoji pattern
+    /// matcher.
     ///
     /// An example of how it works:
     /// If the total valid tuples were (3,), (3, 4), and (3, 4, 5), and we had a dictionary
