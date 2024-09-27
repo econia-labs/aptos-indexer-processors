@@ -1165,9 +1165,9 @@ CREATE INDEX emojis_length ON emojis (octet_length(emoji));
 
 INSERT INTO unregistered_markets
 WITH RECURSIVE names AS (
-    SELECT emoji AS name FROM emojis
+    SELECT emoji AS "name" FROM emojis
     UNION ALL
-    SELECT name || emoji FROM names, emojis WHERE octet_length(emoji) <= 10 - octet_length(name)
+    SELECT "name" || emoji FROM names, emojis WHERE octet_length(emoji) <= 10 - octet_length("name")
 )
 SELECT * FROM names;
 

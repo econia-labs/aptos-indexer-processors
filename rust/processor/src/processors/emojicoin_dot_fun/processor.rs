@@ -108,7 +108,7 @@ async fn insert_to_db(
             per_table_chunk_sizes,
         ),
     );
-    let market_unregistration = execute_in_chunks(
+    let unregistered_markets_update = execute_in_chunks(
         conn.clone(),
         delete_unregistered_markets_query,
         market_registration_events,
@@ -183,7 +183,7 @@ async fn insert_to_db(
 
     let (m, u, s, c, l, per, g, pools, lse, update_1mins) = tokio::join!(
         market_registration,
-        market_unregistration,
+        unregistered_markets_update,
         swap,
         chat,
         liquidity,
