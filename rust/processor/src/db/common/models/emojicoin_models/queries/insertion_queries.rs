@@ -78,6 +78,23 @@ pub fn insert_market_registration_events_query(
     )
 }
 
+pub fn delete_unregistered_markets_query(
+    items_to_remove: Vec<MarketRegistrationEventModel>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::unregistered_markets::dsl::*;
+    let data = items_to_remove
+        .iter()
+        .map(|e| e.symbol_bytes.clone())
+        .collect::<Vec<_>>();
+    (
+        diesel::delete(unregistered_markets.filter(emojis.eq_any(data))),
+        None,
+    )
+}
+
 pub fn insert_periodic_state_events_query(
     items_to_insert: Vec<PeriodicStateEventModel>,
 ) -> (

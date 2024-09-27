@@ -800,6 +800,12 @@ diesel::table! {
 }
 
 diesel::table! {
+    emojis (emoji) {
+        emoji -> Bytea,
+    }
+}
+
+diesel::table! {
     event_size_info (transaction_version, index) {
         transaction_version -> Int8,
         index -> Int8,
@@ -1565,6 +1571,12 @@ diesel::table! {
 }
 
 diesel::table! {
+    unregistered_markets (emojis) {
+        emojis -> Bytea,
+    }
+}
+
+diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::TriggerType;
 
@@ -1677,6 +1689,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     delegated_staking_pool_balances,
     delegated_staking_pools,
     delegator_balances,
+    emojis,
     event_size_info,
     events,
     fungible_asset_activities,
@@ -1710,6 +1723,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     tokens,
     transaction_size_info,
     transactions,
+    unregistered_markets,
     user_liquidity_pools,
     user_transactions,
     write_set_changes,
