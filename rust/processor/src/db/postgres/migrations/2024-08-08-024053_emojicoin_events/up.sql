@@ -67,9 +67,11 @@ CREATE TABLE periodic_state_events (
   -- Market and state metadata.
   market_id BIGINT NOT NULL,
   symbol_bytes BYTEA NOT NULL,
+  symbol_emojis TEXT[] NOT NULL,
   emit_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
   trigger trigger_type NOT NULL,
+  market_address VARCHAR(66) NOT NULL,
 
   -- Last swap data.
   last_swap_is_sell BOOLEAN NOT NULL,
@@ -113,9 +115,11 @@ CREATE TABLE market_registration_events (
   -- Market and state metadata.
   market_id BIGINT NOT NULL,
   symbol_bytes BYTEA NOT NULL,
+  symbol_emojis TEXT[] NOT NULL,
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
   trigger trigger_type NOT NULL,
+  market_address VARCHAR(66) NOT NULL,
 
   -- Market registration event data.
   registrant VARCHAR(66) NOT NULL,
@@ -136,9 +140,11 @@ CREATE TABLE swap_events (
   -- Market and state metadata.
   market_id BIGINT NOT NULL,
   symbol_bytes BYTEA NOT NULL,
+  symbol_emojis TEXT[] NOT NULL,
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
   trigger trigger_type NOT NULL,
+  market_address VARCHAR(66) NOT NULL,
 
   -- Swap event data.
   swapper VARCHAR(66) NOT NULL,
@@ -172,7 +178,9 @@ CREATE TABLE swap_events (
   instantaneous_stats_total_value_locked NUMERIC NOT NULL,
   instantaneous_stats_market_cap NUMERIC NOT NULL,
   instantaneous_stats_fully_diluted_value NUMERIC NOT NULL,
-
+  balance_as_fraction_of_circulating_supply_before_q64 NUMERIC NOT NULL,
+  balance_as_fraction_of_circulating_supply_after_q64 NUMERIC NOT NULL,
+  
   -- We don't include the state `last_swap` data here because
   -- it's identical to the swap event data above.
 
@@ -190,9 +198,11 @@ CREATE TABLE chat_events (
   -- Market and state metadata.
   market_id BIGINT NOT NULL,
   symbol_bytes BYTEA NOT NULL,
+  symbol_emojis TEXT[] NOT NULL,
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
   trigger trigger_type NOT NULL,
+  market_address VARCHAR(66) NOT NULL,
 
   -- Chat event data.
   "user" VARCHAR(66) NOT NULL,
@@ -239,9 +249,11 @@ CREATE TABLE liquidity_events (
   -- Market and state metadata.
   market_id BIGINT NOT NULL,
   symbol_bytes BYTEA NOT NULL,
+  symbol_emojis TEXT[] NOT NULL,
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
   trigger trigger_type NOT NULL,
+  market_address VARCHAR(66) NOT NULL,
 
   -- Liquidity event data.
   provider VARCHAR(66) NOT NULL,
@@ -249,8 +261,8 @@ CREATE TABLE liquidity_events (
   quote_amount BIGINT NOT NULL,
   lp_coin_amount BIGINT NOT NULL,
   liquidity_provided BOOLEAN NOT NULL,
-  pro_rata_base_donation_claim_amount BIGINT NOT NULL,
-  pro_rata_quote_donation_claim_amount BIGINT NOT NULL,
+  base_donation_claim_amount BIGINT NOT NULL,
+  quote_donation_claim_amount BIGINT NOT NULL,
 
   -- State event data.
   clamm_virtual_reserves_base BIGINT NOT NULL,

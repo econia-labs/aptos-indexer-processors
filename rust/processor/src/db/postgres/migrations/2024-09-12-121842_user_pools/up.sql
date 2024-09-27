@@ -1,5 +1,5 @@
 -- Your SQL goes here
-CREATE FUNCTION user_pools(text) RETURNS TABLE(
+CREATE FUNCTION user_pools(provider text) RETURNS TABLE(
   transaction_version BIGINT,
   sender VARCHAR(66),
   entry_function VARCHAR(200),
@@ -9,9 +9,11 @@ CREATE FUNCTION user_pools(text) RETURNS TABLE(
   -- Market and state metadata.
   market_id BIGINT,
   symbol_bytes BYTEA,
+  symbol_emojis TEXT[],
   bump_time TIMESTAMP, -- Note that bump and emit time are interchangeable.
   market_nonce BIGINT,
   trigger trigger_type,
+  market_address VARCHAR(66),
 
   -- State event data.
   clamm_virtual_reserves_base BIGINT,
@@ -50,6 +52,6 @@ FROM
     market_latest_state_event AS mlse,
     user_liquidity_pools AS ulp
 WHERE mlse.market_id = ulp.market_id
-AND provider = $1
+AND ulp.provider = $1
 AND lp_coin_balance <> 0
 $$ LANGUAGE SQL;

@@ -11,9 +11,11 @@ CREATE TABLE market_latest_state_event (
   -- Market and state metadata.
   market_id BIGINT NOT NULL,
   symbol_bytes BYTEA NOT NULL,
+  symbol_emojis TEXT[] NOT NULL,
   bump_time TIMESTAMP NOT NULL, -- Note that bump and emit time are interchangeable.
   market_nonce BIGINT NOT NULL,
   trigger trigger_type NOT NULL,
+  market_address VARCHAR(66) NOT NULL,
 
   -- State event data.
   clamm_virtual_reserves_base BIGINT NOT NULL,
@@ -63,17 +65,19 @@ CREATE TABLE user_liquidity_pools (
 
   market_id BIGINT NOT NULL,
   symbol_bytes BYTEA NOT NULL,
+  symbol_emojis TEXT[] NOT NULL,
   bump_time TIMESTAMP NOT NULL,
   market_nonce BIGINT NOT NULL,
   trigger trigger_type NOT NULL,
+  market_address VARCHAR(66) NOT NULL,
 
   -- Liquidity event data.
   base_amount BIGINT NOT NULL,
   quote_amount BIGINT NOT NULL,
   lp_coin_amount BIGINT NOT NULL,
   liquidity_provided BOOLEAN NOT NULL,
-  pro_rata_base_donation_claim_amount BIGINT NOT NULL,
-  pro_rata_quote_donation_claim_amount BIGINT NOT NULL,
+  base_donation_claim_amount BIGINT NOT NULL,
+  quote_donation_claim_amount BIGINT NOT NULL,
 
   lp_coin_balance BIGINT NOT NULL,
 
@@ -81,5 +85,5 @@ CREATE TABLE user_liquidity_pools (
 );
 
 CREATE INDEX user_lp_pools_idx
-ON user_liquidity_pools (provider, market_id, market_nonce DESC);
+ON user_liquidity_pools (provider, market_id DESC);
 

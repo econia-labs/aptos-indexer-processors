@@ -1,6 +1,9 @@
 use super::liquidity_event::LiquidityEventModel;
 use crate::{
-    db::common::models::emojicoin_models::enums, schema::user_liquidity_pools,
+    db::common::models::emojicoin_models::{
+        enums, parsers::emojis::parser::symbol_bytes_to_emojis,
+    },
+    schema::user_liquidity_pools,
     utils::util::standardize_address,
 };
 use aptos_protos::transaction::v1::{write_set_change::Change, Transaction};
@@ -20,9 +23,11 @@ pub struct UserLiquidityPoolsModel {
     // Market and state metadata.
     pub market_id: i64,
     pub symbol_bytes: Vec<u8>,
+    pub symbol_emojis: Vec<String>,
     pub bump_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
     pub trigger: enums::Trigger,
+    pub market_address: String,
 
     pub base_amount: i64,
     pub quote_amount: i64,
@@ -66,6 +71,7 @@ impl UserLiquidityPoolsModel {
                             transaction_timestamp: evt.transaction_timestamp,
                             market_id: evt.market_id,
                             symbol_bytes: evt.symbol_bytes.clone(),
+                            symbol_emojis: symbol_bytes_to_emojis(&evt.symbol_bytes),
                             bump_time: evt.bump_time,
                             market_nonce: evt.market_nonce,
                             trigger: evt.trigger,
@@ -76,6 +82,7 @@ impl UserLiquidityPoolsModel {
                             base_donation_claim_amount: evt.base_donation_claim_amount,
                             quote_donation_claim_amount: evt.quote_donation_claim_amount,
                             lp_coin_balance: amount.parse().unwrap(),
+                            market_address: evt.market_address.clone(),
                         })
                     } else {
                         None

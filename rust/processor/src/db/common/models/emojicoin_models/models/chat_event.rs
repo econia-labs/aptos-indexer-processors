@@ -2,6 +2,7 @@ use crate::{
     db::common::models::emojicoin_models::{
         enums,
         json_types::{ChatEvent, StateEvent, TxnInfo},
+        parsers::emojis::parser::symbol_bytes_to_emojis,
         utils::micros_to_naive_datetime,
     },
     schema::chat_events,
@@ -23,9 +24,11 @@ pub struct ChatEventModel {
     // Market and state metadata.
     pub market_id: i64,
     pub symbol_bytes: Vec<u8>,
+    pub symbol_emojis: Vec<String>,
     pub bump_time: chrono::NaiveDateTime,
     pub market_nonce: i64,
     pub trigger: enums::Trigger,
+    pub market_address: String,
 
     // Chat event data.
     pub user: String,
@@ -51,6 +54,8 @@ pub struct ChatEventModel {
     pub instantaneous_stats_total_value_locked: BigDecimal,
     pub instantaneous_stats_market_cap: BigDecimal,
     pub instantaneous_stats_fully_diluted_value: BigDecimal,
+
+    // Last swap data.
     pub last_swap_is_sell: bool,
     pub last_swap_avg_execution_price_q64: BigDecimal,
     pub last_swap_base_volume: i64,
@@ -95,10 +100,12 @@ impl ChatEventModel {
 
             // Market and state metadata.
             market_id: market_metadata.market_id,
-            symbol_bytes: market_metadata.emoji_bytes,
+            symbol_bytes: market_metadata.emoji_bytes.clone(),
+            symbol_emojis: symbol_bytes_to_emojis(&market_metadata.emoji_bytes),
             bump_time: micros_to_naive_datetime(state_metadata.bump_time),
             market_nonce: state_metadata.market_nonce,
             trigger: state_metadata.trigger,
+            market_address: market_metadata.market_address,
 
             // Chat event data.
             user,
