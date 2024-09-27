@@ -85,7 +85,10 @@ pub fn delete_unregistered_markets_query(
     Option<&'static str>,
 ) {
     use schema::unregistered_markets::dsl::*;
-    let data = items_to_remove.iter().map(|e| e.symbol_bytes.clone()).collect::<Vec<_>>();
+    let data = items_to_remove
+        .iter()
+        .map(|e| e.symbol_bytes.clone())
+        .collect::<Vec<_>>();
     (
         diesel::delete(unregistered_markets.filter(emojis.eq_any(data))),
         None,

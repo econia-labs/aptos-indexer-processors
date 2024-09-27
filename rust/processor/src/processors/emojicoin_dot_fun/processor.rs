@@ -17,7 +17,10 @@ use crate::{
             user_liquidity_pools::UserLiquidityPoolsModel,
         },
         queries::insertion_queries::{
-            delete_unregistered_markets_query, insert_chat_events_query, insert_global_events, insert_liquidity_events_query, insert_market_latest_state_event_query, insert_market_registration_events_query, insert_periodic_state_events_query, insert_swap_events_query, insert_user_liquidity_pools_query
+            delete_unregistered_markets_query, insert_chat_events_query, insert_global_events,
+            insert_liquidity_events_query, insert_market_latest_state_event_query,
+            insert_market_registration_events_query, insert_periodic_state_events_query,
+            insert_swap_events_query, insert_user_liquidity_pools_query,
         },
     },
     emojicoin_dot_fun::EmojicoinDbEvent,
