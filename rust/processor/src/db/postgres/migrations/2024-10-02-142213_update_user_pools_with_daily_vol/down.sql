@@ -1,4 +1,5 @@
 -- This file should undo anything in `up.sql`
+DROP FUNCTION user_pools(provider text);
 CREATE FUNCTION user_pools(provider text) RETURNS TABLE(
   transaction_version BIGINT,
   sender VARCHAR(66),

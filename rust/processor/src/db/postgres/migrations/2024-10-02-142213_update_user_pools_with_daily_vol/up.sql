@@ -1,5 +1,6 @@
 -- Your SQL goes here
-CREATE OR REPLACE FUNCTION user_pools(provider text) RETURNS TABLE(
+DROP FUNCTION user_pools(provider text);
+CREATE FUNCTION user_pools(provider text) RETURNS TABLE(
   transaction_version BIGINT,
   sender VARCHAR(66),
   entry_function VARCHAR(200),
