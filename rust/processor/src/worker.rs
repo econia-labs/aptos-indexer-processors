@@ -664,6 +664,14 @@ impl Worker {
         })
     }
 
+    async fn update_postgrest_schema(&self, conn: &mut diesel::pg::PgConnection) {
+        use diesel::RunQueryDsl;
+        diesel::sql_query("NOTIFY pgrst, 'reload schema'")
+            .execute(conn)
+            .expect("Failed to notify postgrest of the new schema post migrations.");
+        info!("Successfully notified postgrest to reload the schema cache.");
+    }
+
     // For the normal processor build we just use standard Diesel with the postgres
     // feature enabled (which uses libpq under the hood, hence why we named the feature
     // this way).
@@ -676,6 +684,7 @@ impl Worker {
         let mut conn =
             PgConnection::establish(&self.postgres_connection_string).expect("migrations failed!");
         run_pending_migrations(&mut conn);
+        self.update_postgrest_schema(&mut conn).await;
     }
 
     // If the libpq feature isn't enabled, we use diesel async instead. This is used by
@@ -699,6 +708,7 @@ impl Worker {
             let mut conn: AsyncConnectionWrapper<diesel_async::AsyncPgConnection> =
                 AsyncConnectionWrapper::from(conn);
             run_pending_migrations(&mut conn);
+            self.update_postgrest_schema(&mut conn).await;
         })
         .await
         .expect("[Parser] Failed to run migrations");

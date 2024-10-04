@@ -204,7 +204,7 @@ pub fn insert_market_latest_state_event_query(
                 last_swap_quote_volume.eq(excluded(last_swap_quote_volume)),
                 last_swap_nonce.eq(excluded(last_swap_nonce)),
                 last_swap_time.eq(excluded(last_swap_time)),
-                daily_tvl_per_lp_coin_growth_q64.eq(excluded(daily_tvl_per_lp_coin_growth_q64)),
+                daily_tvl_per_lp_coin_growth.eq(excluded(daily_tvl_per_lp_coin_growth)),
                 in_bonding_curve.eq(excluded(in_bonding_curve)),
                 volume_in_1m_state_tracker.eq(excluded(volume_in_1m_state_tracker)),
             ))
