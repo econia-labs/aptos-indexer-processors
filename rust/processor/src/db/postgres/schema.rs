@@ -1058,7 +1058,7 @@ diesel::table! {
         last_swap_quote_volume -> Int8,
         last_swap_nonce -> Int8,
         last_swap_time -> Timestamp,
-        daily_tvl_per_lp_coin_growth_q64 -> Numeric,
+        daily_tvl_per_lp_coin_growth -> Numeric,
         in_bonding_curve -> Bool,
         volume_in_1m_state_tracker -> Numeric,
     }
