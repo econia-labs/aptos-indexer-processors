@@ -58,3 +58,6 @@ CREATE EVENT TRIGGER pgrst_ddl_watch
 CREATE EVENT TRIGGER pgrst_drop_watch
   ON sql_drop
   EXECUTE PROCEDURE pgrst_drop_watch();
+
+CREATE TABLE dummy (id INT);
+DROP TABLE dummy;
