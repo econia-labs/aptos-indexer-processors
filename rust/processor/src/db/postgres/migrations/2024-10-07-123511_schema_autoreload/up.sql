@@ -1,4 +1,5 @@
--- Your SQL goes here
+-- This is taken directly from the PostgREST schema cache docs: https://docs.postgrest.org/en/v12/references/schema_cache.html.
+
 -- watch CREATE and ALTER
 CREATE OR REPLACE FUNCTION pgrst_ddl_watch() RETURNS event_trigger AS $$
 DECLARE
@@ -59,5 +60,6 @@ CREATE EVENT TRIGGER pgrst_drop_watch
   ON sql_drop
   EXECUTE PROCEDURE pgrst_drop_watch();
 
+-- This is used to trigger a notify once.
 CREATE TABLE dummy (id INT);
 DROP TABLE dummy;
