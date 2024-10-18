@@ -15,4 +15,6 @@ server_config:
   transaction_filter:
     focus_user_transactions: true" > /app/config.yaml
 
+psql "$DATABASE_URL" -c "SELECT * FROM processor_status" || ( echo "No database found, initializing." && psql "$DATABASE_URL" -f /db.sql )
+
 /usr/local/bin/processor --config-path /app/config.yaml
