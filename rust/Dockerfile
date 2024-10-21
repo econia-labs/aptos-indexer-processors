@@ -48,11 +48,27 @@ RUN cargo chef cook \
     --package processor \
     --release
 COPY . .
+# hadolint ignore=DL3003,DL4006
 RUN cargo build \
     --bin processor \
     --package processor \
     --release \
-    && cp target/release/processor /usr/local/bin
+    && cp target/release/processor /usr/local/bin \
+    && apt-get update && apt-get install -y --no-install-recommends \
+       postgresql-common=248* \
+    && rm -rf /var/lib/apt/lists/* \
+    && yes | /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh \
+    && apt-get update && apt-get install -y --no-install-recommends \
+       postgresql-16=16.4-1.pgdg120* \
+       postgresql-client-16=16.4-1.pgdg120* \
+    && rm -rf /var/lib/apt/lists/* \
+    && cargo install diesel_cli --no-default-features --features postgres \
+    && mkdir /data && chown postgres:postgres /data \
+    && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen \
+    && su - postgres -c "/usr/lib/postgresql/16/bin/initdb /data --locale-provider=libc --locale=en_US.UTF-8 && /usr/lib/postgresql/16/bin/pg_ctl -D /data -l logfile start" \
+    && su - postgres -c "/usr/lib/postgresql/16/bin/psql -c \"CREATE ROLE emojicoin ENCRYPTED PASSWORD 'emojicoin' SUPERUSER CREATEDB CREATEROLE INHERIT LOGIN;"\" \
+    && cd processor/src/db/postgres && sleep 4 && diesel --database-url postgres://emojicoin:emojicoin@localhost/emojicoin setup \
+    && pg_dumpall -d postgres://emojicoin:emojicoin@localhost/emojicoin > /db.sql
 
 # Install runtime dependencies, copy over binaries.
 FROM debian:bookworm-slim AS runtime
@@ -67,9 +83,11 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     libssl-dev=3.0* \
     libssl3=3.0* \
     curl=7.88* \
+    postgresql-client=15* \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=metrics-builder /usr/local/bin/indexer-metrics /usr/local/bin
 COPY --from=processor-builder /usr/local/bin/processor /usr/local/bin
+COPY --from=processor-builder /db.sql /db.sql
 
 # Configure logging format, executable startup script.
 ENV RUST_LOG_FORMAT=json
