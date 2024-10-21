@@ -10,6 +10,6 @@ DROP INDEX hash_index;
 -- SYSTEM_ROWS(N) will pick N random rows (or less if the table doesn't have N rows) and return them.
 -- Since the function is prone to clustering, and almost all returned rows are consecutive, we have the previous step to make consecutive rows appear random.
 CREATE EXTENSION tsm_system_rows;
-CREATE or replace FUNCTION random_names() RETURNS TABLE(emojis BYTEA) AS $$
+CREATE or replace FUNCTION random_symbols() RETURNS TABLE(emojis BYTEA) AS $$
 SELECT * FROM unregistered_markets TABLESAMPLE SYSTEM_ROWS(100);
 $$ LANGUAGE SQL;
