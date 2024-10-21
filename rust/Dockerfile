@@ -48,8 +48,7 @@ RUN cargo chef cook \
     --package processor \
     --release
 COPY . .
-# hadolint ignore=DL4006
-# hadolint ignore=DL3003
+# hadolint ignore=DL3003,DL4006
 RUN cargo build \
     --bin processor \
     --package processor \
