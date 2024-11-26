@@ -1,5 +1,5 @@
 -- This file should undo anything in `up.sql`
-DROP VIEW price_feed_with_market_state;
+DROP VIEW price_feed;
 
 CREATE OR REPLACE FUNCTION price_feed() RETURNS TABLE(
   market_id BIGINT,
