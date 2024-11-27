@@ -1,5 +1,6 @@
 -- This file should undo anything in `up.sql`
 DROP VIEW price_feed;
+ALTER INDEX price_feed_idx RENAME TO price_feed;
 
 CREATE OR REPLACE FUNCTION price_feed() RETURNS TABLE(
   market_id BIGINT,
