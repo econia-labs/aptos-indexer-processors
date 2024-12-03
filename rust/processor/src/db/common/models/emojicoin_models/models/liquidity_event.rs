@@ -103,7 +103,7 @@ impl LiquidityEventModel {
             // Transaction metadata.
             block_number: txn_info.block_number,
             transaction_version: txn_info.version,
-            event_index: event_index.expect("Event index should be set before insertion."),
+            event_index,
             sender: txn_info.sender.clone(),
             entry_function: txn_info.entry_function.clone(),
             transaction_timestamp: txn_info.timestamp,

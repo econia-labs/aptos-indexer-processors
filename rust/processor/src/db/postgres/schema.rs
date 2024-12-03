@@ -957,10 +957,7 @@ diesel::table! {
     use super::sql_types::TriggerType;
 
     liquidity_events (market_id, market_nonce) {
-        block_number -> Int8,
         transaction_version -> Int8,
-        event_index -> Int8,
-
         #[max_length = 66]
         sender -> Varchar,
         #[max_length = 200]
@@ -1005,6 +1002,8 @@ diesel::table! {
         last_swap_quote_volume -> Int8,
         last_swap_nonce -> Int8,
         last_swap_time -> Timestamp,
+        block_number -> Int8,
+        event_index -> Int8,
     }
 }
 
@@ -1268,10 +1267,7 @@ diesel::table! {
     use super::sql_types::TriggerType;
 
     swap_events (market_id, market_nonce) {
-        block_number -> Int8,
         transaction_version -> Int8,
-        event_index -> Int8,
-
         #[max_length = 66]
         sender -> Varchar,
         #[max_length = 200]
@@ -1319,6 +1315,8 @@ diesel::table! {
         instantaneous_stats_fully_diluted_value -> Numeric,
         balance_as_fraction_of_circulating_supply_before_q64 -> Numeric,
         balance_as_fraction_of_circulating_supply_after_q64 -> Numeric,
+        block_number -> Int8,
+        event_index -> Int8,
     }
 }
 
