@@ -16,7 +16,9 @@ use serde::{Deserialize, Serialize};
 #[diesel(table_name = swap_events)]
 pub struct SwapEventModel {
     // Transaction metadata.
+    pub block_number: i64,
     pub transaction_version: i64,
+    pub event_index: i64,
     pub sender: String,
     pub entry_function: Option<String>,
     pub transaction_timestamp: chrono::NaiveDateTime,
@@ -84,6 +86,7 @@ impl SwapEventModel {
         } = state_event;
 
         let SwapEvent {
+            event_index,
             market_id,
             market_nonce,
             swapper,
@@ -107,7 +110,9 @@ impl SwapEventModel {
 
         SwapEventModel {
             // Transaction metadata.
+            block_number: txn_info.block_number,
             transaction_version: txn_info.version,
+            event_index: event_index.expect("Event index should be set before insertion."),
             sender: txn_info.sender.clone(),
             entry_function: txn_info.entry_function.clone(),
             transaction_timestamp: txn_info.timestamp,

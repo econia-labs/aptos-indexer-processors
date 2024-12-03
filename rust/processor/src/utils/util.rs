@@ -449,6 +449,18 @@ where
     s.serialize_str(&element.to_string())
 }
 
+/// Serialize to Option<string> from type Option<T>
+pub fn serialize_to_option_string<S, T>(element: &Option<T>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+    T: std::fmt::Display,
+{
+    match element {
+        Some(e) => s.serialize_str(&e.to_string()),
+        None => s.serialize_none(),
+    }
+}
+
 /// Deserialize from string to type T
 pub fn deserialize_from_string<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
@@ -460,6 +472,22 @@ where
 
     let s = <String>::deserialize(deserializer)?;
     s.parse::<T>().map_err(D::Error::custom)
+}
+
+/// Deserialize from string to type Option<T>
+pub fn deserialize_from_option_string<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr,
+    <T as FromStr>::Err: std::fmt::Display,
+{
+    use serde::de::Error;
+
+    let s = <Option<String>>::deserialize(deserializer)?;
+    match s {
+        Some(s) => s.parse::<T>().map(Some).map_err(D::Error::custom),
+        None => Ok(None),
+    }
 }
 
 /// Convert the protobuf Timestamp to epcoh time in seconds.

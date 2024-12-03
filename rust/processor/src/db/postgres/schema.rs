@@ -957,7 +957,10 @@ diesel::table! {
     use super::sql_types::TriggerType;
 
     liquidity_events (market_id, market_nonce) {
+        block_number -> Int8,
         transaction_version -> Int8,
+        event_index -> Int8,
+
         #[max_length = 66]
         sender -> Varchar,
         #[max_length = 200]
@@ -1265,7 +1268,10 @@ diesel::table! {
     use super::sql_types::TriggerType;
 
     swap_events (market_id, market_nonce) {
+        block_number -> Int8,
         transaction_version -> Int8,
+        event_index -> Int8,
+
         #[max_length = 66]
         sender -> Varchar,
         #[max_length = 200]

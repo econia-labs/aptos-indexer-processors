@@ -238,6 +238,7 @@ impl ProcessorTrait for EmojicoinProcessor {
         let mut user_pools_db: AHashMap<(String, i64), UserLiquidityPoolsModel> = AHashMap::new();
         for txn in &transactions {
             let txn_version = txn.version as i64;
+            let block_number = txn.block_height as i64;
             let txn_data = match txn.txn_data.as_ref() {
                 Some(data) => data,
                 None => {
@@ -259,6 +260,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                     .expect("User request info is not present in the user transaction.");
                 let entry_function = get_entry_function_from_user_request(user_request);
                 let txn_info = TxnInfo {
+                    block_number,
                     version: txn_version,
                     sender: standardize_address(user_request.sender.as_ref()),
                     entry_function,
@@ -271,7 +273,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                     let type_str = event.type_str.as_str();
                     let data = event.data.as_str();
 
-                    match EventWithMarket::from_event_type(type_str, data, txn_version)? {
+                    match EventWithMarket::from_event_type(type_str, data, txn_version, event.sequence_number as i64)? {
                         Some(evt) => {
                             market_events.push(evt.clone());
                             if let Some(one_min_pse) =

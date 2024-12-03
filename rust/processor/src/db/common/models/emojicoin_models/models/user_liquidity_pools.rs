@@ -12,6 +12,11 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+
+static ADDRESSES_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new("^0x0*1::coin::CoinStore<(0x[^:]*)::coin_factory::EmojicoinLP>$").unwrap()
+});
+
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(provider, market_nonce))]
 #[diesel(table_name = user_liquidity_pools)]
@@ -45,9 +50,7 @@ impl UserLiquidityPoolsModel {
         evt: LiquidityEventModel,
         market_address: &str,
     ) -> Self {
-        static ADDRESSES_REGEX: Lazy<Regex> = Lazy::new(|| {
-            Regex::new("^0x0*1::coin::CoinStore<(0x[^:]*)::coin_factory::EmojicoinLP>$").unwrap()
-        });
+
         txn.info
             .as_ref()
             .expect("Transaction info should exist.")
