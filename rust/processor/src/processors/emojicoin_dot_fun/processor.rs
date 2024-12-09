@@ -273,7 +273,12 @@ impl ProcessorTrait for EmojicoinProcessor {
                     let type_str = event.type_str.as_str();
                     let data = event.data.as_str();
 
-                    match EventWithMarket::from_event_type(type_str, data, txn_version, event.sequence_number as i64)? {
+                    match EventWithMarket::from_event_type(
+                        type_str,
+                        data,
+                        txn_version,
+                        event.sequence_number as i64,
+                    )? {
                         Some(evt) => {
                             market_events.push(evt.clone());
                             if let Some(one_min_pse) =

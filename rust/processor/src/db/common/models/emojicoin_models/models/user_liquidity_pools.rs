@@ -12,7 +12,6 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-
 static ADDRESSES_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new("^0x0*1::coin::CoinStore<(0x[^:]*)::coin_factory::EmojicoinLP>$").unwrap()
 });
@@ -50,7 +49,6 @@ impl UserLiquidityPoolsModel {
         evt: LiquidityEventModel,
         market_address: &str,
     ) -> Self {
-
         txn.info
             .as_ref()
             .expect("Transaction info should exist.")
