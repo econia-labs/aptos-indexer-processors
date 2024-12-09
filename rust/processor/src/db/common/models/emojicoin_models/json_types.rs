@@ -13,6 +13,7 @@ use anyhow::{Context, Result};
 use aptos_protos::transaction::v1::WriteResource;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::str::FromStr;
 
 pub fn serialize_bytes_to_hex_string<S>(element: &Vec<u8>, s: S) -> Result<S::Ok, S::Error>
 where
@@ -206,6 +207,9 @@ pub struct LastSwap {
 pub struct SwapEvent {
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
+    pub event_index: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub market_id: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
@@ -385,6 +389,9 @@ pub struct GlobalStateEvent {
 pub struct LiquidityEvent {
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
+    pub event_index: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
     pub market_id: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
@@ -435,7 +442,12 @@ impl From<StateEvent> for EventWithMarket {
 }
 
 impl EventWithMarket {
-    pub fn from_event_type(event_type: &str, data: &str, txn_version: i64) -> Result<Option<Self>> {
+    pub fn from_event_type(
+        event_type: &str,
+        data: &str,
+        txn_version: i64,
+        sequence_number: i64,
+    ) -> Result<Option<Self>> {
         match EmojicoinTypeTag::from_type_str(event_type) {
             Some(EmojicoinTypeTag::PeriodicState) => {
                 serde_json::from_str(data).map(|inner| Some(Self::PeriodicState(inner)))
@@ -444,7 +456,9 @@ impl EventWithMarket {
                 serde_json::from_str(data).map(|inner| Some(Self::State(inner)))
             },
             Some(EmojicoinTypeTag::Swap) => {
-                serde_json::from_str(data).map(|inner| Some(Self::Swap(inner)))
+                let mut json_data = serde_json::Value::from_str(data)?;
+                json_data["event_index"] = serde_json::Value::from(sequence_number.to_string());
+                serde_json::from_value(json_data).map(|inner: SwapEvent| Some(Self::Swap(inner)))
             },
             Some(EmojicoinTypeTag::Chat) => {
                 serde_json::from_str(data).map(|inner| Some(Self::Chat(inner)))
@@ -453,7 +467,10 @@ impl EventWithMarket {
                 serde_json::from_str(data).map(|inner| Some(Self::MarketRegistration(inner)))
             },
             Some(EmojicoinTypeTag::Liquidity) => {
-                serde_json::from_str(data).map(|inner| Some(Self::Liquidity(inner)))
+                let mut json_data = serde_json::Value::from_str(data)?;
+                json_data["event_index"] = serde_json::Value::from(sequence_number.to_string());
+                serde_json::from_value(json_data)
+                    .map(|inner: LiquidityEvent| Some(Self::Liquidity(inner)))
             },
             _ => Ok(None),
         }
@@ -493,6 +510,7 @@ pub enum BumpEvent {
 // A subset of the transaction info that comes in from the GRPC stream.
 #[derive(Debug, Clone)]
 pub struct TxnInfo {
+    pub block_number: i64,
     pub version: i64,
     pub sender: String,
     pub entry_function: Option<String>,

@@ -1002,6 +1002,8 @@ diesel::table! {
         last_swap_quote_volume -> Int8,
         last_swap_nonce -> Int8,
         last_swap_time -> Timestamp,
+        block_number -> Int8,
+        event_index -> Int8,
     }
 }
 
@@ -1313,6 +1315,8 @@ diesel::table! {
         instantaneous_stats_fully_diluted_value -> Numeric,
         balance_as_fraction_of_circulating_supply_before_q64 -> Numeric,
         balance_as_fraction_of_circulating_supply_after_q64 -> Numeric,
+        block_number -> Int8,
+        event_index -> Int8,
     }
 }
 
