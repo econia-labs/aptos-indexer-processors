@@ -22,6 +22,7 @@ pub struct MarketOneMinutePeriodsInLastDayModel {
     pub nonce: i64,
     pub transaction_version: i64,
     pub volume: BigDecimal,
+    pub base_volume: BigDecimal,
     pub start_time: NaiveDateTime,
 }
 
@@ -31,7 +32,8 @@ impl From<RecentOneMinutePeriodicStateEvent> for MarketOneMinutePeriodsInLastDay
             market_id: event.market_id,
             nonce: event.market_nonce,
             transaction_version: event.transaction_version,
-            volume: event.period_volume,
+            volume: event.period_quote_volume,
+            base_volume: event.period_base_volume,
             start_time: event.start_time,
         }
     }
