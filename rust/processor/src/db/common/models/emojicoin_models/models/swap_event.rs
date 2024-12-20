@@ -86,7 +86,6 @@ impl SwapEventModel {
         } = state_event;
 
         let SwapEvent {
-            event_index,
             market_id,
             market_nonce,
             swapper,
@@ -105,6 +104,7 @@ impl SwapEventModel {
             time,
             balance_as_fraction_of_circulating_supply_before_q64,
             balance_as_fraction_of_circulating_supply_after_q64,
+            event_index,
             ..
         } = swap_event;
 
