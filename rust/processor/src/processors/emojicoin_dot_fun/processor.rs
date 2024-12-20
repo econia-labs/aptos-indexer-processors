@@ -269,7 +269,7 @@ impl ProcessorTrait for EmojicoinProcessor {
 
                 // Group the market events in this transaction.
                 let mut market_events = vec![];
-                for event in user_txn.events.iter() {
+                for (event_index, event) in user_txn.events.iter().enumerate() {
                     let type_str = event.type_str.as_str();
                     let data = event.data.as_str();
 
@@ -277,7 +277,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                         type_str,
                         data,
                         txn_version,
-                        event.sequence_number as i64,
+                        event_index as i64,
                     )? {
                         Some(evt) => {
                             market_events.push(evt.clone());

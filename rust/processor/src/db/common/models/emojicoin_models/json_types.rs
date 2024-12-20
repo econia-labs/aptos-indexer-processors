@@ -446,7 +446,7 @@ impl EventWithMarket {
         event_type: &str,
         data: &str,
         txn_version: i64,
-        sequence_number: i64,
+        event_index: i64,
     ) -> Result<Option<Self>> {
         match EmojicoinTypeTag::from_type_str(event_type) {
             Some(EmojicoinTypeTag::PeriodicState) => {
@@ -457,7 +457,7 @@ impl EventWithMarket {
             },
             Some(EmojicoinTypeTag::Swap) => {
                 let mut json_data = serde_json::Value::from_str(data)?;
-                json_data["event_index"] = serde_json::Value::from(sequence_number.to_string());
+                json_data["event_index"] = serde_json::Value::from(event_index.to_string());
                 serde_json::from_value(json_data).map(|inner: SwapEvent| Some(Self::Swap(inner)))
             },
             Some(EmojicoinTypeTag::Chat) => {
@@ -468,7 +468,7 @@ impl EventWithMarket {
             },
             Some(EmojicoinTypeTag::Liquidity) => {
                 let mut json_data = serde_json::Value::from_str(data)?;
-                json_data["event_index"] = serde_json::Value::from(sequence_number.to_string());
+                json_data["event_index"] = serde_json::Value::from(event_index.to_string());
                 serde_json::from_value(json_data)
                     .map(|inner: LiquidityEvent| Some(Self::Liquidity(inner)))
             },
