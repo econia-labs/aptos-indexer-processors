@@ -13,6 +13,7 @@ use anyhow::{Context, Result};
 use aptos_protos::transaction::v1::WriteResource;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::json;
 use std::str::FromStr;
 
 pub fn serialize_bytes_to_hex_string<S>(element: &Vec<u8>, s: S) -> Result<S::Ok, S::Error>
@@ -420,6 +421,136 @@ pub struct LiquidityEvent {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ExchangeRate {
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub base: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub quote: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ArenaMeleeEvent {
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub event_index: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub melee_id: i64,
+    #[serde(deserialize_with = "deserialize_and_standardize_address")]
+    pub emojicoin_0_market_address: String,
+    #[serde(deserialize_with = "deserialize_and_standardize_address")]
+    pub emojicoin_1_market_address: String,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub start_time: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub duration: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub max_match_percentage: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub max_match_amount: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub available_rewards: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ArenaEnterEvent {
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub event_index: i64,
+    #[serde(deserialize_with = "deserialize_and_standardize_address")]
+    pub user: String,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub melee_id: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub input_amount: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub quote_volume: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub integrator_fee: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub match_amount: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub emojicoin_0_proceeds: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub emojicoin_1_proceeds: i64,
+    pub emojicoin_0_exchange_rate: ExchangeRate,
+    pub emojicoin_1_exchange_rate: ExchangeRate,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ArenaExitEvent {
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub event_index: i64,
+    #[serde(deserialize_with = "deserialize_and_standardize_address")]
+    pub user: String,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub melee_id: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub tap_out_fee: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub emojicoin_0_proceeds: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub emojicoin_1_proceeds: i64,
+    pub emojicoin_0_exchange_rate: ExchangeRate,
+    pub emojicoin_1_exchange_rate: ExchangeRate,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ArenaSwapEvent {
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub event_index: i64,
+    #[serde(deserialize_with = "deserialize_and_standardize_address")]
+    pub user: String,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub melee_id: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub quote_volume: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub integrator_fee: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub emojicoin_0_proceeds: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub emojicoin_1_proceeds: i64,
+    pub emojicoin_0_exchange_rate: ExchangeRate,
+    pub emojicoin_1_exchange_rate: ExchangeRate,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ArenaVaultBalanceUpdateEvent {
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub event_index: i64,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub new_balance: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum EventWithMarket {
     PeriodicState(PeriodicStateEvent),
     State(StateEvent),
@@ -472,6 +603,55 @@ impl EventWithMarket {
                 serde_json::from_value(json_data)
                     .map(|inner: LiquidityEvent| Some(Self::Liquidity(inner)))
             },
+            _ => Ok(None),
+        }
+        .context(format!(
+            "version {} failed! Failed to parse type {}, with data: {:?}",
+            txn_version, event_type, data,
+        ))
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ArenaEvent {
+    Melee(ArenaMeleeEvent),
+    Enter(ArenaEnterEvent),
+    Exit(ArenaExitEvent),
+    Swap(ArenaSwapEvent),
+    VaultBalanceUpdate(ArenaVaultBalanceUpdateEvent),
+}
+
+impl ArenaEvent {
+    pub fn from_event_type(
+        event_type: &str,
+        data: &str,
+        txn_version: i64,
+        event_index: i64,
+    ) -> Result<Option<Self>> {
+        let mut data_map: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(data).unwrap();
+        let mut event_index_map: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_value(json!({
+                "event_index": event_index.to_string()
+            }))
+            .unwrap();
+        data_map.append(&mut event_index_map);
+        let data_object = serde_json::Value::Object(data_map);
+        match EmojicoinTypeTag::from_type_str(event_type) {
+            Some(EmojicoinTypeTag::ArenaMelee) => {
+                serde_json::from_value(data_object).map(|inner| Some(Self::Melee(inner)))
+            },
+            Some(EmojicoinTypeTag::ArenaEnter) => {
+                serde_json::from_value(data_object).map(|inner| Some(Self::Enter(inner)))
+            },
+            Some(EmojicoinTypeTag::ArenaExit) => {
+                serde_json::from_value(data_object).map(|inner| Some(Self::Exit(inner)))
+            },
+            Some(EmojicoinTypeTag::ArenaSwap) => {
+                serde_json::from_value(data_object).map(|inner| Some(Self::Swap(inner)))
+            },
+            Some(EmojicoinTypeTag::ArenaVaultBalanceUpdate) => serde_json::from_value(data_object)
+                .map(|inner| Some(Self::VaultBalanceUpdate(inner))),
             _ => Ok(None),
         }
         .context(format!(

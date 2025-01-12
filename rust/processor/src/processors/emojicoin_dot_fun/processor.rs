@@ -3,10 +3,13 @@ use crate::{
         enums::Trigger,
         event_utils::EventGroupBuilder,
         json_types::{
-            BumpEvent, EventGroup, EventWithMarket, GlobalStateEvent, InstantaneousStats,
-            MarketResource, TxnInfo,
+            ArenaEvent, BumpEvent, EventGroup, EventWithMarket, GlobalStateEvent,
+            InstantaneousStats, MarketResource, TxnInfo,
         },
         models::{
+            arena_enter_event::ArenaEnterEventModel, arena_exit_event::ArenaExitEventModel,
+            arena_melee_event::ArenaMeleeEventModel, arena_swap_event::ArenaSwapEventModel,
+            arena_vault_balance_update_event::ArenaVaultBalanceUpdateEventModel,
             chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
             liquidity_event::LiquidityEventModel,
             market_1m_periods_in_last_day::MarketOneMinutePeriodsInLastDayModel,
@@ -17,10 +20,13 @@ use crate::{
             user_liquidity_pools::UserLiquidityPoolsModel,
         },
         queries::insertion_queries::{
-            delete_unregistered_markets_query, insert_chat_events_query, insert_global_events,
-            insert_liquidity_events_query, insert_market_latest_state_event_query,
-            insert_market_registration_events_query, insert_periodic_state_events_query,
-            insert_swap_events_query, insert_user_liquidity_pools_query,
+            delete_unregistered_markets_query, insert_arena_enter_events_query,
+            insert_arena_exit_events_query, insert_arena_melee_events_query,
+            insert_arena_swap_events_query, insert_arena_vault_balance_update_events_query,
+            insert_chat_events_query, insert_global_events, insert_liquidity_events_query,
+            insert_market_latest_state_event_query, insert_market_registration_events_query,
+            insert_periodic_state_events_query, insert_swap_events_query,
+            insert_user_liquidity_pools_query,
         },
     },
     emojicoin_dot_fun::EmojicoinDbEvent,
@@ -94,6 +100,11 @@ async fn insert_to_db(
     market_latest_state_events: &[MarketLatestStateEventModel],
     market_1m_periods: &[MarketOneMinutePeriodsInLastDayModel],
     user_pools: &[UserLiquidityPoolsModel],
+    arena_melee_events: &[ArenaMeleeEventModel],
+    arena_enter_events: &[ArenaEnterEventModel],
+    arena_exit_events: &[ArenaExitEventModel],
+    arena_swap_events: &[ArenaSwapEventModel],
+    arena_vault_balance_update_events: &[ArenaVaultBalanceUpdateEventModel],
     per_table_chunk_sizes: &AHashMap<String, usize>,
 ) -> Result<(), diesel::result::Error> {
     tracing::trace!(
@@ -184,7 +195,57 @@ async fn insert_to_db(
         ),
     );
 
-    let (m, u, s, c, l, per, g, pools, lse, update_1mins) = tokio::join!(
+    let arena_melee = execute_in_chunks(
+        conn.clone(),
+        insert_arena_melee_events_query,
+        arena_melee_events,
+        get_config_table_chunk_size::<ArenaMeleeEventModel>(
+            "arena_melee_events",
+            per_table_chunk_sizes,
+        ),
+    );
+
+    let arena_enter = execute_in_chunks(
+        conn.clone(),
+        insert_arena_enter_events_query,
+        arena_enter_events,
+        get_config_table_chunk_size::<ArenaEnterEventModel>(
+            "arena_enter_events",
+            per_table_chunk_sizes,
+        ),
+    );
+
+    let arena_exit = execute_in_chunks(
+        conn.clone(),
+        insert_arena_exit_events_query,
+        arena_exit_events,
+        get_config_table_chunk_size::<ArenaExitEventModel>(
+            "arena_exit_events",
+            per_table_chunk_sizes,
+        ),
+    );
+
+    let arena_swap = execute_in_chunks(
+        conn.clone(),
+        insert_arena_swap_events_query,
+        arena_swap_events,
+        get_config_table_chunk_size::<ArenaSwapEventModel>(
+            "arena_swap_events",
+            per_table_chunk_sizes,
+        ),
+    );
+
+    let arena_vault_balance_update = execute_in_chunks(
+        conn.clone(),
+        insert_arena_vault_balance_update_events_query,
+        arena_vault_balance_update_events,
+        get_config_table_chunk_size::<ArenaVaultBalanceUpdateEventModel>(
+            "arena_vault_balance_update_events",
+            per_table_chunk_sizes,
+        ),
+    );
+
+    let (m, u, s, c, l, per, g, pools, lse, update_1mins, am, aen, aex, asw, avbu) = tokio::join!(
         market_registration,
         unregistered_markets_update,
         swap,
@@ -195,9 +256,14 @@ async fn insert_to_db(
         lp_pools,
         latest_state_events,
         update_one_min_periods,
+        arena_melee,
+        arena_enter,
+        arena_exit,
+        arena_swap,
+        arena_vault_balance_update,
     );
 
-    for res in [m, u, s, c, l, per, g, pools, lse] {
+    for res in [m, u, s, c, l, per, g, pools, lse, am, aen, aex, asw, avbu] {
         res?;
     }
 
@@ -229,6 +295,11 @@ impl ProcessorTrait for EmojicoinProcessor {
         let mut periodic_state_events_db = vec![];
         let mut global_state_events_db = vec![];
         let mut period_data = vec![];
+        let mut arena_melee_events_db = vec![];
+        let mut arena_enter_events_db = vec![];
+        let mut arena_exit_events_db = vec![];
+        let mut arena_swap_events_db = vec![];
+        let mut arena_vault_balance_update_events_db = vec![];
         // Store the writeset changes for each market in the transaction so we can lazily parse them later only for the
         // latest event for that market. We may get several writeset changes for the same market across all the transactions.
         let mut latest_market_resources: AHashMap<
@@ -269,6 +340,7 @@ impl ProcessorTrait for EmojicoinProcessor {
 
                 // Group the market events in this transaction.
                 let mut market_events = vec![];
+                let mut arena_events = vec![];
                 for (event_index, event) in user_txn.events.iter().enumerate() {
                     let type_str = event.type_str.as_str();
                     let data = event.data.as_str();
@@ -295,6 +367,18 @@ impl ProcessorTrait for EmojicoinProcessor {
                                     txn_info.clone(),
                                     global_event,
                                 ));
+                            } else {
+                                match ArenaEvent::from_event_type(
+                                    type_str,
+                                    data,
+                                    txn_version,
+                                    event_index as i64,
+                                )? {
+                                    Some(evt) => {
+                                        arena_events.push(evt.clone());
+                                    },
+                                    _ => {},
+                                }
                             }
                         },
                     }
@@ -370,20 +454,29 @@ impl ProcessorTrait for EmojicoinProcessor {
 
                     match bump_event {
                         BumpEvent::MarketRegistration(event) => {
-                            let mkt_registration_model =
-                                MarketRegistrationEventModel::new(txn_info, event, state_event);
+                            let mkt_registration_model = MarketRegistrationEventModel::new(
+                                txn_info.clone(),
+                                event,
+                                state_event,
+                            );
                             register_events_db.push(mkt_registration_model);
                         },
                         BumpEvent::Chat(chat) => {
-                            chat_events_db.push(ChatEventModel::new(txn_info, chat, state_event));
+                            chat_events_db.push(ChatEventModel::new(
+                                txn_info.clone(),
+                                chat,
+                                state_event,
+                            ));
                         },
                         BumpEvent::Swap(swap) => {
-                            let swap_model = SwapEventModel::new(txn_info, swap, state_event);
+                            let swap_model =
+                                SwapEventModel::new(txn_info.clone(), swap, state_event);
                             swap_events_db.push(swap_model);
                         },
                         BumpEvent::Liquidity(event) => {
                             let market_addr = market_addr.clone();
-                            let evt_model = LiquidityEventModel::new(txn_info, event, state_event);
+                            let evt_model =
+                                LiquidityEventModel::new(txn_info.clone(), event, state_event);
                             liquidity_events_db.push(evt_model.clone());
 
                             // Only insert the latest pool activity for a user in this transaction.
@@ -405,6 +498,26 @@ impl ProcessorTrait for EmojicoinProcessor {
                                     }
                                 })
                                 .or_insert(new_pool);
+                        },
+                    }
+                }
+                for event in arena_events {
+                    match event {
+                        ArenaEvent::Melee(melee) => arena_melee_events_db
+                            .push(ArenaMeleeEventModel::new(txn_info.clone(), melee)),
+                        ArenaEvent::Enter(enter) => arena_enter_events_db
+                            .push(ArenaEnterEventModel::new(txn_info.clone(), enter)),
+                        ArenaEvent::Exit(exit) => arena_exit_events_db
+                            .push(ArenaExitEventModel::new(txn_info.clone(), exit)),
+                        ArenaEvent::Swap(swap) => arena_swap_events_db
+                            .push(ArenaSwapEventModel::new(txn_info.clone(), swap)),
+                        ArenaEvent::VaultBalanceUpdate(vault_balance_update) => {
+                            arena_vault_balance_update_events_db.push(
+                                ArenaVaultBalanceUpdateEventModel::new(
+                                    txn_info.clone(),
+                                    vault_balance_update,
+                                ),
+                            )
                         },
                     }
                 }
@@ -440,6 +553,13 @@ impl ProcessorTrait for EmojicoinProcessor {
             EmojicoinDbEvent::from_periodic_state_events(&periodic_state_events_db),
             EmojicoinDbEvent::from_global_state_events(&global_state_events_db),
             EmojicoinDbEvent::from_market_latest_state_events(&market_latest_state_events),
+            EmojicoinDbEvent::from_arena_melee(&arena_melee_events_db),
+            EmojicoinDbEvent::from_arena_enter(&arena_enter_events_db),
+            EmojicoinDbEvent::from_arena_exit(&arena_exit_events_db),
+            EmojicoinDbEvent::from_arena_swap(&arena_swap_events_db),
+            EmojicoinDbEvent::from_arena_vault_balance_update(
+                &arena_vault_balance_update_events_db,
+            ),
         ]
         .into_iter()
         .flatten()
@@ -461,6 +581,11 @@ impl ProcessorTrait for EmojicoinProcessor {
             &market_latest_state_events,
             &market_1m_periods,
             user_pools_db.into_values().collect_vec().as_slice(),
+            &arena_melee_events_db,
+            &arena_enter_events_db,
+            &arena_exit_events_db,
+            &arena_swap_events_db,
+            &arena_vault_balance_update_events_db,
             &self.per_table_chunk_sizes,
         )
         .await;

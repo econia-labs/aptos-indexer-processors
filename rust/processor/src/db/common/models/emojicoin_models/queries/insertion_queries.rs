@@ -1,5 +1,8 @@
 use crate::{
     db::common::models::emojicoin_models::models::{
+        arena_enter_event::ArenaEnterEventModel, arena_exit_event::ArenaExitEventModel,
+        arena_melee_event::ArenaMeleeEventModel, arena_swap_event::ArenaSwapEventModel,
+        arena_vault_balance_update_event::ArenaVaultBalanceUpdateEventModel,
         chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
         liquidity_event::LiquidityEventModel,
         market_latest_state_event::MarketLatestStateEventModel,
@@ -209,6 +212,86 @@ pub fn insert_market_latest_state_event_query(
                 volume_in_1m_state_tracker.eq(excluded(volume_in_1m_state_tracker)),
             ))
             .filter(market_nonce.le(excluded(market_nonce))),
+        None,
+    )
+}
+
+pub fn insert_arena_melee_events_query(
+    items_to_insert: Vec<ArenaMeleeEventModel>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::arena_melee_events::dsl::*;
+    (
+        diesel::insert_into(schema::arena_melee_events::table)
+            .values(items_to_insert)
+            .on_conflict(melee_id)
+            .do_nothing(),
+        None,
+    )
+}
+
+pub fn insert_arena_enter_events_query(
+    items_to_insert: Vec<ArenaEnterEventModel>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::arena_enter_events::dsl::*;
+    (
+        diesel::insert_into(schema::arena_enter_events::table)
+            .values(items_to_insert)
+            .on_conflict((transaction_version, event_index))
+            .do_nothing(),
+        None,
+    )
+}
+
+pub fn insert_arena_exit_events_query(
+    items_to_insert: Vec<ArenaExitEventModel>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::arena_exit_events::dsl::*;
+    (
+        diesel::insert_into(schema::arena_exit_events::table)
+            .values(items_to_insert)
+            .on_conflict((transaction_version, event_index))
+            .do_nothing(),
+        None,
+    )
+}
+
+pub fn insert_arena_swap_events_query(
+    items_to_insert: Vec<ArenaSwapEventModel>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::arena_swap_events::dsl::*;
+    (
+        diesel::insert_into(schema::arena_swap_events::table)
+            .values(items_to_insert)
+            .on_conflict((transaction_version, event_index))
+            .do_nothing(),
+        None,
+    )
+}
+
+pub fn insert_arena_vault_balance_update_events_query(
+    items_to_insert: Vec<ArenaVaultBalanceUpdateEventModel>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::arena_vault_balance_update_events::dsl::*;
+    (
+        diesel::insert_into(schema::arena_vault_balance_update_events::table)
+            .values(items_to_insert)
+            .on_conflict((transaction_version, event_index))
+            .do_nothing(),
         None,
     )
 }

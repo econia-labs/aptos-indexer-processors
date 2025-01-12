@@ -1,0 +1,256 @@
+-- Raw events
+
+CREATE TABLE arena_melee_events (
+    transaction_version BIGINT NOT NULL,
+    event_index BIGINT NOT NULL,
+    sender VARCHAR(66) NOT NULL,
+    entry_function VARCHAR(200),
+    transaction_timestamp TIMESTAMP NOT NULL,
+    inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    melee_id BIGINT NOT NULL PRIMARY KEY,
+    emojicoin_0_market_address TEXT NOT NULL,
+    emojicoin_1_market_address TEXT NOT NULL,
+    start_time BIGINT NOT NULL,
+    duration BIGINT NOT NULL,
+    max_match_percentage BIGINT NOT NULL,
+    max_match_amount BIGINT NOT NULL,
+    available_rewards BIGINT NOT NULL
+);
+
+CREATE TABLE arena_enter_events (
+    transaction_version BIGINT NOT NULL,
+    event_index BIGINT NOT NULL,
+    sender VARCHAR(66) NOT NULL,
+    entry_function VARCHAR(200),
+    transaction_timestamp TIMESTAMP NOT NULL,
+    inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    "user" TEXT NOT NULL,
+    melee_id BIGINT NOT NULL,
+    input_amount BIGINT NOT NULL,
+    quote_volume BIGINT NOT NULL,
+    integrator_fee BIGINT NOT NULL,
+    match_amount BIGINT NOT NULL,
+    emojicoin_0_proceeds BIGINT NOT NULL,
+    emojicoin_1_proceeds BIGINT NOT NULL,
+    emojicoin_0_exchange_rate_base BIGINT NOT NULL,
+    emojicoin_0_exchange_rate_quote BIGINT NOT NULL,
+    emojicoin_1_exchange_rate_base BIGINT NOT NULL,
+    emojicoin_1_exchange_rate_quote BIGINT NOT NULL,
+
+    PRIMARY KEY (transaction_version, event_index)
+);
+
+CREATE TABLE arena_exit_events (
+    transaction_version BIGINT NOT NULL,
+    event_index BIGINT NOT NULL,
+    sender VARCHAR(66) NOT NULL,
+    entry_function VARCHAR(200),
+    transaction_timestamp TIMESTAMP NOT NULL,
+    inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    "user" TEXT NOT NULL,
+    melee_id BIGINT NOT NULL,
+    tap_out_fee BIGINT NOT NULL,
+    emojicoin_0_proceeds BIGINT NOT NULL,
+    emojicoin_1_proceeds BIGINT NOT NULL,
+    emojicoin_0_exchange_rate_base BIGINT NOT NULL,
+    emojicoin_0_exchange_rate_quote BIGINT NOT NULL,
+    emojicoin_1_exchange_rate_base BIGINT NOT NULL,
+    emojicoin_1_exchange_rate_quote BIGINT NOT NULL,
+
+    PRIMARY KEY (transaction_version, event_index)
+);
+
+CREATE TABLE arena_swap_events (
+    transaction_version BIGINT NOT NULL,
+    event_index BIGINT NOT NULL,
+    sender VARCHAR(66) NOT NULL,
+    entry_function VARCHAR(200),
+    transaction_timestamp TIMESTAMP NOT NULL,
+    inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    "user" TEXT NOT NULL,
+    melee_id BIGINT NOT NULL,
+    quote_volume BIGINT NOT NULL,
+    integrator_fee BIGINT NOT NULL,
+    emojicoin_0_proceeds BIGINT NOT NULL,
+    emojicoin_1_proceeds BIGINT NOT NULL,
+    emojicoin_0_exchange_rate_base BIGINT NOT NULL,
+    emojicoin_0_exchange_rate_quote BIGINT NOT NULL,
+    emojicoin_1_exchange_rate_base BIGINT NOT NULL,
+    emojicoin_1_exchange_rate_quote BIGINT NOT NULL,
+
+    PRIMARY KEY (transaction_version, event_index)
+);
+
+CREATE TABLE arena_vault_balance_update_events (
+    transaction_version BIGINT NOT NULL,
+    event_index BIGINT NOT NULL,
+    sender VARCHAR(66) NOT NULL,
+    entry_function VARCHAR(200),
+    transaction_timestamp TIMESTAMP NOT NULL,
+    inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    new_balance BIGINT NOT NULL,
+
+    PRIMARY KEY (transaction_version, event_index)
+);
+
+-- Derived data
+
+CREATE TABLE arena_positions (
+    "user" TEXT NOT NULL,
+    melee_id BIGINT NOT NULL,
+    open BOOL NOT NULL,
+    emojicoin_0_balance BIGINT NOT NULL,
+    emojicoin_1_balance BIGINT NOT NULL,
+    profits BIGINT NOT NULL,
+    losses BIGINT NOT NULL,
+
+    PRIMARY KEY ("user", melee_id)
+);
+
+CREATE TABLE arena_leaderboard_history (
+    "user" TEXT NOT NULL,
+    melee_id BIGINT NOT NULL,
+    profits BIGINT NOT NULL,
+    losses BIGINT NOT NULL,
+
+    PRIMARY KEY ("user", melee_id)
+);
+
+-- Functions
+
+CREATE OR REPLACE FUNCTION arena_leaderboard() RETURNS TABLE(
+    "user" TEXT,
+    open BOOL,
+    emojicoin_0_balance BIGINT,
+    emojicoin_1_balance BIGINT,
+    profits BIGINT,
+    losses BIGINT,
+    pnl NUMERIC
+)
+AS $$
+WITH melee AS (
+    SELECT * FROM arena_melee_events ORDER BY melee_id DESC LIMIT 1
+), price_emojicoin_0 AS (
+    SELECT avg_execution_price_q64::numeric / POW(2,64) AS price FROM swap_events
+    WHERE market_address = (SELECT emojicoin_0_market_address FROM arena_melee_events WHERE melee_id = (SELECT melee_id FROM melee))
+    ORDER BY market_nonce DESC
+    LIMIT 1
+), price_emojicoin_1 AS (
+    SELECT avg_execution_price_q64::numeric / POW(2,64) AS price FROM swap_events
+    WHERE market_address = (SELECT emojicoin_1_market_address FROM arena_melee_events WHERE melee_id = (SELECT melee_id FROM melee))
+    ORDER BY market_nonce DESC
+    LIMIT 1
+), realized_position AS (
+    SELECT
+        "user",
+        open,
+        emojicoin_0_balance,
+        emojicoin_1_balance,
+        profits +
+            emojicoin_0_balance * (SELECT * FROM price_emojicoin_0) +
+            emojicoin_1_balance * (SELECT * FROM price_emojicoin_1),
+        losses,
+        (profits +
+            emojicoin_0_balance * (SELECT * FROM price_emojicoin_0) +
+            emojicoin_1_balance * (SELECT * FROM price_emojicoin_1))::numeric /
+        losses::numeric * 100::numeric AS pnl
+    FROM arena_positions WHERE melee_id = (SELECT melee_id FROM melee)
+)
+SELECT * FROM realized_position
+$$ LANGUAGE SQL;
+
+-- Triggers to update derived data
+
+-- Insert a new position in the positions table.
+--
+-- If position already exists, it means that this is a top off and we handle it
+-- as such.
+CREATE FUNCTION update_position_enter() RETURNS trigger AS $$
+    BEGIN
+        INSERT INTO arena_positions (
+            "user",
+            melee_id,
+            open,
+            emojicoin_0_balance,
+            emojicoin_1_balance,
+            profits,
+            losses
+        ) VALUES (
+            NEW."user",
+            NEW.melee_id,
+            true,
+            NEW.emojicoin_0_proceeds,
+            NEW.emojicoin_1_proceeds,
+            0,
+            NEW.input_amount + NEW.match_amount
+        )
+        ON CONFLICT ("user", melee_id) DO
+        UPDATE SET
+            open = true,
+            emojicoin_0_balance = arena_positions.emojicoin_0_balance + NEW.emojicoin_0_proceeds,
+            emojicoin_1_balance = arena_positions.emojicoin_1_balance + NEW.emojicoin_1_proceeds,
+            losses = arena_positions.losses + NEW.input_amount + NEW.match_amount
+        WHERE arena_positions."user" = NEW."user" AND arena_positions.melee_id = NEW.melee_id;
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+
+-- Mark the position as closed and update profits and losses.
+CREATE FUNCTION update_position_exit() RETURNS trigger AS $$
+    BEGIN
+        UPDATE arena_positions SET
+            open = false,
+            emojicoin_0_balance = 0,
+            emojicoin_1_balance = 0,
+            profits = arena_positions.profits + NEW.emojicoin_0_proceeds * NEW.emojicoin_0_exchange_rate_base / NEW.emojicoin_0_exchange_rate_quote + NEW.emojicoin_1_proceeds * NEW.emojicoin_1_exchange_rate_base / NEW.emojicoin_1_exchange_rate_quote,
+            losses = arena_positions.losses + NEW.tap_out_fee
+        WHERE arena_positions."user" = NEW."user" AND arena_positions.melee_id = NEW.melee_id;
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+
+-- Update the emojicoin balances according to the swap data.
+CREATE FUNCTION update_position_swap() RETURNS trigger AS $$
+    BEGIN
+        UPDATE arena_positions SET
+            emojicoin_0_balance = NEW.emojicoin_0_proceeds,
+            emojicoin_1_balance = NEW.emojicoin_1_proceeds
+        WHERE arena_positions."user" = NEW."user" AND arena_positions.melee_id = NEW.melee_id;
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+
+-- Save a snapshot of the leaderboard in the leaderboard history table.
+CREATE FUNCTION snapshot_leaderboard() RETURNS trigger AS $$
+    BEGIN
+        INSERT INTO arena_leaderboard_history
+        SELECT
+            "user",
+            NEW.melee_id - 1,
+            profits,
+            losses
+        FROM arena_leaderboard();
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_position_enter_trigger AFTER INSERT ON arena_enter_events
+    FOR EACH ROW EXECUTE FUNCTION update_position_enter();
+
+CREATE TRIGGER update_position_exit_trigger AFTER INSERT ON arena_exit_events
+    FOR EACH ROW EXECUTE FUNCTION update_position_exit();
+
+CREATE TRIGGER update_position_swap_trigger AFTER INSERT ON arena_swap_events
+    FOR EACH ROW EXECUTE FUNCTION update_position_swap();
+
+CREATE TRIGGER snapshot_leaderboard_trigger BEFORE INSERT ON arena_melee_events
+    FOR EACH ROW EXECUTE FUNCTION snapshot_leaderboard();
+
+-- Indices
+
+CREATE INDEX latest_swap_by_market_address ON swap_events (market_address, market_nonce DESC);
