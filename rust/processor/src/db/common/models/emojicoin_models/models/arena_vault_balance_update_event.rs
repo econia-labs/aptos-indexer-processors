@@ -2,6 +2,7 @@ use crate::{
     db::common::models::emojicoin_models::json_types::{ArenaVaultBalanceUpdateEvent, TxnInfo},
     schema::arena_vault_balance_update_events,
 };
+use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
@@ -16,7 +17,7 @@ pub struct ArenaVaultBalanceUpdateEventModel {
     pub entry_function: Option<String>,
     pub transaction_timestamp: chrono::NaiveDateTime,
 
-    pub new_balance: i64,
+    pub new_balance: BigDecimal,
 }
 
 impl ArenaVaultBalanceUpdateEventModel {

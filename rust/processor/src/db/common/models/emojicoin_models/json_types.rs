@@ -424,10 +424,10 @@ pub struct LiquidityEvent {
 pub struct ExchangeRate {
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub base: i64,
+    pub base: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub quote: i64,
+    pub quote: BigDecimal,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -437,26 +437,26 @@ pub struct ArenaMeleeEvent {
     pub event_index: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub melee_id: i64,
+    pub melee_id: BigDecimal,
     #[serde(deserialize_with = "deserialize_and_standardize_address")]
     pub emojicoin_0_market_address: String,
     #[serde(deserialize_with = "deserialize_and_standardize_address")]
     pub emojicoin_1_market_address: String,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub start_time: i64,
+    pub start_time: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub duration: i64,
+    pub duration: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub max_match_percentage: i64,
+    pub max_match_percentage: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub max_match_amount: i64,
+    pub max_match_amount: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub available_rewards: i64,
+    pub available_rewards: BigDecimal,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -468,25 +468,25 @@ pub struct ArenaEnterEvent {
     pub user: String,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub melee_id: i64,
+    pub melee_id: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub input_amount: i64,
+    pub input_amount: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub quote_volume: i64,
+    pub quote_volume: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub integrator_fee: i64,
+    pub integrator_fee: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub match_amount: i64,
+    pub match_amount: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub emojicoin_0_proceeds: i64,
+    pub emojicoin_0_proceeds: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub emojicoin_1_proceeds: i64,
+    pub emojicoin_1_proceeds: BigDecimal,
     pub emojicoin_0_exchange_rate: ExchangeRate,
     pub emojicoin_1_exchange_rate: ExchangeRate,
 }
@@ -500,16 +500,16 @@ pub struct ArenaExitEvent {
     pub user: String,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub melee_id: i64,
+    pub melee_id: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub tap_out_fee: i64,
+    pub tap_out_fee: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub emojicoin_0_proceeds: i64,
+    pub emojicoin_0_proceeds: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub emojicoin_1_proceeds: i64,
+    pub emojicoin_1_proceeds: BigDecimal,
     pub emojicoin_0_exchange_rate: ExchangeRate,
     pub emojicoin_1_exchange_rate: ExchangeRate,
 }
@@ -523,19 +523,19 @@ pub struct ArenaSwapEvent {
     pub user: String,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub melee_id: i64,
+    pub melee_id: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub quote_volume: i64,
+    pub quote_volume: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub integrator_fee: i64,
+    pub integrator_fee: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub emojicoin_0_proceeds: i64,
+    pub emojicoin_0_proceeds: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub emojicoin_1_proceeds: i64,
+    pub emojicoin_1_proceeds: BigDecimal,
     pub emojicoin_0_exchange_rate: ExchangeRate,
     pub emojicoin_1_exchange_rate: ExchangeRate,
 }
@@ -547,7 +547,7 @@ pub struct ArenaVaultBalanceUpdateEvent {
     pub event_index: i64,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
-    pub new_balance: i64,
+    pub new_balance: BigDecimal,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

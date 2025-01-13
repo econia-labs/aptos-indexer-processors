@@ -2,6 +2,7 @@ use crate::{
     db::common::models::emojicoin_models::json_types::{ArenaExitEvent, TxnInfo},
     schema::arena_exit_events,
 };
+use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
@@ -17,15 +18,15 @@ pub struct ArenaExitEventModel {
     pub transaction_timestamp: chrono::NaiveDateTime,
 
     pub user: String,
-    pub melee_id: i64,
-    pub tap_out_fee: i64,
+    pub melee_id: BigDecimal,
+    pub tap_out_fee: BigDecimal,
 
-    pub emojicoin_0_proceeds: i64,
-    pub emojicoin_1_proceeds: i64,
-    pub emojicoin_0_exchange_rate_base: i64,
-    pub emojicoin_0_exchange_rate_quote: i64,
-    pub emojicoin_1_exchange_rate_base: i64,
-    pub emojicoin_1_exchange_rate_quote: i64,
+    pub emojicoin_0_proceeds: BigDecimal,
+    pub emojicoin_1_proceeds: BigDecimal,
+    pub emojicoin_0_exchange_rate_base: BigDecimal,
+    pub emojicoin_0_exchange_rate_quote: BigDecimal,
+    pub emojicoin_1_exchange_rate_base: BigDecimal,
+    pub emojicoin_1_exchange_rate_quote: BigDecimal,
 }
 
 impl ArenaExitEventModel {

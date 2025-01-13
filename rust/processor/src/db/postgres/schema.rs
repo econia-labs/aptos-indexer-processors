@@ -105,17 +105,17 @@ diesel::table! {
         transaction_timestamp -> Timestamp,
         inserted_at -> Timestamp,
         user -> Text,
-        melee_id -> Int8,
-        input_amount -> Int8,
-        quote_volume -> Int8,
-        integrator_fee -> Int8,
-        match_amount -> Int8,
-        emojicoin_0_proceeds -> Int8,
-        emojicoin_1_proceeds -> Int8,
-        emojicoin_0_exchange_rate_base -> Int8,
-        emojicoin_0_exchange_rate_quote -> Int8,
-        emojicoin_1_exchange_rate_base -> Int8,
-        emojicoin_1_exchange_rate_quote -> Int8,
+        melee_id -> Numeric,
+        input_amount -> Numeric,
+        quote_volume -> Numeric,
+        integrator_fee -> Numeric,
+        match_amount -> Numeric,
+        emojicoin_0_proceeds -> Numeric,
+        emojicoin_1_proceeds -> Numeric,
+        emojicoin_0_exchange_rate_base -> Numeric,
+        emojicoin_0_exchange_rate_quote -> Numeric,
+        emojicoin_1_exchange_rate_base -> Numeric,
+        emojicoin_1_exchange_rate_quote -> Numeric,
     }
 }
 
@@ -130,23 +130,23 @@ diesel::table! {
         transaction_timestamp -> Timestamp,
         inserted_at -> Timestamp,
         user -> Text,
-        melee_id -> Int8,
-        tap_out_fee -> Int8,
-        emojicoin_0_proceeds -> Int8,
-        emojicoin_1_proceeds -> Int8,
-        emojicoin_0_exchange_rate_base -> Int8,
-        emojicoin_0_exchange_rate_quote -> Int8,
-        emojicoin_1_exchange_rate_base -> Int8,
-        emojicoin_1_exchange_rate_quote -> Int8,
+        melee_id -> Numeric,
+        tap_out_fee -> Numeric,
+        emojicoin_0_proceeds -> Numeric,
+        emojicoin_1_proceeds -> Numeric,
+        emojicoin_0_exchange_rate_base -> Numeric,
+        emojicoin_0_exchange_rate_quote -> Numeric,
+        emojicoin_1_exchange_rate_base -> Numeric,
+        emojicoin_1_exchange_rate_quote -> Numeric,
     }
 }
 
 diesel::table! {
     arena_leaderboard_history (user, melee_id) {
         user -> Text,
-        melee_id -> Int8,
-        profits -> Int8,
-        losses -> Int8,
+        melee_id -> Numeric,
+        profits -> Numeric,
+        losses -> Numeric,
     }
 }
 
@@ -160,26 +160,26 @@ diesel::table! {
         entry_function -> Nullable<Varchar>,
         transaction_timestamp -> Timestamp,
         inserted_at -> Timestamp,
-        melee_id -> Int8,
+        melee_id -> Numeric,
         emojicoin_0_market_address -> Text,
         emojicoin_1_market_address -> Text,
-        start_time -> Int8,
-        duration -> Int8,
-        max_match_percentage -> Int8,
-        max_match_amount -> Int8,
-        available_rewards -> Int8,
+        start_time -> Numeric,
+        duration -> Numeric,
+        max_match_percentage -> Numeric,
+        max_match_amount -> Numeric,
+        available_rewards -> Numeric,
     }
 }
 
 diesel::table! {
     arena_positions (user, melee_id) {
         user -> Text,
-        melee_id -> Int8,
+        melee_id -> Numeric,
         open -> Bool,
-        emojicoin_0_balance -> Int8,
-        emojicoin_1_balance -> Int8,
-        profits -> Int8,
-        losses -> Int8,
+        emojicoin_0_balance -> Numeric,
+        emojicoin_1_balance -> Numeric,
+        profits -> Numeric,
+        losses -> Numeric,
     }
 }
 
@@ -194,15 +194,15 @@ diesel::table! {
         transaction_timestamp -> Timestamp,
         inserted_at -> Timestamp,
         user -> Text,
-        melee_id -> Int8,
-        quote_volume -> Int8,
-        integrator_fee -> Int8,
-        emojicoin_0_proceeds -> Int8,
-        emojicoin_1_proceeds -> Int8,
-        emojicoin_0_exchange_rate_base -> Int8,
-        emojicoin_0_exchange_rate_quote -> Int8,
-        emojicoin_1_exchange_rate_base -> Int8,
-        emojicoin_1_exchange_rate_quote -> Int8,
+        melee_id -> Numeric,
+        quote_volume -> Numeric,
+        integrator_fee -> Numeric,
+        emojicoin_0_proceeds -> Numeric,
+        emojicoin_1_proceeds -> Numeric,
+        emojicoin_0_exchange_rate_base -> Numeric,
+        emojicoin_0_exchange_rate_quote -> Numeric,
+        emojicoin_1_exchange_rate_base -> Numeric,
+        emojicoin_1_exchange_rate_quote -> Numeric,
     }
 }
 
@@ -216,7 +216,7 @@ diesel::table! {
         entry_function -> Nullable<Varchar>,
         transaction_timestamp -> Timestamp,
         inserted_at -> Timestamp,
-        new_balance -> Int8,
+        new_balance -> Numeric,
     }
 }
 

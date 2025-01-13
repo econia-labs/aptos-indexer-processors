@@ -8,14 +8,14 @@ CREATE TABLE arena_melee_events (
     transaction_timestamp TIMESTAMP NOT NULL,
     inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
-    melee_id BIGINT NOT NULL PRIMARY KEY,
+    melee_id NUMERIC NOT NULL PRIMARY KEY,
     emojicoin_0_market_address TEXT NOT NULL,
     emojicoin_1_market_address TEXT NOT NULL,
-    start_time BIGINT NOT NULL,
-    duration BIGINT NOT NULL,
-    max_match_percentage BIGINT NOT NULL,
-    max_match_amount BIGINT NOT NULL,
-    available_rewards BIGINT NOT NULL
+    start_time NUMERIC NOT NULL,
+    duration NUMERIC NOT NULL,
+    max_match_percentage NUMERIC NOT NULL,
+    max_match_amount NUMERIC NOT NULL,
+    available_rewards NUMERIC NOT NULL
 );
 
 CREATE TABLE arena_enter_events (
@@ -27,17 +27,17 @@ CREATE TABLE arena_enter_events (
     inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
     "user" TEXT NOT NULL,
-    melee_id BIGINT NOT NULL,
-    input_amount BIGINT NOT NULL,
-    quote_volume BIGINT NOT NULL,
-    integrator_fee BIGINT NOT NULL,
-    match_amount BIGINT NOT NULL,
-    emojicoin_0_proceeds BIGINT NOT NULL,
-    emojicoin_1_proceeds BIGINT NOT NULL,
-    emojicoin_0_exchange_rate_base BIGINT NOT NULL,
-    emojicoin_0_exchange_rate_quote BIGINT NOT NULL,
-    emojicoin_1_exchange_rate_base BIGINT NOT NULL,
-    emojicoin_1_exchange_rate_quote BIGINT NOT NULL,
+    melee_id NUMERIC NOT NULL,
+    input_amount NUMERIC NOT NULL,
+    quote_volume NUMERIC NOT NULL,
+    integrator_fee NUMERIC NOT NULL,
+    match_amount NUMERIC NOT NULL,
+    emojicoin_0_proceeds NUMERIC NOT NULL,
+    emojicoin_1_proceeds NUMERIC NOT NULL,
+    emojicoin_0_exchange_rate_base NUMERIC NOT NULL,
+    emojicoin_0_exchange_rate_quote NUMERIC NOT NULL,
+    emojicoin_1_exchange_rate_base NUMERIC NOT NULL,
+    emojicoin_1_exchange_rate_quote NUMERIC NOT NULL,
 
     PRIMARY KEY (transaction_version, event_index)
 );
@@ -51,14 +51,14 @@ CREATE TABLE arena_exit_events (
     inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
     "user" TEXT NOT NULL,
-    melee_id BIGINT NOT NULL,
-    tap_out_fee BIGINT NOT NULL,
-    emojicoin_0_proceeds BIGINT NOT NULL,
-    emojicoin_1_proceeds BIGINT NOT NULL,
-    emojicoin_0_exchange_rate_base BIGINT NOT NULL,
-    emojicoin_0_exchange_rate_quote BIGINT NOT NULL,
-    emojicoin_1_exchange_rate_base BIGINT NOT NULL,
-    emojicoin_1_exchange_rate_quote BIGINT NOT NULL,
+    melee_id NUMERIC NOT NULL,
+    tap_out_fee NUMERIC NOT NULL,
+    emojicoin_0_proceeds NUMERIC NOT NULL,
+    emojicoin_1_proceeds NUMERIC NOT NULL,
+    emojicoin_0_exchange_rate_base NUMERIC NOT NULL,
+    emojicoin_0_exchange_rate_quote NUMERIC NOT NULL,
+    emojicoin_1_exchange_rate_base NUMERIC NOT NULL,
+    emojicoin_1_exchange_rate_quote NUMERIC NOT NULL,
 
     PRIMARY KEY (transaction_version, event_index)
 );
@@ -72,15 +72,15 @@ CREATE TABLE arena_swap_events (
     inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
     "user" TEXT NOT NULL,
-    melee_id BIGINT NOT NULL,
-    quote_volume BIGINT NOT NULL,
-    integrator_fee BIGINT NOT NULL,
-    emojicoin_0_proceeds BIGINT NOT NULL,
-    emojicoin_1_proceeds BIGINT NOT NULL,
-    emojicoin_0_exchange_rate_base BIGINT NOT NULL,
-    emojicoin_0_exchange_rate_quote BIGINT NOT NULL,
-    emojicoin_1_exchange_rate_base BIGINT NOT NULL,
-    emojicoin_1_exchange_rate_quote BIGINT NOT NULL,
+    melee_id NUMERIC NOT NULL,
+    quote_volume NUMERIC NOT NULL,
+    integrator_fee NUMERIC NOT NULL,
+    emojicoin_0_proceeds NUMERIC NOT NULL,
+    emojicoin_1_proceeds NUMERIC NOT NULL,
+    emojicoin_0_exchange_rate_base NUMERIC NOT NULL,
+    emojicoin_0_exchange_rate_quote NUMERIC NOT NULL,
+    emojicoin_1_exchange_rate_base NUMERIC NOT NULL,
+    emojicoin_1_exchange_rate_quote NUMERIC NOT NULL,
 
     PRIMARY KEY (transaction_version, event_index)
 );
@@ -93,7 +93,7 @@ CREATE TABLE arena_vault_balance_update_events (
     transaction_timestamp TIMESTAMP NOT NULL,
     inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
-    new_balance BIGINT NOT NULL,
+    new_balance NUMERIC NOT NULL,
 
     PRIMARY KEY (transaction_version, event_index)
 );
@@ -102,21 +102,21 @@ CREATE TABLE arena_vault_balance_update_events (
 
 CREATE TABLE arena_positions (
     "user" TEXT NOT NULL,
-    melee_id BIGINT NOT NULL,
+    melee_id NUMERIC NOT NULL,
     open BOOL NOT NULL,
-    emojicoin_0_balance BIGINT NOT NULL,
-    emojicoin_1_balance BIGINT NOT NULL,
-    profits BIGINT NOT NULL,
-    losses BIGINT NOT NULL,
+    emojicoin_0_balance NUMERIC NOT NULL,
+    emojicoin_1_balance NUMERIC NOT NULL,
+    profits NUMERIC NOT NULL,
+    losses NUMERIC NOT NULL,
 
     PRIMARY KEY ("user", melee_id)
 );
 
 CREATE TABLE arena_leaderboard_history (
     "user" TEXT NOT NULL,
-    melee_id BIGINT NOT NULL,
-    profits BIGINT NOT NULL,
-    losses BIGINT NOT NULL,
+    melee_id NUMERIC NOT NULL,
+    profits NUMERIC NOT NULL,
+    losses NUMERIC NOT NULL,
 
     PRIMARY KEY ("user", melee_id)
 );
@@ -126,10 +126,10 @@ CREATE TABLE arena_leaderboard_history (
 CREATE OR REPLACE FUNCTION arena_leaderboard() RETURNS TABLE(
     "user" TEXT,
     open BOOL,
-    emojicoin_0_balance BIGINT,
-    emojicoin_1_balance BIGINT,
-    profits BIGINT,
-    losses BIGINT,
+    emojicoin_0_balance NUMERIC,
+    emojicoin_1_balance NUMERIC,
+    profits NUMERIC,
+    losses NUMERIC,
     pnl NUMERIC
 )
 AS $$
@@ -157,8 +157,8 @@ WITH melee AS (
         losses,
         (profits +
             emojicoin_0_balance * (SELECT * FROM price_emojicoin_0) +
-            emojicoin_1_balance * (SELECT * FROM price_emojicoin_1))::numeric /
-        losses::numeric * 100::numeric AS pnl
+            emojicoin_1_balance * (SELECT * FROM price_emojicoin_1)) /
+        losses * 100 AS pnl
     FROM arena_positions WHERE melee_id = (SELECT melee_id FROM melee)
 )
 SELECT * FROM realized_position

@@ -2,6 +2,7 @@ use crate::{
     db::common::models::emojicoin_models::json_types::{ArenaSwapEvent, TxnInfo},
     schema::arena_swap_events,
 };
+use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
@@ -17,16 +18,16 @@ pub struct ArenaSwapEventModel {
     pub transaction_timestamp: chrono::NaiveDateTime,
 
     pub user: String,
-    pub melee_id: i64,
-    pub quote_volume: i64,
-    pub integrator_fee: i64,
+    pub melee_id: BigDecimal,
+    pub quote_volume: BigDecimal,
+    pub integrator_fee: BigDecimal,
 
-    pub emojicoin_0_proceeds: i64,
-    pub emojicoin_1_proceeds: i64,
-    pub emojicoin_0_exchange_rate_base: i64,
-    pub emojicoin_0_exchange_rate_quote: i64,
-    pub emojicoin_1_exchange_rate_base: i64,
-    pub emojicoin_1_exchange_rate_quote: i64,
+    pub emojicoin_0_proceeds: BigDecimal,
+    pub emojicoin_1_proceeds: BigDecimal,
+    pub emojicoin_0_exchange_rate_base: BigDecimal,
+    pub emojicoin_0_exchange_rate_quote: BigDecimal,
+    pub emojicoin_1_exchange_rate_base: BigDecimal,
+    pub emojicoin_1_exchange_rate_quote: BigDecimal,
 }
 
 impl ArenaSwapEventModel {

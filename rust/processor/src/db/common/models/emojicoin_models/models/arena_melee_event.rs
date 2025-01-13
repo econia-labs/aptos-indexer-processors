@@ -2,6 +2,7 @@ use crate::{
     db::common::models::emojicoin_models::json_types::{ArenaMeleeEvent, TxnInfo},
     schema::arena_melee_events,
 };
+use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
@@ -16,14 +17,14 @@ pub struct ArenaMeleeEventModel {
     pub entry_function: Option<String>,
     pub transaction_timestamp: chrono::NaiveDateTime,
 
-    pub melee_id: i64,
+    pub melee_id: BigDecimal,
     pub emojicoin_0_market_address: String,
     pub emojicoin_1_market_address: String,
-    pub start_time: i64,
-    pub duration: i64,
-    pub max_match_percentage: i64,
-    pub max_match_amount: i64,
-    pub available_rewards: i64,
+    pub start_time: BigDecimal,
+    pub duration: BigDecimal,
+    pub max_match_percentage: BigDecimal,
+    pub max_match_amount: BigDecimal,
+    pub available_rewards: BigDecimal,
 }
 
 impl ArenaMeleeEventModel {
