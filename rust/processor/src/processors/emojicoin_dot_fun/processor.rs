@@ -195,16 +195,6 @@ async fn insert_to_db(
         ),
     );
 
-    let arena_melee = execute_in_chunks(
-        conn.clone(),
-        insert_arena_melee_events_query,
-        arena_melee_events,
-        get_config_table_chunk_size::<ArenaMeleeEventModel>(
-            "arena_melee_events",
-            per_table_chunk_sizes,
-        ),
-    );
-
     let arena_enter = execute_in_chunks(
         conn.clone(),
         insert_arena_enter_events_query,
@@ -241,6 +231,16 @@ async fn insert_to_db(
         arena_vault_balance_update_events,
         get_config_table_chunk_size::<ArenaVaultBalanceUpdateEventModel>(
             "arena_vault_balance_update_events",
+            per_table_chunk_sizes,
+        ),
+    );
+
+    let arena_melee = execute_in_chunks(
+        conn.clone(),
+        insert_arena_melee_events_query,
+        arena_melee_events,
+        get_config_table_chunk_size::<ArenaMeleeEventModel>(
+            "arena_melee_events",
             per_table_chunk_sizes,
         ),
     );

@@ -178,8 +178,8 @@ diesel::table! {
         open -> Bool,
         emojicoin_0_balance -> Numeric,
         emojicoin_1_balance -> Numeric,
-        profits -> Numeric,
-        losses -> Numeric,
+        withdrawals -> Numeric,
+        deposits -> Numeric,
     }
 }
 

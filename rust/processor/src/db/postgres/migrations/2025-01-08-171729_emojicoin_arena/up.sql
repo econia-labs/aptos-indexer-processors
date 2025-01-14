@@ -106,8 +106,8 @@ CREATE TABLE arena_positions (
     open BOOL NOT NULL,
     emojicoin_0_balance NUMERIC NOT NULL,
     emojicoin_1_balance NUMERIC NOT NULL,
-    profits NUMERIC NOT NULL,
-    losses NUMERIC NOT NULL,
+    withdrawals NUMERIC NOT NULL,
+    deposits NUMERIC NOT NULL,
 
     PRIMARY KEY ("user", melee_id)
 );
@@ -123,16 +123,7 @@ CREATE TABLE arena_leaderboard_history (
 
 -- Functions
 
-CREATE OR REPLACE FUNCTION arena_leaderboard() RETURNS TABLE(
-    "user" TEXT,
-    open BOOL,
-    emojicoin_0_balance NUMERIC,
-    emojicoin_1_balance NUMERIC,
-    profits NUMERIC,
-    losses NUMERIC,
-    pnl NUMERIC
-)
-AS $$
+CREATE VIEW arena_leaderboard AS
 WITH melee AS (
     SELECT * FROM arena_melee_events ORDER BY melee_id DESC LIMIT 1
 ), price_emojicoin_0 AS (
@@ -151,18 +142,17 @@ WITH melee AS (
         open,
         emojicoin_0_balance,
         emojicoin_1_balance,
-        profits +
+        withdrawals +
             emojicoin_0_balance * (SELECT * FROM price_emojicoin_0) +
-            emojicoin_1_balance * (SELECT * FROM price_emojicoin_1),
-        losses,
-        (profits +
-            emojicoin_0_balance * (SELECT * FROM price_emojicoin_0) +
-            emojicoin_1_balance * (SELECT * FROM price_emojicoin_1)) /
-        losses * 100 AS pnl
+            emojicoin_1_balance * (SELECT * FROM price_emojicoin_1) AS profits,
+        deposits AS losses
     FROM arena_positions WHERE melee_id = (SELECT melee_id FROM melee)
 )
-SELECT * FROM realized_position
-$$ LANGUAGE SQL;
+SELECT
+    *,
+    profits / losses * 100 - 100 AS pnl,
+    profits - losses AS pnl_octas
+FROM realized_position;
 
 -- Triggers to update derived data
 
@@ -178,8 +168,8 @@ CREATE FUNCTION update_position_enter() RETURNS trigger AS $$
             open,
             emojicoin_0_balance,
             emojicoin_1_balance,
-            profits,
-            losses
+            withdrawals,
+            deposits
         ) VALUES (
             NEW."user",
             NEW.melee_id,
@@ -194,21 +184,21 @@ CREATE FUNCTION update_position_enter() RETURNS trigger AS $$
             open = true,
             emojicoin_0_balance = arena_positions.emojicoin_0_balance + NEW.emojicoin_0_proceeds,
             emojicoin_1_balance = arena_positions.emojicoin_1_balance + NEW.emojicoin_1_proceeds,
-            losses = arena_positions.losses + NEW.input_amount + NEW.match_amount
+            deposits = arena_positions.deposits + NEW.input_amount + NEW.match_amount
         WHERE arena_positions."user" = NEW."user" AND arena_positions.melee_id = NEW.melee_id;
         RETURN NEW;
     END;
 $$ LANGUAGE plpgsql;
 
--- Mark the position as closed and update profits and losses.
+-- Mark the position as closed and update withdrawals and deposits.
 CREATE FUNCTION update_position_exit() RETURNS trigger AS $$
     BEGIN
         UPDATE arena_positions SET
             open = false,
             emojicoin_0_balance = 0,
             emojicoin_1_balance = 0,
-            profits = arena_positions.profits + NEW.emojicoin_0_proceeds * NEW.emojicoin_0_exchange_rate_base / NEW.emojicoin_0_exchange_rate_quote + NEW.emojicoin_1_proceeds * NEW.emojicoin_1_exchange_rate_base / NEW.emojicoin_1_exchange_rate_quote,
-            losses = arena_positions.losses + NEW.tap_out_fee
+            withdrawals = arena_positions.withdrawals + NEW.emojicoin_0_proceeds * NEW.emojicoin_0_exchange_rate_base / NEW.emojicoin_0_exchange_rate_quote + NEW.emojicoin_1_proceeds * NEW.emojicoin_1_exchange_rate_base / NEW.emojicoin_1_exchange_rate_quote,
+            deposits = arena_positions.deposits + NEW.tap_out_fee
         WHERE arena_positions."user" = NEW."user" AND arena_positions.melee_id = NEW.melee_id;
         RETURN NEW;
     END;
@@ -226,7 +216,7 @@ CREATE FUNCTION update_position_swap() RETURNS trigger AS $$
 $$ LANGUAGE plpgsql;
 
 -- Save a snapshot of the leaderboard in the leaderboard history table.
-CREATE FUNCTION snapshot_leaderboard() RETURNS trigger AS $$
+CREATE FUNCTION save_leaderboard_history() RETURNS trigger AS $$
     BEGIN
         INSERT INTO arena_leaderboard_history
         SELECT
@@ -234,7 +224,7 @@ CREATE FUNCTION snapshot_leaderboard() RETURNS trigger AS $$
             NEW.melee_id - 1,
             profits,
             losses
-        FROM arena_leaderboard();
+        FROM arena_leaderboard;
         RETURN NEW;
     END;
 $$ LANGUAGE plpgsql;
@@ -248,8 +238,8 @@ CREATE TRIGGER update_position_exit_trigger AFTER INSERT ON arena_exit_events
 CREATE TRIGGER update_position_swap_trigger AFTER INSERT ON arena_swap_events
     FOR EACH ROW EXECUTE FUNCTION update_position_swap();
 
-CREATE TRIGGER snapshot_leaderboard_trigger BEFORE INSERT ON arena_melee_events
-    FOR EACH ROW EXECUTE FUNCTION snapshot_leaderboard();
+CREATE TRIGGER save_leaderboard_history_trigger BEFORE INSERT ON arena_melee_events
+    FOR EACH ROW EXECUTE FUNCTION save_leaderboard_history();
 
 -- Indices
 
