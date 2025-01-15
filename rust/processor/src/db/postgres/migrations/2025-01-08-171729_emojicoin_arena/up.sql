@@ -150,7 +150,7 @@ WITH melee AS (
 )
 SELECT
     *,
-    profits / losses * 100 - 100 AS pnl,
+    profits / losses * 100 - 100 AS pnl_percent,
     profits - losses AS pnl_octas
 FROM realized_position;
 
