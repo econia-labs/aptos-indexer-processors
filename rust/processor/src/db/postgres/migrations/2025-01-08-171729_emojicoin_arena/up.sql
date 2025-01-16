@@ -121,7 +121,22 @@ CREATE TABLE arena_leaderboard_history (
     PRIMARY KEY ("user", melee_id)
 );
 
--- Functions
+CREATE TABLE arena_info (
+    melee_id NUMERIC NOT NULL PRIMARY KEY,
+    volume NUMERIC NOT NULL,
+    rewards_remaining NUMERIC NOT NULL,
+    apt_locked NUMERIC NOT NULL,
+
+    -- Redundant information to avoid multiple queries/joins
+    emojicoin_0_market_address TEXT,
+    emojicoin_1_market_address TEXT,
+    start_time NUMERIC,
+    duration NUMERIC,
+    max_match_percentage NUMERIC,
+    max_match_amount NUMERIC
+);
+
+-- Views
 
 CREATE VIEW arena_leaderboard AS
 WITH melee AS (
@@ -197,7 +212,13 @@ CREATE FUNCTION update_position_exit() RETURNS trigger AS $$
             open = false,
             emojicoin_0_balance = 0,
             emojicoin_1_balance = 0,
-            withdrawals = arena_positions.withdrawals + NEW.emojicoin_0_proceeds * NEW.emojicoin_0_exchange_rate_base / NEW.emojicoin_0_exchange_rate_quote + NEW.emojicoin_1_proceeds * NEW.emojicoin_1_exchange_rate_base / NEW.emojicoin_1_exchange_rate_quote,
+            withdrawals = arena_positions.withdrawals
+                + NEW.emojicoin_0_proceeds
+                    / NEW.emojicoin_0_exchange_rate_base
+                    * NEW.emojicoin_0_exchange_rate_quote
+                + NEW.emojicoin_1_proceeds
+                    / NEW.emojicoin_1_exchange_rate_base
+                    * NEW.emojicoin_1_exchange_rate_quote,
             deposits = arena_positions.deposits + NEW.tap_out_fee
         WHERE arena_positions."user" = NEW."user" AND arena_positions.melee_id = NEW.melee_id;
         RETURN NEW;
@@ -240,6 +261,113 @@ CREATE TRIGGER update_position_swap_trigger AFTER INSERT ON arena_swap_events
 
 CREATE TRIGGER save_leaderboard_history_trigger BEFORE INSERT ON arena_melee_events
     FOR EACH ROW EXECUTE FUNCTION save_leaderboard_history();
+
+-- Since events can be inserted out of order, we need to handle both the case
+-- where the Melee event is inserted first and where the Enter event is
+-- inserted first.
+CREATE FUNCTION create_melee_info() RETURNS trigger AS $$
+    BEGIN
+        INSERT INTO arena_info (
+            melee_id,
+            volume,
+            rewards_remaining,
+            apt_locked,
+            emojicoin_0_market_address,
+            emojicoin_1_market_address,
+            start_time,
+            duration,
+            max_match_percentage,
+            max_match_amount
+        ) VALUES (
+            NEW.melee_id,
+            0,
+            NEW.available_rewards,
+            0,
+            NEW.emojicoin_0_market_address,
+            NEW.emojicoin_1_market_address,
+            NEW.start_time,
+            NEW.duration,
+            NEW.max_match_percentage,
+            NEW.max_match_amount
+        )
+        ON CONFLICT (melee_id) DO
+        UPDATE SET
+            rewards_remaining = arena_info.rewards_remaining + NEW.available_rewards,
+            emojicoin_0_market_address = NEW.emojicoin_0_market_address,
+            emojicoin_1_market_address = NEW.emojicoin_1_market_address,
+            start_time = NEW.start_time,
+            duration = NEW.duration,
+            max_match_percentage = NEW.max_match_percentage,
+            max_match_amount = NEW.max_match_amount
+        WHERE arena_info.melee_id = NEW.melee_id;
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+
+-- Since events can be inserted out of order, we need to handle both the case
+-- where the Melee event is inserted first and where the Enter event is
+-- inserted first.
+CREATE FUNCTION update_arena_info_enter() RETURNS trigger AS $$
+    BEGIN
+        INSERT INTO arena_info (
+            melee_id,
+            volume,
+            rewards_remaining,
+            apt_locked
+        ) VALUES (
+            NEW.melee_id,
+            NEW.quote_volume,
+            0 - NEW.match_amount,
+            NEW.quote_volume
+        )
+        ON CONFLICT (melee_id) DO
+        UPDATE SET
+            volume = arena_info.volume + NEW.quote_volume,
+            rewards_remaining = arena_info.rewards_remaining - NEW.match_amount,
+            apt_locked = arena_info.apt_locked + NEW.quote_volume
+        WHERE arena_info.melee_id = NEW.melee_id;
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+
+CREATE FUNCTION update_arena_info_exit() RETURNS trigger AS $$
+    BEGIN
+        UPDATE arena_info SET
+            -- We check that this never underflows due to rounding errors
+            apt_locked = GREATEST(ROUND(
+                arena_info.apt_locked
+                    - NEW.emojicoin_0_proceeds
+                        / NEW.emojicoin_0_exchange_rate_base
+                        * NEW.emojicoin_0_exchange_rate_quote
+                    - NEW.emojicoin_1_proceeds
+                        / NEW.emojicoin_1_exchange_rate_base
+                        * NEW.emojicoin_1_exchange_rate_quote
+            ), 0)
+        WHERE arena_info.melee_id = NEW.melee_id;
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+
+CREATE FUNCTION update_arena_info_swap() RETURNS trigger AS $$
+    BEGIN
+        UPDATE arena_info SET
+            volume = arena_info.volume + NEW.quote_volume
+        WHERE arena_info.melee_id = NEW.melee_id;
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER create_melee_info_trigger AFTER INSERT ON arena_melee_events
+    FOR EACH ROW EXECUTE FUNCTION create_melee_info();
+
+CREATE TRIGGER update_arena_info_enter_trigger AFTER INSERT ON arena_enter_events
+    FOR EACH ROW EXECUTE FUNCTION update_arena_info_enter();
+
+CREATE TRIGGER update_arena_info_exit_trigger AFTER INSERT ON arena_exit_events
+    FOR EACH ROW EXECUTE FUNCTION update_arena_info_exit();
+
+CREATE TRIGGER update_arena_info_swap_trigger AFTER INSERT ON arena_swap_events
+    FOR EACH ROW EXECUTE FUNCTION update_arena_info_swap();
 
 -- Indices
 

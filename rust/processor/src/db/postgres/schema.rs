@@ -142,6 +142,21 @@ diesel::table! {
 }
 
 diesel::table! {
+    arena_info (melee_id) {
+        melee_id -> Numeric,
+        volume -> Numeric,
+        rewards_remaining -> Numeric,
+        apt_locked -> Numeric,
+        emojicoin_0_market_address -> Nullable<Text>,
+        emojicoin_1_market_address -> Nullable<Text>,
+        start_time -> Nullable<Numeric>,
+        duration -> Nullable<Numeric>,
+        max_match_percentage -> Nullable<Numeric>,
+        max_match_amount -> Nullable<Numeric>,
+    }
+}
+
+diesel::table! {
     arena_leaderboard_history (user, melee_id) {
         user -> Text,
         melee_id -> Numeric,
@@ -1787,6 +1802,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     ans_primary_name_v2,
     arena_enter_events,
     arena_exit_events,
+    arena_info,
     arena_leaderboard_history,
     arena_melee_events,
     arena_positions,
