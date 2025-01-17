@@ -33,7 +33,6 @@ impl ArenaVaultBalanceUpdateEventModel {
             entry_function: txn_info.entry_function.clone(),
             transaction_timestamp: txn_info.timestamp,
 
-            // Market and state metadata.
             new_balance: arena_vault_balance_update_event.new_balance,
         }
     }
