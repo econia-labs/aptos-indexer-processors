@@ -210,6 +210,7 @@ pub fn insert_market_latest_state_event_query(
                 daily_tvl_per_lp_coin_growth.eq(excluded(daily_tvl_per_lp_coin_growth)),
                 in_bonding_curve.eq(excluded(in_bonding_curve)),
                 volume_in_1m_state_tracker.eq(excluded(volume_in_1m_state_tracker)),
+                base_volume_in_1m_state_tracker.eq(excluded(base_volume_in_1m_state_tracker)),
             ))
             .filter(market_nonce.le(excluded(market_nonce))),
         None,
