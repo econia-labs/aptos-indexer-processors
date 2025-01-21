@@ -95,6 +95,147 @@ diesel::table! {
 }
 
 diesel::table! {
+    arena_enter_events (transaction_version, event_index) {
+        transaction_version -> Int8,
+        event_index -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+        user -> Text,
+        melee_id -> Numeric,
+        input_amount -> Numeric,
+        quote_volume -> Numeric,
+        integrator_fee -> Numeric,
+        match_amount -> Numeric,
+        emojicoin_0_proceeds -> Numeric,
+        emojicoin_1_proceeds -> Numeric,
+        emojicoin_0_exchange_rate_base -> Numeric,
+        emojicoin_0_exchange_rate_quote -> Numeric,
+        emojicoin_1_exchange_rate_base -> Numeric,
+        emojicoin_1_exchange_rate_quote -> Numeric,
+    }
+}
+
+diesel::table! {
+    arena_exit_events (transaction_version, event_index) {
+        transaction_version -> Int8,
+        event_index -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+        user -> Text,
+        melee_id -> Numeric,
+        tap_out_fee -> Numeric,
+        emojicoin_0_proceeds -> Numeric,
+        emojicoin_1_proceeds -> Numeric,
+        emojicoin_0_exchange_rate_base -> Numeric,
+        emojicoin_0_exchange_rate_quote -> Numeric,
+        emojicoin_1_exchange_rate_base -> Numeric,
+        emojicoin_1_exchange_rate_quote -> Numeric,
+    }
+}
+
+diesel::table! {
+    arena_info (melee_id) {
+        melee_id -> Numeric,
+        volume -> Numeric,
+        rewards_remaining -> Numeric,
+        apt_locked -> Numeric,
+        emojicoin_0_market_address -> Nullable<Text>,
+        emojicoin_1_market_address -> Nullable<Text>,
+        start_time -> Nullable<Numeric>,
+        duration -> Nullable<Numeric>,
+        max_match_percentage -> Nullable<Numeric>,
+        max_match_amount -> Nullable<Numeric>,
+    }
+}
+
+diesel::table! {
+    arena_leaderboard_history (user, melee_id) {
+        user -> Text,
+        melee_id -> Numeric,
+        profits -> Numeric,
+        losses -> Numeric,
+    }
+}
+
+diesel::table! {
+    arena_melee_events (melee_id) {
+        transaction_version -> Int8,
+        event_index -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+        melee_id -> Numeric,
+        emojicoin_0_market_address -> Text,
+        emojicoin_1_market_address -> Text,
+        start_time -> Numeric,
+        duration -> Numeric,
+        max_match_percentage -> Numeric,
+        max_match_amount -> Numeric,
+        available_rewards -> Numeric,
+    }
+}
+
+diesel::table! {
+    arena_positions (user, melee_id) {
+        user -> Text,
+        melee_id -> Numeric,
+        open -> Bool,
+        emojicoin_0_balance -> Numeric,
+        emojicoin_1_balance -> Numeric,
+        withdrawals -> Numeric,
+        deposits -> Numeric,
+    }
+}
+
+diesel::table! {
+    arena_swap_events (transaction_version, event_index) {
+        transaction_version -> Int8,
+        event_index -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+        user -> Text,
+        melee_id -> Numeric,
+        quote_volume -> Numeric,
+        integrator_fee -> Numeric,
+        emojicoin_0_proceeds -> Numeric,
+        emojicoin_1_proceeds -> Numeric,
+        emojicoin_0_exchange_rate_base -> Numeric,
+        emojicoin_0_exchange_rate_quote -> Numeric,
+        emojicoin_1_exchange_rate_base -> Numeric,
+        emojicoin_1_exchange_rate_quote -> Numeric,
+    }
+}
+
+diesel::table! {
+    arena_vault_balance_update_events (transaction_version, event_index) {
+        transaction_version -> Int8,
+        event_index -> Int8,
+        #[max_length = 66]
+        sender -> Varchar,
+        #[max_length = 200]
+        entry_function -> Nullable<Varchar>,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+        new_balance -> Numeric,
+    }
+}
+
+diesel::table! {
     block_metadata_transactions (version) {
         version -> Int8,
         block_height -> Int8,
@@ -1661,6 +1802,14 @@ diesel::allow_tables_to_appear_in_same_query!(
     ans_lookup_v2,
     ans_primary_name,
     ans_primary_name_v2,
+    arena_enter_events,
+    arena_exit_events,
+    arena_info,
+    arena_leaderboard_history,
+    arena_melee_events,
+    arena_positions,
+    arena_swap_events,
+    arena_vault_balance_update_events,
     block_metadata_transactions,
     chat_events,
     coin_activities,

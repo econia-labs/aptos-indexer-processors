@@ -1,3 +1,8 @@
+pub mod arena_enter_event;
+pub mod arena_exit_event;
+pub mod arena_melee_event;
+pub mod arena_swap_event;
+pub mod arena_vault_balance_update_event;
 pub mod chat_event;
 pub mod global_state_event;
 pub mod liquidity_event;

@@ -1,10 +1,14 @@
 use super::{
     constants::{
-        CHAT_EVENT, GLOBAL_STATE_EVENT, LIQUIDITY_EVENT, MARKET_REGISTRATION_EVENT,
-        MARKET_RESOURCE, PERIODIC_STATE_EVENT, STATE_EVENT, SWAP_EVENT,
+        ARENA_ENTER_EVENT, ARENA_EXIT_EVENT, ARENA_MELEE_EVENT, ARENA_SWAP_EVENT,
+        ARENA_VAULT_BALANCE_UPDATE_EVENT, CHAT_EVENT, GLOBAL_STATE_EVENT, LIQUIDITY_EVENT,
+        MARKET_REGISTRATION_EVENT, MARKET_RESOURCE, PERIODIC_STATE_EVENT, STATE_EVENT, SWAP_EVENT,
     },
-    json_types::{EventWithMarket, GlobalStateEvent},
+    json_types::{ArenaEvent, EventWithMarket, GlobalStateEvent},
     models::{
+        arena_enter_event::ArenaEnterEventModel, arena_exit_event::ArenaExitEventModel,
+        arena_melee_event::ArenaMeleeEventModel, arena_swap_event::ArenaSwapEventModel,
+        arena_vault_balance_update_event::ArenaVaultBalanceUpdateEventModel,
         chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
         liquidity_event::LiquidityEventModel,
         market_latest_state_event::MarketLatestStateEventModel,
@@ -146,12 +150,18 @@ pub enum EmojicoinTypeTag {
     GlobalState,
     Liquidity,
     Market,
+    ArenaMelee,
+    ArenaEnter,
+    ArenaExit,
+    ArenaSwap,
+    ArenaVaultBalanceUpdate,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum EmojicoinEvent {
     EventWithMarket(EventWithMarket),
     EventWithoutMarket(GlobalStateEvent),
+    ArenaEvent(ArenaEvent),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, strum::Display)]
@@ -163,6 +173,11 @@ pub enum EmojicoinDbEvent {
     MarketLatestState(MarketLatestStateEventModel),
     GlobalState(GlobalStateEventModel),
     Liquidity(LiquidityEventModel),
+    ArenaMelee(ArenaMeleeEventModel),
+    ArenaEnter(ArenaEnterEventModel),
+    ArenaExit(ArenaExitEventModel),
+    ArenaSwap(ArenaSwapEventModel),
+    ArenaVaultBalanceUpdate(ArenaVaultBalanceUpdateEventModel),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -174,6 +189,11 @@ pub enum EmojicoinEventType {
     State,
     GlobalState,
     Liquidity,
+    ArenaMelee,
+    ArenaEnter,
+    ArenaExit,
+    ArenaSwap,
+    ArenaVaultBalanceUpdate,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -185,6 +205,11 @@ pub enum EmojicoinDbEventType {
     MarketLatestState,
     GlobalState,
     Liquidity,
+    ArenaMelee,
+    ArenaEnter,
+    ArenaExit,
+    ArenaSwap,
+    ArenaVaultBalanceUpdate,
 }
 
 impl From<&EmojicoinEvent> for EmojicoinEventType {
@@ -197,6 +222,13 @@ impl From<&EmojicoinEvent> for EmojicoinEventType {
                 EventWithMarket::Chat(_) => EmojicoinEventType::Chat,
                 EventWithMarket::Liquidity(_) => EmojicoinEventType::Liquidity,
                 EventWithMarket::MarketRegistration(_) => EmojicoinEventType::MarketRegistration,
+            },
+            EmojicoinEvent::ArenaEvent(e) => match e {
+                ArenaEvent::Melee(_) => EmojicoinEventType::ArenaMelee,
+                ArenaEvent::Enter(_) => EmojicoinEventType::ArenaEnter,
+                ArenaEvent::Exit(_) => EmojicoinEventType::ArenaExit,
+                ArenaEvent::Swap(_) => EmojicoinEventType::ArenaSwap,
+                ArenaEvent::VaultBalanceUpdate(_) => EmojicoinEventType::ArenaVaultBalanceUpdate,
             },
             EmojicoinEvent::EventWithoutMarket(_) => EmojicoinEventType::GlobalState,
         }
@@ -213,6 +245,11 @@ impl From<&EmojicoinDbEvent> for EmojicoinDbEventType {
             EmojicoinDbEvent::MarketLatestState(_) => Self::MarketLatestState,
             EmojicoinDbEvent::GlobalState(_) => Self::GlobalState,
             EmojicoinDbEvent::Liquidity(_) => Self::Liquidity,
+            EmojicoinDbEvent::ArenaMelee(_) => Self::ArenaMelee,
+            EmojicoinDbEvent::ArenaEnter(_) => Self::ArenaEnter,
+            EmojicoinDbEvent::ArenaExit(_) => Self::ArenaExit,
+            EmojicoinDbEvent::ArenaSwap(_) => Self::ArenaSwap,
+            EmojicoinDbEvent::ArenaVaultBalanceUpdate(_) => Self::ArenaVaultBalanceUpdate,
         }
     }
 }
@@ -228,6 +265,13 @@ impl EmojicoinTypeTag {
             str if str == GLOBAL_STATE_EVENT.as_str() => Some(Self::GlobalState),
             str if str == LIQUIDITY_EVENT.as_str() => Some(Self::Liquidity),
             str if str == MARKET_RESOURCE.as_str() => Some(Self::Market),
+            str if str == ARENA_MELEE_EVENT.as_str() => Some(Self::ArenaMelee),
+            str if str == ARENA_ENTER_EVENT.as_str() => Some(Self::ArenaEnter),
+            str if str == ARENA_EXIT_EVENT.as_str() => Some(Self::ArenaExit),
+            str if str == ARENA_SWAP_EVENT.as_str() => Some(Self::ArenaSwap),
+            str if str == ARENA_VAULT_BALANCE_UPDATE_EVENT.as_str() => {
+                Some(Self::ArenaVaultBalanceUpdate)
+            },
             _ => None,
         }
     }
@@ -267,6 +311,32 @@ impl EmojicoinDbEvent {
             .iter()
             .cloned()
             .map(Self::MarketLatestState)
+            .collect()
+    }
+
+    pub fn from_arena_melee(events: &[ArenaMeleeEventModel]) -> Vec<Self> {
+        events.iter().cloned().map(Self::ArenaMelee).collect()
+    }
+
+    pub fn from_arena_enter(events: &[ArenaEnterEventModel]) -> Vec<Self> {
+        events.iter().cloned().map(Self::ArenaEnter).collect()
+    }
+
+    pub fn from_arena_exit(events: &[ArenaExitEventModel]) -> Vec<Self> {
+        events.iter().cloned().map(Self::ArenaExit).collect()
+    }
+
+    pub fn from_arena_swap(events: &[ArenaSwapEventModel]) -> Vec<Self> {
+        events.iter().cloned().map(Self::ArenaSwap).collect()
+    }
+
+    pub fn from_arena_vault_balance_update(
+        events: &[ArenaVaultBalanceUpdateEventModel],
+    ) -> Vec<Self> {
+        events
+            .iter()
+            .cloned()
+            .map(Self::ArenaVaultBalanceUpdate)
             .collect()
     }
 }
