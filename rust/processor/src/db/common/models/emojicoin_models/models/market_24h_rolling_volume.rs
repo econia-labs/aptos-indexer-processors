@@ -12,7 +12,8 @@ pub struct RecentOneMinutePeriodicStateEvent {
     pub market_id: i64,
     pub market_nonce: i64,
     pub transaction_version: i64,
-    pub period_volume: BigDecimal,
+    pub period_quote_volume: BigDecimal,
+    pub period_base_volume: BigDecimal,
     pub start_time: NaiveDateTime,
 }
 
@@ -34,7 +35,8 @@ impl RecentOneMinutePeriodicStateEvent {
                         market_id: pse.market_metadata.market_id,
                         market_nonce: pse.periodic_state_metadata.emit_market_nonce,
                         transaction_version: version,
-                        period_volume: pse.volume_quote.clone(),
+                        period_quote_volume: pse.volume_quote.clone(),
+                        period_base_volume: pse.volume_base.clone(),
                         start_time,
                     })
                 } else {

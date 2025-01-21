@@ -1156,6 +1156,7 @@ diesel::table! {
         nonce -> Int8,
         volume -> Numeric,
         start_time -> Timestamp,
+        base_volume -> Numeric,
     }
 }
 
@@ -1204,6 +1205,7 @@ diesel::table! {
         daily_tvl_per_lp_coin_growth -> Numeric,
         in_bonding_curve -> Bool,
         volume_in_1m_state_tracker -> Numeric,
+        base_volume_in_1m_state_tracker -> Numeric,
     }
 }
 
