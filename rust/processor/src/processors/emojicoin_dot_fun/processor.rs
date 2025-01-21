@@ -86,25 +86,29 @@ impl Debug for EmojicoinProcessor {
     }
 }
 
+struct InsertEvents<'a> {
+    market_registration_events: &'a [MarketRegistrationEventModel],
+    swap_events: &'a [SwapEventModel],
+    chat_events: &'a [ChatEventModel],
+    liquidity_events: &'a [LiquidityEventModel],
+    periodic_state_events: &'a [PeriodicStateEventModel],
+    global_state_events: &'a [GlobalStateEventModel],
+    market_latest_state_events: &'a [MarketLatestStateEventModel],
+    market_1m_periods: &'a [MarketOneMinutePeriodsInLastDayModel],
+    user_pools: &'a [UserLiquidityPoolsModel],
+    arena_melee_events: &'a [ArenaMeleeEventModel],
+    arena_enter_events: &'a [ArenaEnterEventModel],
+    arena_exit_events: &'a [ArenaExitEventModel],
+    arena_swap_events: &'a [ArenaSwapEventModel],
+    arena_vault_balance_update_events: &'a [ArenaVaultBalanceUpdateEventModel],
+}
+
 async fn insert_to_db(
     conn: ArcDbPool,
     name: &'static str,
     start_version: u64,
     end_version: u64,
-    market_registration_events: &[MarketRegistrationEventModel],
-    swap_events: &[SwapEventModel],
-    chat_events: &[ChatEventModel],
-    liquidity_events: &[LiquidityEventModel],
-    periodic_state_events: &[PeriodicStateEventModel],
-    global_state_events: &[GlobalStateEventModel],
-    market_latest_state_events: &[MarketLatestStateEventModel],
-    market_1m_periods: &[MarketOneMinutePeriodsInLastDayModel],
-    user_pools: &[UserLiquidityPoolsModel],
-    arena_melee_events: &[ArenaMeleeEventModel],
-    arena_enter_events: &[ArenaEnterEventModel],
-    arena_exit_events: &[ArenaExitEventModel],
-    arena_swap_events: &[ArenaSwapEventModel],
-    arena_vault_balance_update_events: &[ArenaVaultBalanceUpdateEventModel],
+    insert_events: InsertEvents<'_>,
     per_table_chunk_sizes: &AHashMap<String, usize>,
 ) -> Result<(), diesel::result::Error> {
     tracing::trace!(
@@ -113,6 +117,22 @@ async fn insert_to_db(
         end_version = end_version,
         "Inserting to db",
     );
+    let InsertEvents {
+        market_registration_events,
+        swap_events,
+        chat_events,
+        liquidity_events,
+        periodic_state_events,
+        global_state_events,
+        market_latest_state_events,
+        market_1m_periods,
+        user_pools,
+        arena_melee_events,
+        arena_enter_events,
+        arena_exit_events,
+        arena_swap_events,
+        arena_vault_balance_update_events,
+    } = insert_events;
     let market_registration = execute_in_chunks(
         conn.clone(),
         insert_market_registration_events_query,
@@ -367,18 +387,13 @@ impl ProcessorTrait for EmojicoinProcessor {
                                     txn_info.clone(),
                                     global_event,
                                 ));
-                            } else {
-                                match ArenaEvent::from_event_type(
-                                    type_str,
-                                    data,
-                                    txn_version,
-                                    event_index as i64,
-                                )? {
-                                    Some(evt) => {
-                                        arena_events.push(evt.clone());
-                                    },
-                                    _ => {},
-                                }
+                            } else if let Some(evt) = ArenaEvent::from_event_type(
+                                type_str,
+                                data,
+                                txn_version,
+                                event_index as i64,
+                            )? {
+                                arena_events.push(evt.clone());
                             }
                         },
                     }
@@ -572,20 +587,22 @@ impl ProcessorTrait for EmojicoinProcessor {
             self.name(),
             start_version,
             end_version,
-            &register_events_db,
-            &swap_events_db,
-            &chat_events_db,
-            &liquidity_events_db,
-            &periodic_state_events_db,
-            &global_state_events_db,
-            &market_latest_state_events,
-            &market_1m_periods,
-            user_pools_db.into_values().collect_vec().as_slice(),
-            &arena_melee_events_db,
-            &arena_enter_events_db,
-            &arena_exit_events_db,
-            &arena_swap_events_db,
-            &arena_vault_balance_update_events_db,
+            InsertEvents {
+                market_registration_events: &register_events_db,
+                swap_events: &swap_events_db,
+                chat_events: &chat_events_db,
+                liquidity_events: &liquidity_events_db,
+                periodic_state_events: &periodic_state_events_db,
+                global_state_events: &global_state_events_db,
+                market_latest_state_events: &market_latest_state_events,
+                market_1m_periods: &market_1m_periods,
+                user_pools: user_pools_db.into_values().collect_vec().as_slice(),
+                arena_melee_events: &arena_melee_events_db,
+                arena_enter_events: &arena_enter_events_db,
+                arena_exit_events: &arena_exit_events_db,
+                arena_swap_events: &arena_swap_events_db,
+                arena_vault_balance_update_events: &arena_vault_balance_update_events_db,
+            },
             &self.per_table_chunk_sizes,
         )
         .await;
