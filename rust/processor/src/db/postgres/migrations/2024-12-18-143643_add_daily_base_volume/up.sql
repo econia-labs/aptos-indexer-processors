@@ -18,16 +18,7 @@ INCLUDE (start_time, volume, base_volume);
 
 -- Add base volume to market_latest_state_event.
 ALTER TABLE market_latest_state_event
-ADD COLUMN base_volume_in_1m_state_tracker NUMERIC DEFAULT 0 NOT NULL;
-ALTER TABLE market_latest_state_event
-ALTER COLUMN base_volume_in_1m_state_tracker DROP DEFAULT;
-UPDATE market_latest_state_event
-SET base_volume_in_1m_state_tracker = COALESCE((
-    SELECT volume_base
-    FROM periodic_state_events AS pse
-    WHERE period = 'period_1m' AND pse.market_id = market_latest_state_event.market_id
-    ORDER BY start_time DESC LIMIT 1
-), 0::NUMERIC);
+ADD COLUMN base_volume_in_1m_state_tracker NUMERIC NOT NULL;
 
 -- Calculate the 24h rolling volume for each market.
 CREATE OR REPLACE VIEW market_daily_volume AS
