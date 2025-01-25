@@ -50,7 +50,54 @@ CREATE FUNCTION user_pools(provider text) RETURNS TABLE(
   lp_coin_balance BIGINT
 )
 AS $$
-SELECT ms.*, ulp.lp_coin_balance
+SELECT
+  ms.transaction_version,
+  ms.sender,
+  ms.entry_function,
+  ms.transaction_timestamp,
+  ms.inserted_at,
+
+  -- Market and state metadata.
+  ms.market_id,
+  ms.symbol_bytes,
+  ms.symbol_emojis,
+  ms.bump_time,
+  ms.market_nonce,
+  ms.trigger,
+  ms.market_address,
+
+  -- State event data.
+  ms.clamm_virtual_reserves_base,
+  ms.clamm_virtual_reserves_quote,
+  ms.cpamm_real_reserves_base,
+  ms.cpamm_real_reserves_quote,
+  ms.lp_coin_supply,
+  ms.cumulative_stats_base_volume,
+  ms.cumulative_stats_quote_volume,
+  ms.cumulative_stats_integrator_fees,
+  ms.cumulative_stats_pool_fees_base,
+  ms.cumulative_stats_pool_fees_quote,
+  ms.cumulative_stats_n_swaps,
+  ms.cumulative_stats_n_chat_messages,
+  ms.instantaneous_stats_total_quote_locked,
+  ms.instantaneous_stats_total_value_locked,
+  ms.instantaneous_stats_market_cap,
+  ms.instantaneous_stats_fully_diluted_value,
+  ms.last_swap_is_sell,
+  ms.last_swap_avg_execution_price_q64,
+  ms.last_swap_base_volume,
+  ms.last_swap_quote_volume,
+  ms.last_swap_nonce,
+  ms.last_swap_time,
+
+  -- Querying all post-bonding curve markets. i.e., markets with liquidity pools.
+  ms.daily_tvl_per_lp_coin_growth,
+  ms.in_bonding_curve,
+  ms.volume_in_1m_state_tracker,
+
+  ms.daily_volume,
+
+  ulp.lp_coin_balance
 FROM
     market_state AS ms,
     user_liquidity_pools AS ulp
