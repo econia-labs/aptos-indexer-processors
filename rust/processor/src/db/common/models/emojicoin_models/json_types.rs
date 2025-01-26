@@ -628,30 +628,22 @@ impl ArenaEvent {
         txn_version: i64,
         event_index: i64,
     ) -> Result<Option<Self>> {
-        let mut data_map: serde_json::Map<String, serde_json::Value> =
-            serde_json::from_str(data).unwrap();
-        let mut event_index_map: serde_json::Map<String, serde_json::Value> =
-            serde_json::from_value(json!({
-                "event_index": event_index.to_string()
-            }))
-            .unwrap();
-        data_map.append(&mut event_index_map);
-        let data_object = serde_json::Value::Object(data_map);
         match EmojicoinTypeTag::from_type_str(event_type) {
             Some(EmojicoinTypeTag::ArenaMelee) => {
-                serde_json::from_value(data_object).map(|inner| Some(Self::Melee(inner)))
+                serde_json::from_str(data).map(|inner| Some(Self::Melee(inner)))
             },
             Some(EmojicoinTypeTag::ArenaEnter) => {
-                serde_json::from_value(data_object).map(|inner| Some(Self::Enter(inner)))
+                serde_json::from_str(data).map(|inner| Some(Self::Enter(inner)))
             },
             Some(EmojicoinTypeTag::ArenaExit) => {
-                serde_json::from_value(data_object).map(|inner| Some(Self::Exit(inner)))
+                serde_json::from_str(data).map(|inner| Some(Self::Exit(inner)))
             },
             Some(EmojicoinTypeTag::ArenaSwap) => {
-                serde_json::from_value(data_object).map(|inner| Some(Self::Swap(inner)))
+                serde_json::from_str(data).map(|inner| Some(Self::Swap(inner)))
             },
-            Some(EmojicoinTypeTag::ArenaVaultBalanceUpdate) => serde_json::from_value(data_object)
-                .map(|inner| Some(Self::VaultBalanceUpdate(inner))),
+            Some(EmojicoinTypeTag::ArenaVaultBalanceUpdate) => {
+                serde_json::from_str(data).map(|inner| Some(Self::VaultBalanceUpdate(inner)))
+            },
             _ => Ok(None),
         }
         .context(format!(

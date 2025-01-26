@@ -1,6 +1,6 @@
 use crate::{
     db::common::models::emojicoin_models::{
-        enums::Trigger,
+        enums::{EmojicoinTypeTag, Trigger},
         event_utils::EventGroupBuilder,
         json_types::{
             ArenaEvent, BumpEvent, EventGroup, EventWithMarket, GlobalStateEvent,
@@ -360,42 +360,59 @@ impl ProcessorTrait for EmojicoinProcessor {
 
                 // Group the market events in this transaction.
                 let mut market_events = vec![];
-                let mut arena_events = vec![];
                 for (event_index, event) in user_txn.events.iter().enumerate() {
                     let type_str = event.type_str.as_str();
                     let data = event.data.as_str();
 
-                    match EventWithMarket::from_event_type(
-                        type_str,
-                        data,
-                        txn_version,
-                        event_index as i64,
-                    )? {
-                        Some(evt) => {
+                    // Only parse events that match an `EmojicoinTypeTag`. This protects against
+                    // parsing invalid or unexpected JSON data.
+                    if EmojicoinTypeTag::from_type_str(type_str).is_some() {
+                        // If it's an event with a market, parse it and add it to `market_events`
+                        // and possibly the one minute periodic state events.
+                        if let Some(evt) = EventWithMarket::from_event_type(
+                            type_str,
+                            data,
+                            txn_version,
+                            event_index as i64,
+                        )? {
                             market_events.push(evt.clone());
                             if let Some(one_min_pse) =
                                 RecentOneMinutePeriodicStateEvent::try_from_event(evt, txn_version)
                             {
                                 period_data.push(one_min_pse);
                             }
-                        },
-                        _ => {
-                            if let Some(global_event) =
-                                GlobalStateEvent::from_event_type(type_str, data, txn_version)?
-                            {
-                                global_state_events_db.push(GlobalStateEventModel::new(
-                                    txn_info.clone(),
-                                    global_event,
-                                ));
-                            } else if let Some(evt) = ArenaEvent::from_event_type(
-                                type_str,
-                                data,
-                                txn_version,
-                                event_index as i64,
-                            )? {
-                                arena_events.push(evt.clone());
+                        // If it's an arena event, parse it and add it to the proper arena events vector.
+                        } else if let Some(evt) = ArenaEvent::from_event_type(
+                            type_str,
+                            data,
+                            txn_version,
+                            event_index as i64,
+                        )? {
+                            match evt {
+                                ArenaEvent::Melee(melee) => arena_melee_events_db
+                                    .push(ArenaMeleeEventModel::new(txn_info.clone(), melee)),
+                                ArenaEvent::Enter(enter) => arena_enter_events_db
+                                    .push(ArenaEnterEventModel::new(txn_info.clone(), enter)),
+                                ArenaEvent::Exit(exit) => arena_exit_events_db
+                                    .push(ArenaExitEventModel::new(txn_info.clone(), exit)),
+                                ArenaEvent::Swap(swap) => arena_swap_events_db
+                                    .push(ArenaSwapEventModel::new(txn_info.clone(), swap)),
+                                ArenaEvent::VaultBalanceUpdate(vault_balance_update) => {
+                                    arena_vault_balance_update_events_db.push(
+                                        ArenaVaultBalanceUpdateEventModel::new(
+                                            txn_info.clone(),
+                                            vault_balance_update,
+                                        ),
+                                    )
+                                },
                             }
-                        },
+                        // If it's a global state event, parse and add it to the global state events vector.
+                        } else if let Some(global_event) =
+                            GlobalStateEvent::from_event_type(type_str, data, txn_version)?
+                        {
+                            global_state_events_db
+                                .push(GlobalStateEventModel::new(txn_info.clone(), global_event));
+                        }
                     }
                 }
 
@@ -513,26 +530,6 @@ impl ProcessorTrait for EmojicoinProcessor {
                                     }
                                 })
                                 .or_insert(new_pool);
-                        },
-                    }
-                }
-                for event in arena_events {
-                    match event {
-                        ArenaEvent::Melee(melee) => arena_melee_events_db
-                            .push(ArenaMeleeEventModel::new(txn_info.clone(), melee)),
-                        ArenaEvent::Enter(enter) => arena_enter_events_db
-                            .push(ArenaEnterEventModel::new(txn_info.clone(), enter)),
-                        ArenaEvent::Exit(exit) => arena_exit_events_db
-                            .push(ArenaExitEventModel::new(txn_info.clone(), exit)),
-                        ArenaEvent::Swap(swap) => arena_swap_events_db
-                            .push(ArenaSwapEventModel::new(txn_info.clone(), swap)),
-                        ArenaEvent::VaultBalanceUpdate(vault_balance_update) => {
-                            arena_vault_balance_update_events_db.push(
-                                ArenaVaultBalanceUpdateEventModel::new(
-                                    txn_info.clone(),
-                                    vault_balance_update,
-                                ),
-                            )
                         },
                     }
                 }
