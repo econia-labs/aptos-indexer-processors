@@ -2,7 +2,7 @@
 
 -- This function atomically returns the state of all market states at a single
 -- point in time- specifically, when the transaction version is equal to the
--- `last_success_version` returned.
+-- `last_emojicoin_transaction_version` returned.
 --
 -- It's possible to verify the data integrity of the database to some extent
 -- by comparing the values of global on-chain state against these aggregate
@@ -13,63 +13,53 @@
 --
 -- To verify the data integrity at a specific transaction version, retrieve the
 -- on-chain global state resource where the transaction version specified is the
--- `last_success_version` that this function returns, and then compare all values.
-CREATE FUNCTION aggregate_market_data() RETURNS TABLE(
-  -- `processor_status` columns at the exact time of the query.
-  last_success_version BIGINT,
-  last_updated TIMESTAMP,
-  last_transaction_timestamp TIMESTAMP,
+-- `last_emojicoin_transaction_version` that this function returns, and then compare
+-- all values.
+--
+-- NOTE: `last_success_version` from the `processor_status` is not synced with
+-- new event data inserted and can actually be behind the highest emojicoin
+-- transaction version. To properly get the last successfully processed and inserted
+-- emojicoin version, it's necessary to get the max transaction version among
+-- all transaction versions.
+CREATE FUNCTION aggregate_market_state() RETURNS TABLE(
+  last_emojicoin_transaction_version BIGINT,
 
-  -- Aggregate number of markets.
-  num_markets BIGINT,
-  num_markets_in_bonding_curve BIGINT,
-  num_markets_post_bonding_curve BIGINT,
-
-  -- Globally aggregated market state data.
-  aggregate_quote_volume NUMERIC,
-  aggregate_total_quote_locked NUMERIC,
-  aggregate_total_value_locked NUMERIC,
-  aggregate_market_cap NUMERIC,
-  aggregate_fully_diluted_value NUMERIC,
-  aggregate_integrator_fees NUMERIC,
-  aggregate_num_swaps BIGINT,
-  aggregate_num_chat_messages BIGINT,
-  aggregate_market_nonces BIGINT
+  -- The following columns are structured to match all the `registry_view` fields.
+  cumulative_chat_messages BIGINT,
+  cumulative_integrator_fees NUMERIC,
+  cumulative_quote_volume NUMERIC,
+  cumulative_swaps BIGINT,
+  fully_diluted_value NUMERIC,
+  last_bump_time TIMESTAMP,
+  market_cap NUMERIC,
+  n_markets BIGINT,
+  nonce BIGINT,
+  total_quote_locked NUMERIC,
+  total_value_locked NUMERIC,
+  
+  n_markets_in_bonding_curve BIGINT,
+  n_markets_post_bonding_curve BIGINT
 )
 AS $$
-WITH aggregate_market_states AS (
-    SELECT
-        COUNT(*) as num_markets,
-        COUNT(*) FILTER (WHERE in_bonding_curve = true) as num_markets_in_bonding_curve,
-        COUNT(*) FILTER (WHERE in_bonding_curve = false) as num_markets_post_bonding_curve,
-        SUM(cumulative_stats_quote_volume) as aggregate_quote_volume,
-        SUM(instantaneous_stats_total_quote_locked) as aggregate_total_quote_locked,
-        SUM(instantaneous_stats_total_value_locked) as aggregate_total_value_locked,
-        SUM(instantaneous_stats_market_cap) as aggregate_market_cap,
-        SUM(instantaneous_stats_fully_diluted_value) as aggregate_fully_diluted_value,
-        SUM(cumulative_stats_integrator_fees) as aggregate_integrator_fees,
-        SUM(cumulative_stats_n_swaps) as aggregate_num_swaps,
-        SUM(cumulative_stats_n_chat_messages) as aggregate_num_chat_messages,
-        SUM(market_nonce) as aggregate_market_nonces
-    FROM market_state
-)
 SELECT
-    ps.last_success_version,
-    ps.last_updated,
-    ps.last_transaction_timestamp,
-    agg_ms.num_markets,
-    agg_ms.num_markets_in_bonding_curve,
-    agg_ms.num_markets_post_bonding_curve,
-    agg_ms.aggregate_quote_volume,
-    agg_ms.aggregate_total_quote_locked,
-    agg_ms.aggregate_total_value_locked,
-    agg_ms.aggregate_market_cap,
-    agg_ms.aggregate_fully_diluted_value,
-    agg_ms.aggregate_integrator_fees,
-    agg_ms.aggregate_num_swaps,
-    agg_ms.aggregate_num_chat_messages,
-    agg_ms.aggregate_market_nonces
-FROM
-    processor_status as ps,
-    aggregate_market_states as agg_ms;
+    MAX(transaction_version) as last_emojicoin_transaction_version,
+
+    -- The following columns mirror the `registry_view` return value structure.
+    SUM(cumulative_stats_n_chat_messages) as cumulative_chat_messages,
+    SUM(cumulative_stats_integrator_fees) as cumulative_integrator_fees,
+    SUM(cumulative_stats_quote_volume) as cumulative_quote_volume,
+    SUM(cumulative_stats_n_swaps) as cumulative_swaps,
+    SUM(instantaneous_stats_fully_diluted_value) as fully_diluted_value,
+    MAX(bump_time) as last_bump_time, 
+    SUM(instantaneous_stats_market_cap) as market_cap,
+    COUNT(*) as n_markets,
+    -- Add one to account for `init_module` incrementing the registry nonce without
+    -- incrementing a market's `market_nonce`.
+    SUM(market_nonce) + 1 as nonce,
+    SUM(instantaneous_stats_total_quote_locked) as total_quote_locked,
+    SUM(instantaneous_stats_total_value_locked) as total_value_locked,
+
+    COUNT(*) FILTER (WHERE in_bonding_curve = true) as n_markets_in_bonding_curve,
+    COUNT(*) FILTER (WHERE in_bonding_curve = false) as n_markets_post_bonding_curve
+FROM market_state
 $$ LANGUAGE SQL;
