@@ -452,6 +452,18 @@ impl ProcessorTrait for EmojicoinProcessor {
 
                     let market_addr = &state_event.market_metadata.market_address;
 
+                    // A market resource in a transaction changeset will *always* contain the latest
+                    // market state for that transaction by virtue of the writeset reflecting the
+                    // final state of the market at the end of the transaction.
+                    //
+                    // Thus, the boolean condition to enter the `and_modify` code block below must
+                    // use `<=` to ensure that in the case where the event with a lower nonce is
+                    // inserted into the hashmap with `or_insert_with` first, the `latest_trigger`
+                    // and `latest_instant_stats` are still properly updated.
+                    //
+                    // These comparisons remove the need to parse the writeset for every single
+                    // event and instead only parse it for events that are newer than what's
+                    // currently in the hashamp for that market.
                     latest_market_resources
                         .entry(market_id)
                         .and_modify(
@@ -461,7 +473,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                                 latest_trigger,
                                 latest_instant_stats,
                             )| {
-                                if latest_resource.sequence_info.nonce < market_nonce {
+                                if latest_resource.sequence_info.nonce <= market_nonce {
                                     // Writeset changes reflect the final state changes from the transaction; same version == same changes.
                                     if txn_info_for_latest.version != txn_version {
                                         *latest_resource = MarketResource::from_write_set_changes(
