@@ -13,7 +13,6 @@ use anyhow::{Context, Result};
 use aptos_protos::transaction::v1::WriteResource;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::json;
 use std::str::FromStr;
 
 pub fn serialize_bytes_to_hex_string<S>(element: &Vec<u8>, s: S) -> Result<S::Ok, S::Error>
@@ -626,7 +625,7 @@ impl ArenaEvent {
         event_type: &str,
         data: &str,
         txn_version: i64,
-        event_index: i64,
+        _event_index: i64,
     ) -> Result<Option<Self>> {
         match EmojicoinTypeTag::from_type_str(event_type) {
             Some(EmojicoinTypeTag::ArenaMelee) => {
