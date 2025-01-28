@@ -625,7 +625,7 @@ impl ArenaEvent {
         event_type: &str,
         data: &str,
         txn_version: i64,
-        _event_index: i64,
+        event_index: i64,
     ) -> Result<Option<Self>> {
         match EmojicoinTypeTag::from_type_str(event_type) {
             Some(EmojicoinTypeTag::ArenaMelee) => {
