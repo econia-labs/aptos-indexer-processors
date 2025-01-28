@@ -13,7 +13,6 @@ use anyhow::{Context, Result};
 use aptos_protos::transaction::v1::WriteResource;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::json;
 use std::str::FromStr;
 
 pub fn serialize_bytes_to_hex_string<S>(element: &Vec<u8>, s: S) -> Result<S::Ok, S::Error>
@@ -628,22 +627,28 @@ impl ArenaEvent {
         txn_version: i64,
         event_index: i64,
     ) -> Result<Option<Self>> {
-        match EmojicoinTypeTag::from_type_str(event_type) {
-            Some(EmojicoinTypeTag::ArenaMelee) => {
-                serde_json::from_str(data).map(|inner| Some(Self::Melee(inner)))
-            },
-            Some(EmojicoinTypeTag::ArenaEnter) => {
-                serde_json::from_str(data).map(|inner| Some(Self::Enter(inner)))
-            },
-            Some(EmojicoinTypeTag::ArenaExit) => {
-                serde_json::from_str(data).map(|inner| Some(Self::Exit(inner)))
-            },
-            Some(EmojicoinTypeTag::ArenaSwap) => {
-                serde_json::from_str(data).map(|inner| Some(Self::Swap(inner)))
-            },
-            Some(EmojicoinTypeTag::ArenaVaultBalanceUpdate) => {
-                serde_json::from_str(data).map(|inner| Some(Self::VaultBalanceUpdate(inner)))
-            },
+        // Return early if the type tag is not an emojicoin type tag.
+        let emojicoin_type_tag = EmojicoinTypeTag::from_type_str(event_type);
+        if emojicoin_type_tag.is_none() {
+            return Ok(None);
+        }
+
+        // Insert the event index into the JSON data.
+        let mut json_data = serde_json::Value::from_str(data)?;
+        json_data["event_index"] = serde_json::Value::from(event_index.to_string());
+
+        // Match arena events only, then deserialize the JSON data into arena structs.
+        match emojicoin_type_tag {
+            Some(EmojicoinTypeTag::ArenaMelee) => serde_json::from_value(json_data)
+                .map(|inner: ArenaMeleeEvent| Some(Self::Melee(inner))),
+            Some(EmojicoinTypeTag::ArenaEnter) => serde_json::from_value(json_data)
+                .map(|inner: ArenaEnterEvent| Some(Self::Enter(inner))),
+            Some(EmojicoinTypeTag::ArenaExit) => serde_json::from_value(json_data)
+                .map(|inner: ArenaExitEvent| Some(Self::Exit(inner))),
+            Some(EmojicoinTypeTag::ArenaSwap) => serde_json::from_value(json_data)
+                .map(|inner: ArenaSwapEvent| Some(Self::Swap(inner))),
+            Some(EmojicoinTypeTag::ArenaVaultBalanceUpdate) => serde_json::from_value(json_data)
+                .map(|inner: ArenaVaultBalanceUpdateEvent| Some(Self::VaultBalanceUpdate(inner))),
             _ => Ok(None),
         }
         .context(format!(
