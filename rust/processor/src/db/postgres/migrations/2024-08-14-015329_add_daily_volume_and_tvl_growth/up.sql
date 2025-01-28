@@ -1,10 +1,10 @@
 -- Your SQL goes here
 
 CREATE TABLE market_1m_periods_in_last_day (
-    market_id BIGINT NOT NULL,
+    market_id NUMERIC NOT NULL,
     inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    transaction_version BIGINT NOT NULL,
-    nonce BIGINT NOT NULL, -- Market nonce.
+    transaction_version NUMERIC NOT NULL,
+    nonce NUMERIC NOT NULL, -- Market nonce.
     volume NUMERIC NOT NULL, -- Quote volume.
     start_time TIMESTAMP NOT NULL,
 

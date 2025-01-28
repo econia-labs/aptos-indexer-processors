@@ -1,43 +1,43 @@
 -- Your SQL goes here
 DROP FUNCTION user_pools(provider text);
 CREATE FUNCTION user_pools(provider text) RETURNS TABLE(
-  transaction_version BIGINT,
+  transaction_version NUMERIC,
   sender VARCHAR(66),
   entry_function VARCHAR(200),
   transaction_timestamp TIMESTAMP,
   inserted_at TIMESTAMP,
 
   -- Market and state metadata.
-  market_id BIGINT,
+  market_id NUMERIC,
   symbol_bytes BYTEA,
   symbol_emojis TEXT[],
   bump_time TIMESTAMP, -- Note that bump and emit time are interchangeable.
-  market_nonce BIGINT,
+  market_nonce NUMERIC,
   trigger trigger_type,
   market_address VARCHAR(66),
 
   -- State event data.
-  clamm_virtual_reserves_base BIGINT,
-  clamm_virtual_reserves_quote BIGINT,
-  cpamm_real_reserves_base BIGINT,
-  cpamm_real_reserves_quote BIGINT,
+  clamm_virtual_reserves_base NUMERIC,
+  clamm_virtual_reserves_quote NUMERIC,
+  cpamm_real_reserves_base NUMERIC,
+  cpamm_real_reserves_quote NUMERIC,
   lp_coin_supply NUMERIC,
   cumulative_stats_base_volume NUMERIC,
   cumulative_stats_quote_volume NUMERIC,
   cumulative_stats_integrator_fees NUMERIC,
   cumulative_stats_pool_fees_base NUMERIC,
   cumulative_stats_pool_fees_quote NUMERIC,
-  cumulative_stats_n_swaps BIGINT,
-  cumulative_stats_n_chat_messages BIGINT,
-  instantaneous_stats_total_quote_locked BIGINT,
+  cumulative_stats_n_swaps NUMERIC,
+  cumulative_stats_n_chat_messages NUMERIC,
+  instantaneous_stats_total_quote_locked NUMERIC,
   instantaneous_stats_total_value_locked NUMERIC,
   instantaneous_stats_market_cap NUMERIC,
   instantaneous_stats_fully_diluted_value NUMERIC,
   last_swap_is_sell BOOLEAN,
   last_swap_avg_execution_price_q64 NUMERIC,
-  last_swap_base_volume BIGINT,
-  last_swap_quote_volume BIGINT,
-  last_swap_nonce BIGINT,
+  last_swap_base_volume NUMERIC,
+  last_swap_quote_volume NUMERIC,
+  last_swap_nonce NUMERIC,
   last_swap_time TIMESTAMP,
 
   -- Querying all post-bonding curve markets. i.e., markets with liquidity pools.
@@ -47,7 +47,7 @@ CREATE FUNCTION user_pools(provider text) RETURNS TABLE(
 
   daily_volume NUMERIC,
 
-  lp_coin_balance BIGINT
+  lp_coin_balance NUMERIC
 )
 AS $$
 SELECT ms.*, ulp.lp_coin_balance
