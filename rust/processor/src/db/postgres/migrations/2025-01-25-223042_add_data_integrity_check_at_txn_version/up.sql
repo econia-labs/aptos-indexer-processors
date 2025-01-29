@@ -59,7 +59,7 @@ WITH agg_ms AS (
       SUM(cumulative_stats_quote_volume) AS cumulative_quote_volume,
       SUM(cumulative_stats_n_swaps) AS cumulative_swaps,
       SUM(instantaneous_stats_fully_diluted_value) AS fully_diluted_value,
-      -- Note this is msot recent market state event bump time,
+      -- Note this is most recent market state event bump time,
       -- not the last `global_state_event.bump_time`.
       MAX(bump_time) AS last_bump_time, 
       SUM(instantaneous_stats_market_cap) AS market_cap,
