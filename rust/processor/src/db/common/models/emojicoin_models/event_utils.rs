@@ -3,7 +3,7 @@ use super::{
     json_types::{BumpEvent, EventGroup, EventWithMarket, PeriodicStateEvent, StateEvent, TxnInfo},
 };
 impl EventWithMarket {
-    pub fn get_market_id(&self) -> i64 {
+    pub fn get_market_id(&self) -> BigDecimal {
         match self {
             EventWithMarket::Chat(event) => event.market_metadata.market_id,
             EventWithMarket::Swap(event) => event.market_id,
@@ -14,7 +14,7 @@ impl EventWithMarket {
         }
     }
 
-    pub fn get_market_nonce(&self) -> i64 {
+    pub fn get_market_nonce(&self) -> BigDecimal {
         match self {
             EventWithMarket::MarketRegistration(_) => INITIAL_MARKET_NONCE,
             EventWithMarket::Chat(event) => event.emit_market_nonce,
@@ -45,8 +45,8 @@ impl EventWithMarket {
 // the market_id or bump_nonce. This means we can't group GlobalStateEvents with StateEvents in an EventGroup.
 #[derive(Debug)]
 pub struct EventGroupBuilder {
-    pub market_id: i64,
-    pub market_nonce: i64,
+    pub market_id: BigDecimal,
+    pub market_nonce: BigDecimal,
     pub bump_event: Option<BumpEvent>,
     pub state_event: Option<StateEvent>,
     pub periodic_state_events: Vec<PeriodicStateEvent>,

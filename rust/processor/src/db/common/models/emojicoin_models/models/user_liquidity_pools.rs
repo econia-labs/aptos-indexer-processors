@@ -25,22 +25,22 @@ pub struct UserLiquidityPoolsModel {
     pub transaction_timestamp: chrono::NaiveDateTime,
 
     // Market and state metadata.
-    pub market_id: i64,
+    pub market_id: BigDecimal,
     pub symbol_bytes: Vec<u8>,
     pub symbol_emojis: Vec<String>,
     pub bump_time: chrono::NaiveDateTime,
-    pub market_nonce: i64,
+    pub market_nonce: BigDecimal,
     pub trigger: enums::Trigger,
     pub market_address: String,
 
-    pub base_amount: i64,
-    pub quote_amount: i64,
-    pub lp_coin_amount: i64,
+    pub base_amount: BigDecimal,
+    pub quote_amount: BigDecimal,
+    pub lp_coin_amount: BigDecimal,
     pub liquidity_provided: bool,
-    pub base_donation_claim_amount: i64,
-    pub quote_donation_claim_amount: i64,
+    pub base_donation_claim_amount: BigDecimal,
+    pub quote_donation_claim_amount: BigDecimal,
 
-    pub lp_coin_balance: i64,
+    pub lp_coin_balance: BigDecimal,
 }
 
 impl UserLiquidityPoolsModel {

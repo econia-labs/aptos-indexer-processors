@@ -4,6 +4,7 @@ mod json_tests {
         enums::Trigger,
         json_types::{EventWithMarket, GlobalStateEvent},
     };
+    use bigdecimal::BigDecimal;
 
     #[test]
     fn test_state_event_json() {
@@ -112,7 +113,7 @@ mod json_tests {
                 "0x175394d0883e28262c4c40cb8228e47a36e6a813d5117805c3c26a5c"
             );
             assert!(!e.starts_in_bonding_curve);
-            assert_eq!(e.close_price_q64, 1128118906863219_i64.into());
+            assert_eq!(e.close_price_q64, BigDecimal::from(1128118906863219).into());
             assert_eq!(e.periodic_state_metadata.trigger, Trigger::ProvideLiquidity);
         } else {
             panic!("Failed to parse periodic state event");
@@ -187,7 +188,10 @@ mod json_tests {
             .map(|e| Some(EventWithMarket::Swap(e)))
             .unwrap();
         if let Some(EventWithMarket::Swap(e)) = swap_event {
-            assert_eq!(e.avg_execution_price_q64, 150622935860149_i64.into());
+            assert_eq!(
+                e.avg_execution_price_q64,
+                BigDecimal::from(150622935860149).into()
+            );
             assert_eq!(e.base_volume, 12124499186451);
             assert_eq!(e.integrator_fee, 1000000);
             assert_eq!(e.input_amount, 100000000);
@@ -294,27 +298,30 @@ mod json_tests {
                 assert_eq!(global_state_event.cumulative_chat_messages, 16891);
                 assert_eq!(
                     global_state_event.cumulative_integrator_fees,
-                    249444000000_i64.into()
+                    BigDecimal::from(249444000000)
                 );
                 assert_eq!(
                     global_state_event.cumulative_quote_volume,
-                    200576291031_i64.into()
+                    BigDecimal::from(200576291031)
                 );
                 assert_eq!(global_state_event.cumulative_swaps, 14209);
                 assert_eq!(global_state_event.emit_time, 1723350357240102);
                 assert_eq!(
                     global_state_event.fully_diluted_value,
-                    912838434139348_i64.into()
+                    BigDecimal::from(912838434139348)
                 );
-                assert_eq!(global_state_event.market_cap, 213923864245_i64.into());
+                assert_eq!(
+                    global_state_event.market_cap,
+                    BigDecimal::from(213923864245).into()
+                );
                 assert_eq!(global_state_event.registry_nonce, 33586);
                 assert_eq!(
                     global_state_event.total_quote_locked,
-                    165704422193_i64.into()
+                    BigDecimal::from(165704422193)
                 );
                 assert_eq!(
                     global_state_event.total_value_locked,
-                    5075928984264_i64.into()
+                    BigDecimal::from(5075928984264)
                 );
                 assert_eq!(global_state_event.trigger, Trigger::MarketRegistration);
             },

@@ -21,18 +21,18 @@ pub struct MarketRegistrationEventModel {
     pub transaction_timestamp: chrono::NaiveDateTime,
 
     // Market and state metadata.
-    pub market_id: i64,
+    pub market_id: BigDecimal,
     pub symbol_bytes: Vec<u8>,
     pub symbol_emojis: Vec<String>,
     pub bump_time: chrono::NaiveDateTime,
-    pub market_nonce: i64,
+    pub market_nonce: BigDecimal,
     pub trigger: enums::Trigger,
     pub market_address: String,
 
     // Market registration event data.
     pub registrant: String,
     pub integrator: String,
-    pub integrator_fee: i64,
+    pub integrator_fee: BigDecimal,
 }
 
 impl MarketRegistrationEventModel {

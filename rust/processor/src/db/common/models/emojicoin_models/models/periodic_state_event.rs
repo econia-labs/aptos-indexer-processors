@@ -22,22 +22,22 @@ pub struct PeriodicStateEventModel {
     pub transaction_timestamp: chrono::NaiveDateTime,
 
     // Market metadata.
-    pub market_id: i64,
+    pub market_id: BigDecimal,
     pub symbol_bytes: Vec<u8>,
     pub market_address: String,
     pub symbol_emojis: Vec<String>,
 
     // State metadata.
     pub emit_time: chrono::NaiveDateTime,
-    pub market_nonce: i64,
+    pub market_nonce: BigDecimal,
     pub trigger: enums::Trigger,
 
     // Last swap data. The last swap can also be the event that triggered the periodic state event.
     pub last_swap_is_sell: bool,
     pub last_swap_avg_execution_price_q64: BigDecimal,
-    pub last_swap_base_volume: i64,
-    pub last_swap_quote_volume: i64,
-    pub last_swap_nonce: i64,
+    pub last_swap_base_volume: BigDecimal,
+    pub last_swap_quote_volume: BigDecimal,
+    pub last_swap_nonce: BigDecimal,
     pub last_swap_time: chrono::NaiveDateTime,
 
     // Periodic state metadata.
@@ -54,8 +54,8 @@ pub struct PeriodicStateEventModel {
     pub integrator_fees: BigDecimal,
     pub pool_fees_base: BigDecimal,
     pub pool_fees_quote: BigDecimal,
-    pub n_swaps: i64,
-    pub n_chat_messages: i64,
+    pub n_swaps: BigDecimal,
+    pub n_chat_messages: BigDecimal,
     pub starts_in_bonding_curve: bool,
     pub ends_in_bonding_curve: bool,
     pub tvl_per_lp_coin_growth_q64: BigDecimal,
