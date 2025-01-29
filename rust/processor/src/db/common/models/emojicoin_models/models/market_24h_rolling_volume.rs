@@ -27,7 +27,7 @@ impl RecentOneMinutePeriodicStateEvent {
             EventWithMarket::PeriodicState(pse) => {
                 let (period, start_time) = (
                     pse.periodic_state_metadata.period,
-                    micros_to_naive_datetime(pse.periodic_state_metadata.start_time),
+                    micros_to_naive_datetime(&pse.periodic_state_metadata.start_time),
                 );
 
                 if period == Period::OneMinute && within_past_day(start_time) {

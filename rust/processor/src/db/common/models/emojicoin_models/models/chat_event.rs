@@ -102,7 +102,7 @@ impl ChatEventModel {
             market_id: market_metadata.market_id,
             symbol_bytes: market_metadata.emoji_bytes.clone(),
             symbol_emojis: symbol_bytes_to_emojis(&market_metadata.emoji_bytes),
-            bump_time: micros_to_naive_datetime(state_metadata.bump_time),
+            bump_time: micros_to_naive_datetime(&state_metadata.bump_time),
             market_nonce: state_metadata.market_nonce,
             trigger: state_metadata.trigger,
             market_address: market_metadata.market_address,
@@ -136,7 +136,7 @@ impl ChatEventModel {
             last_swap_base_volume: last_swap.base_volume,
             last_swap_quote_volume: last_swap.quote_volume,
             last_swap_nonce: last_swap.nonce,
-            last_swap_time: micros_to_naive_datetime(last_swap.time),
+            last_swap_time: micros_to_naive_datetime(&last_swap.time),
         }
     }
 }

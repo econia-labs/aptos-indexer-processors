@@ -38,7 +38,7 @@ impl GlobalStateEventModel {
             sender: txn_info.sender,
             entry_function: txn_info.entry_function,
             transaction_timestamp: txn_info.timestamp,
-            emit_time: micros_to_naive_datetime(global_state_event.emit_time),
+            emit_time: micros_to_naive_datetime(&global_state_event.emit_time),
             registry_nonce: global_state_event.registry_nonce,
             trigger: global_state_event.trigger,
             cumulative_quote_volume: global_state_event.cumulative_quote_volume,

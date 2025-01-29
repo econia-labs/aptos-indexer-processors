@@ -112,7 +112,7 @@ impl LiquidityEventModel {
             market_id: liquidity_event.market_id,
             symbol_bytes: market_metadata.emoji_bytes.clone(),
             symbol_emojis: symbol_bytes_to_emojis(&market_metadata.emoji_bytes),
-            bump_time: micros_to_naive_datetime(time),
+            bump_time: micros_to_naive_datetime(&time),
             market_nonce: liquidity_event.market_nonce,
             trigger: state_metadata.trigger,
             market_address: market_metadata.market_address,
@@ -148,7 +148,7 @@ impl LiquidityEventModel {
             last_swap_base_volume: last_swap.base_volume,
             last_swap_quote_volume: last_swap.quote_volume,
             last_swap_nonce: last_swap.nonce,
-            last_swap_time: micros_to_naive_datetime(last_swap.time),
+            last_swap_time: micros_to_naive_datetime(&last_swap.time),
         }
     }
 }

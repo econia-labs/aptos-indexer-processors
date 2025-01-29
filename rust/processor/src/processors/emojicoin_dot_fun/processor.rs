@@ -35,7 +35,10 @@ use crate::{
     utils::{
         counters::PROCESSOR_UNKNOWN_TYPE_COUNT,
         database::{execute_in_chunks, get_config_table_chunk_size, ArcDbPool},
-        util::{get_entry_function_from_user_request, parse_timestamp, standardize_address},
+        util::{
+            bigdecimal_to_u64, get_entry_function_from_user_request, parse_timestamp,
+            standardize_address,
+        },
     },
 };
 use ahash::AHashMap;
@@ -323,10 +326,10 @@ impl ProcessorTrait for EmojicoinProcessor {
         // Store the writeset changes for each market in the transaction so we can lazily parse them later only for the
         // latest event for that market. We may get several writeset changes for the same market across all the transactions.
         let mut latest_market_resources: AHashMap<
-            i64,
+            u64,
             (TxnInfo, MarketResource, Trigger, InstantaneousStats),
         > = AHashMap::new();
-        let mut user_pools_db: AHashMap<(String, i64), UserLiquidityPoolsModel> = AHashMap::new();
+        let mut user_pools_db: AHashMap<(String, u64), UserLiquidityPoolsModel> = AHashMap::new();
         for txn in &transactions {
             let txn_version = txn.version as i64;
             let block_number = txn.block_height as i64;
@@ -418,7 +421,7 @@ impl ProcessorTrait for EmojicoinProcessor {
 
                 // Keep in mind that these are collecting events and changes within the context of a single transaction,
                 // not all transactions.
-                let mut builders: AHashMap<(i64, i64), EventGroupBuilder> = AHashMap::new();
+                let mut builders: AHashMap<(u64, u64), EventGroupBuilder> = AHashMap::new();
                 for evt in market_events.into_iter() {
                     let (market_id, market_nonce) = (evt.get_market_id(), evt.get_market_nonce());
                     match builders.get_mut(&(market_id, market_nonce)) {
@@ -473,7 +476,9 @@ impl ProcessorTrait for EmojicoinProcessor {
                                 latest_trigger,
                                 latest_instant_stats,
                             )| {
-                                if latest_resource.sequence_info.nonce <= market_nonce {
+                                if bigdecimal_to_u64(&latest_resource.sequence_info.nonce)
+                                    <= market_nonce
+                                {
                                     // Writeset changes reflect the final state changes from the transaction; same version == same changes.
                                     if txn_info_for_latest.version != txn_version {
                                         *latest_resource = MarketResource::from_write_set_changes(
@@ -527,7 +532,10 @@ impl ProcessorTrait for EmojicoinProcessor {
                             // That is, if a user interacts multiple times with one pool in one transaction,
                             // only the latest interaction is used to insert/update the user's row for that pool.
                             // Otherwise we'd needlessly overwrite the same row multiple times from one transaction.
-                            let key = (evt_model.provider.clone(), evt_model.market_id);
+                            let key = (
+                                evt_model.provider.clone(),
+                                bigdecimal_to_u64(&evt_model.market_id),
+                            );
                             let new_pool: UserLiquidityPoolsModel =
                                 UserLiquidityPoolsModel::from_event_and_writeset(
                                     txn,

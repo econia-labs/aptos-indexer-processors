@@ -40,7 +40,7 @@ lazy_static! {
 }
 
 // When a market is first registered, the market_nonce field is emitted in the resulting events as 1.
-pub const INITIAL_MARKET_NONCE: BigDecimal = 1;
+pub const INITIAL_MARKET_NONCE: u64 = 1;
 
 #[cfg(test)]
 mod tests {

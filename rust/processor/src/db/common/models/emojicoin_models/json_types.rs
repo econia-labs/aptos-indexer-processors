@@ -679,8 +679,8 @@ pub struct TxnInfo {
 
 #[derive(Debug, Clone)]
 pub struct EventGroup {
-    pub market_id: BigDecimal,
-    pub market_nonce: BigDecimal,
+    pub market_id: u64,
+    pub market_nonce: u64,
     pub bump_event: BumpEvent,
     pub state_event: StateEvent,
     pub periodic_state_events: Vec<PeriodicStateEvent>,

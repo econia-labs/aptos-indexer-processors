@@ -7,6 +7,7 @@ use crate::{
     },
     schema::market_registration_events,
 };
+use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
@@ -61,7 +62,7 @@ impl MarketRegistrationEventModel {
             market_id: market_metadata.market_id,
             symbol_bytes: market_metadata.emoji_bytes.clone(),
             symbol_emojis: symbol_bytes_to_emojis(&market_metadata.emoji_bytes),
-            bump_time: micros_to_naive_datetime(time),
+            bump_time: micros_to_naive_datetime(&time),
             market_nonce: state_event.state_metadata.market_nonce,
             trigger: state_event.state_metadata.trigger,
             market_address: market_metadata.market_address,

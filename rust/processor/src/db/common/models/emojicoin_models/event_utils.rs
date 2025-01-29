@@ -2,27 +2,33 @@ use super::{
     constants::INITIAL_MARKET_NONCE,
     json_types::{BumpEvent, EventGroup, EventWithMarket, PeriodicStateEvent, StateEvent, TxnInfo},
 };
+use crate::utils::util::bigdecimal_to_u64;
+
 impl EventWithMarket {
-    pub fn get_market_id(&self) -> BigDecimal {
+    pub fn get_market_id(&self) -> u64 {
         match self {
-            EventWithMarket::Chat(event) => event.market_metadata.market_id,
-            EventWithMarket::Swap(event) => event.market_id,
-            EventWithMarket::State(event) => event.market_metadata.market_id,
-            EventWithMarket::Liquidity(event) => event.market_id,
-            EventWithMarket::MarketRegistration(event) => event.market_metadata.market_id,
-            EventWithMarket::PeriodicState(event) => event.market_metadata.market_id,
+            EventWithMarket::Chat(event) => bigdecimal_to_u64(&event.market_metadata.market_id),
+            EventWithMarket::Swap(event) => bigdecimal_to_u64(&event.market_id),
+            EventWithMarket::State(event) => bigdecimal_to_u64(&event.market_metadata.market_id),
+            EventWithMarket::Liquidity(event) => bigdecimal_to_u64(&event.market_id),
+            EventWithMarket::MarketRegistration(event) => {
+                bigdecimal_to_u64(&event.market_metadata.market_id)
+            },
+            EventWithMarket::PeriodicState(event) => {
+                bigdecimal_to_u64(&event.market_metadata.market_id)
+            },
         }
     }
 
-    pub fn get_market_nonce(&self) -> BigDecimal {
+    pub fn get_market_nonce(&self) -> u64 {
         match self {
             EventWithMarket::MarketRegistration(_) => INITIAL_MARKET_NONCE,
-            EventWithMarket::Chat(event) => event.emit_market_nonce,
-            EventWithMarket::Swap(event) => event.market_nonce,
-            EventWithMarket::State(event) => event.state_metadata.market_nonce,
-            EventWithMarket::Liquidity(event) => event.market_nonce,
+            EventWithMarket::Chat(event) => bigdecimal_to_u64(&event.emit_market_nonce),
+            EventWithMarket::Swap(event) => bigdecimal_to_u64(&event.market_nonce),
+            EventWithMarket::State(event) => bigdecimal_to_u64(&event.state_metadata.market_nonce),
+            EventWithMarket::Liquidity(event) => bigdecimal_to_u64(&event.market_nonce),
             EventWithMarket::PeriodicState(event) => {
-                event.periodic_state_metadata.emit_market_nonce
+                bigdecimal_to_u64(&event.periodic_state_metadata.emit_market_nonce)
             },
         }
     }
@@ -45,8 +51,8 @@ impl EventWithMarket {
 // the market_id or bump_nonce. This means we can't group GlobalStateEvents with StateEvents in an EventGroup.
 #[derive(Debug)]
 pub struct EventGroupBuilder {
-    pub market_id: BigDecimal,
-    pub market_nonce: BigDecimal,
+    pub market_id: u64,
+    pub market_nonce: u64,
     pub bump_event: Option<BumpEvent>,
     pub state_event: Option<StateEvent>,
     pub periodic_state_events: Vec<PeriodicStateEvent>,

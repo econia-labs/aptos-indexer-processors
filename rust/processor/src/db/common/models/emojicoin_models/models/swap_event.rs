@@ -121,7 +121,7 @@ impl SwapEventModel {
             market_id,
             symbol_bytes: market_metadata.emoji_bytes.clone(),
             symbol_emojis: symbol_bytes_to_emojis(&market_metadata.emoji_bytes),
-            bump_time: micros_to_naive_datetime(time),
+            bump_time: micros_to_naive_datetime(&time),
             market_nonce,
             trigger: state_metadata.trigger,
             market_address: market_metadata.market_address,

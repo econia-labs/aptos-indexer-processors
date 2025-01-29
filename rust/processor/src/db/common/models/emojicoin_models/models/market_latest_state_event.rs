@@ -104,7 +104,7 @@ impl MarketLatestStateEventModel {
             market_id: metadata.market_id,
             symbol_bytes: metadata.emoji_bytes.clone(),
             symbol_emojis: symbol_bytes_to_emojis(&metadata.emoji_bytes),
-            bump_time: micros_to_naive_datetime(sequence_info.last_bump_time),
+            bump_time: micros_to_naive_datetime(&sequence_info.last_bump_time),
             market_nonce: sequence_info.nonce,
             trigger,
             market_address: metadata.market_address,
@@ -130,7 +130,7 @@ impl MarketLatestStateEventModel {
             last_swap_base_volume: last_swap.base_volume,
             last_swap_quote_volume: last_swap.quote_volume,
             last_swap_nonce: last_swap.nonce,
-            last_swap_time: micros_to_naive_datetime(last_swap.time),
+            last_swap_time: micros_to_naive_datetime(&last_swap.time),
 
             daily_tvl_per_lp_coin_growth: calculate_tvl_growth(tracker_1d),
             in_bonding_curve: tracker_1m.ends_in_bonding_curve,
