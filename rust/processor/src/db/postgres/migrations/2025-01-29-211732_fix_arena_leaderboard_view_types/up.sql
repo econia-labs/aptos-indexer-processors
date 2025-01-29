@@ -7,11 +7,13 @@ CREATE VIEW arena_leaderboard AS
 WITH melee AS (
     SELECT * FROM arena_melee_events ORDER BY melee_id DESC LIMIT 1
 ), price_emojicoin_0 AS (
+    --                               Cast change below.
     SELECT avg_execution_price_q64 / POW(2,64)::NUMERIC AS price FROM swap_events
     WHERE market_address = (SELECT emojicoin_0_market_address FROM arena_melee_events WHERE melee_id = (SELECT melee_id FROM melee))
     ORDER BY market_nonce DESC
     LIMIT 1
 ), price_emojicoin_1 AS (
+    --                               Cast change below.
     SELECT avg_execution_price_q64 / POW(2,64)::NUMERIC AS price FROM swap_events
     WHERE market_address = (SELECT emojicoin_1_market_address FROM arena_melee_events WHERE melee_id = (SELECT melee_id FROM melee))
     ORDER BY market_nonce DESC
