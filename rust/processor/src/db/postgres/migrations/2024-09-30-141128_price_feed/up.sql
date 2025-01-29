@@ -2,7 +2,7 @@
 CREATE INDEX price_feed ON swap_events (market_id, transaction_timestamp DESC) INCLUDE (avg_execution_price_q64);
 
 CREATE FUNCTION price_feed() RETURNS TABLE(
-  market_id BIGINT,
+  market_id NUMERIC,
   symbol_bytes BYTEA,
   symbol_emojis TEXT[],
   market_address VARCHAR(66),

@@ -18,8 +18,8 @@ use serde::{Deserialize, Serialize};
 #[diesel(primary_key(market_id, nonce))]
 #[diesel(table_name = market_1m_periods_in_last_day)]
 pub struct MarketOneMinutePeriodsInLastDayModel {
-    pub market_id: i64,
-    pub nonce: i64,
+    pub market_id: BigDecimal,
+    pub nonce: BigDecimal,
     pub transaction_version: i64,
     pub volume: BigDecimal,
     pub base_volume: BigDecimal,

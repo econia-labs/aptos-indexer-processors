@@ -60,9 +60,9 @@ mod json_tests {
         if let Some(EventWithMarket::State(e)) = state_event {
             assert_eq!(
                 e.market_metadata.market_address,
-                "0x66fb901175394d0883e28262c4c40cb8228e47a36e6a813d5117805c3c26a5c"
+                "0x066fb901175394d0883e28262c4c40cb8228e47a36e6a813d5117805c3c26a5c"
             );
-            assert_eq!(e.market_metadata.market_id, 328);
+            assert_eq!(e.market_metadata.market_id, 328.into());
             assert_eq!(e.state_metadata.trigger, Trigger::ProvideLiquidity);
             assert_eq!(e.market_metadata.emoji_bytes, vec![240, 159, 159, 165])
         } else {
@@ -109,10 +109,10 @@ mod json_tests {
         if let Some(EventWithMarket::PeriodicState(e)) = periodic_state_event {
             assert_eq!(
                 e.market_metadata.market_address,
-                "0x175394d0883e28262c4c40cb8228e47a36e6a813d5117805c3c26a5c"
+                "0x00000000175394d0883e28262c4c40cb8228e47a36e6a813d5117805c3c26a5c"
             );
             assert!(!e.starts_in_bonding_curve);
-            assert_eq!(e.close_price_q64, 1128118906863219_i64.into());
+            assert_eq!(e.close_price_q64, 1128118906863219_u64.into());
             assert_eq!(e.periodic_state_metadata.trigger, Trigger::ProvideLiquidity);
         } else {
             panic!("Failed to parse periodic state event");
@@ -132,7 +132,8 @@ mod json_tests {
             "quote_donation_claim_amount": "0",
             "provider": "0x000006d68589500aa64d92f4f0e14d2f9d8075d003b8adf1e90ae6037f100000",
             "quote_amount": "100000000",
-            "time": "1723246374791035"
+            "time": "1723246374791035",
+            "event_index": "1"
           }
         "#;
 
@@ -140,19 +141,20 @@ mod json_tests {
             .map(|e| Some(EventWithMarket::Liquidity(e)))
             .unwrap();
         if let Some(EventWithMarket::Liquidity(e)) = liquidity_event {
-            assert_eq!(e.market_nonce, 40278);
+            assert_eq!(e.market_nonce, 40278.into());
             assert!(e.liquidity_provided);
-            assert_eq!(e.lp_coin_amount, 4272180527);
-            assert_eq!(e.base_amount, 1639206334780);
-            assert_eq!(e.quote_amount, 100000000);
-            assert_eq!(e.base_donation_claim_amount, 0);
-            assert_eq!(e.quote_donation_claim_amount, 0);
-            assert_eq!(e.market_id, 328);
-            assert_eq!(e.time, 1723246374791035);
+            assert_eq!(e.lp_coin_amount, 4272180527_u64.into());
+            assert_eq!(e.base_amount, 1639206334780_u64.into());
+            assert_eq!(e.quote_amount, 100000000.into());
+            assert_eq!(e.base_donation_claim_amount, 0.into());
+            assert_eq!(e.quote_donation_claim_amount, 0.into());
+            assert_eq!(e.market_id, 328.into());
+            assert_eq!(e.time, 1723246374791035_u64.into());
             assert_eq!(
                 e.provider,
-                "0x6d68589500aa64d92f4f0e14d2f9d8075d003b8adf1e90ae6037f100000"
+                "0x000006d68589500aa64d92f4f0e14d2f9d8075d003b8adf1e90ae6037f100000"
             );
+            assert_eq!(e.event_index, 1);
         } else {
             panic!("Failed to parse periodic state event");
         }
@@ -179,7 +181,8 @@ mod json_tests {
             "balance_as_fraction_of_circulating_supply_before_q64": "0",
             "balance_as_fraction_of_circulating_supply_after_q64": "1",
             "swapper": "0xbad225596d685895aa64d92f4f0e14d2f9d8075d3b8adf1e90ae6037f1fcbabe",
-            "time": "1723253663706846"
+            "time": "1723253663706846",
+            "event_index": "1"
           }
         "#;
 
@@ -187,17 +190,17 @@ mod json_tests {
             .map(|e| Some(EventWithMarket::Swap(e)))
             .unwrap();
         if let Some(EventWithMarket::Swap(e)) = swap_event {
-            assert_eq!(e.avg_execution_price_q64, 150622935860149_i64.into());
-            assert_eq!(e.base_volume, 12124499186451);
-            assert_eq!(e.integrator_fee, 1000000);
-            assert_eq!(e.input_amount, 100000000);
+            assert_eq!(e.avg_execution_price_q64, 150622935860149_u64.into());
+            assert_eq!(e.base_volume, 12124499186451_u64.into());
+            assert_eq!(e.integrator_fee, 1000000.into());
+            assert_eq!(e.input_amount, 100000000.into());
             assert!(!e.is_sell);
             assert_eq!(e.integrator_fee_rate_bps, 100);
             assert!(!e.results_in_state_transition);
             assert!(e.starts_in_bonding_curve);
-            assert_eq!(e.market_id, 3523452345);
-            assert_eq!(e.market_nonce, 2);
-            assert_eq!(e.time, 1723253663706846);
+            assert_eq!(e.market_id, 3523452345_u64.into());
+            assert_eq!(e.market_nonce, 2.into());
+            assert_eq!(e.time, 1723253663706846_u64.into());
             assert_eq!(
                 e.balance_as_fraction_of_circulating_supply_before_q64,
                 0.into()
@@ -206,6 +209,7 @@ mod json_tests {
                 e.balance_as_fraction_of_circulating_supply_after_q64,
                 1.into()
             );
+            assert_eq!(e.event_index, 1);
         } else {
             panic!("Failed to parse periodic state event");
         }
@@ -235,7 +239,7 @@ mod json_tests {
                 e.integrator,
                 "0xd00db145c047cd3619ecba69e45b4ad77f43737d309d8113d6c1c35f7a8dd00d"
             );
-            assert_eq!(e.integrator_fee, 100000000);
+            assert_eq!(e.integrator_fee, 100000000.into());
             assert_eq!(e.market_metadata.emoji_bytes, [
                 240, 159, 152, 141, 240, 159, 152, 156
             ]);
@@ -243,12 +247,12 @@ mod json_tests {
                 e.market_metadata.market_address,
                 "0xd3cbef2c5d489228ae5304f39d94bd794847b5c0e9d7968ab0391999926d3679"
             );
-            assert_eq!(e.market_metadata.market_id, 2304);
+            assert_eq!(e.market_metadata.market_id, 2304.into());
             assert_eq!(
                 e.registrant,
                 "0xbad225596d685895aa64d92f4f0e14d2f9d8075d3b8adf1e90ae6037f1fcbabe"
             );
-            assert_eq!(e.time, 1723253654764692);
+            assert_eq!(e.time, 1723253654764692_u64.into());
         } else {
             panic!("Failed to parse periodic state event");
         }
@@ -291,30 +295,30 @@ mod json_tests {
         "#;
         match serde_json::from_str::<GlobalStateEvent>(global_state_json) {
             Ok(global_state_event) => {
-                assert_eq!(global_state_event.cumulative_chat_messages, 16891);
+                assert_eq!(global_state_event.cumulative_chat_messages, 16891.into());
                 assert_eq!(
                     global_state_event.cumulative_integrator_fees,
-                    249444000000_i64.into()
+                    249444000000_u64.into()
                 );
                 assert_eq!(
                     global_state_event.cumulative_quote_volume,
-                    200576291031_i64.into()
+                    200576291031_u64.into()
                 );
-                assert_eq!(global_state_event.cumulative_swaps, 14209);
-                assert_eq!(global_state_event.emit_time, 1723350357240102);
+                assert_eq!(global_state_event.cumulative_swaps, 14209.into());
+                assert_eq!(global_state_event.emit_time, 1723350357240102_u64.into());
                 assert_eq!(
                     global_state_event.fully_diluted_value,
-                    912838434139348_i64.into()
+                    912838434139348_u64.into()
                 );
-                assert_eq!(global_state_event.market_cap, 213923864245_i64.into());
-                assert_eq!(global_state_event.registry_nonce, 33586);
+                assert_eq!(global_state_event.market_cap, 213923864245_u64.into());
+                assert_eq!(global_state_event.registry_nonce, 33586.into());
                 assert_eq!(
                     global_state_event.total_quote_locked,
-                    165704422193_i64.into()
+                    165704422193_u64.into()
                 );
                 assert_eq!(
                     global_state_event.total_value_locked,
-                    5075928984264_i64.into()
+                    5075928984264_u64.into()
                 );
                 assert_eq!(global_state_event.trigger, Trigger::MarketRegistration);
             },

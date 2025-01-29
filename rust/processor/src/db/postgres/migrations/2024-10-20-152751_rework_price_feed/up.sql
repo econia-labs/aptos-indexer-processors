@@ -1,5 +1,5 @@
 CREATE OR REPLACE FUNCTION price_feed() RETURNS TABLE(
-  market_id BIGINT,
+  market_id NUMERIC,
   symbol_bytes BYTEA,
   symbol_emojis TEXT[],
   market_address VARCHAR(66),

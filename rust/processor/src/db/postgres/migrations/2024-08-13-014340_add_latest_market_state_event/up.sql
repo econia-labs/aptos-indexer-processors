@@ -9,36 +9,36 @@ CREATE TABLE market_latest_state_event (
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
   -- Market and state metadata.
-  market_id BIGINT NOT NULL,
+  market_id NUMERIC NOT NULL,
   symbol_bytes BYTEA NOT NULL,
   symbol_emojis TEXT[] NOT NULL,
   bump_time TIMESTAMP NOT NULL, -- Note that bump and emit time are interchangeable.
-  market_nonce BIGINT NOT NULL,
+  market_nonce NUMERIC NOT NULL,
   trigger trigger_type NOT NULL,
   market_address VARCHAR(66) NOT NULL,
 
   -- State event data.
-  clamm_virtual_reserves_base BIGINT NOT NULL,
-  clamm_virtual_reserves_quote BIGINT NOT NULL,
-  cpamm_real_reserves_base BIGINT NOT NULL,
-  cpamm_real_reserves_quote BIGINT NOT NULL,
+  clamm_virtual_reserves_base NUMERIC NOT NULL,
+  clamm_virtual_reserves_quote NUMERIC NOT NULL,
+  cpamm_real_reserves_base NUMERIC NOT NULL,
+  cpamm_real_reserves_quote NUMERIC NOT NULL,
   lp_coin_supply NUMERIC NOT NULL,
   cumulative_stats_base_volume NUMERIC NOT NULL,
   cumulative_stats_quote_volume NUMERIC NOT NULL,
   cumulative_stats_integrator_fees NUMERIC NOT NULL,
   cumulative_stats_pool_fees_base NUMERIC NOT NULL,
   cumulative_stats_pool_fees_quote NUMERIC NOT NULL,
-  cumulative_stats_n_swaps BIGINT NOT NULL,
-  cumulative_stats_n_chat_messages BIGINT NOT NULL,
-  instantaneous_stats_total_quote_locked BIGINT NOT NULL,
+  cumulative_stats_n_swaps NUMERIC NOT NULL,
+  cumulative_stats_n_chat_messages NUMERIC NOT NULL,
+  instantaneous_stats_total_quote_locked NUMERIC NOT NULL,
   instantaneous_stats_total_value_locked NUMERIC NOT NULL,
   instantaneous_stats_market_cap NUMERIC NOT NULL,
   instantaneous_stats_fully_diluted_value NUMERIC NOT NULL,
   last_swap_is_sell BOOLEAN NOT NULL,
   last_swap_avg_execution_price_q64 NUMERIC NOT NULL,
-  last_swap_base_volume BIGINT NOT NULL,
-  last_swap_quote_volume BIGINT NOT NULL,
-  last_swap_nonce BIGINT NOT NULL,
+  last_swap_base_volume NUMERIC NOT NULL,
+  last_swap_quote_volume NUMERIC NOT NULL,
+  last_swap_nonce NUMERIC NOT NULL,
   last_swap_time TIMESTAMP NOT NULL,
 
   -- Querying all post-bonding curve markets. i.e., markets with liquidity pools.
@@ -63,23 +63,23 @@ CREATE TABLE user_liquidity_pools (
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
-  market_id BIGINT NOT NULL,
+  market_id NUMERIC NOT NULL,
   symbol_bytes BYTEA NOT NULL,
   symbol_emojis TEXT[] NOT NULL,
   bump_time TIMESTAMP NOT NULL,
-  market_nonce BIGINT NOT NULL,
+  market_nonce NUMERIC NOT NULL,
   trigger trigger_type NOT NULL,
   market_address VARCHAR(66) NOT NULL,
 
   -- Liquidity event data.
-  base_amount BIGINT NOT NULL,
-  quote_amount BIGINT NOT NULL,
-  lp_coin_amount BIGINT NOT NULL,
+  base_amount NUMERIC NOT NULL,
+  quote_amount NUMERIC NOT NULL,
+  lp_coin_amount NUMERIC NOT NULL,
   liquidity_provided BOOLEAN NOT NULL,
-  base_donation_claim_amount BIGINT NOT NULL,
-  quote_donation_claim_amount BIGINT NOT NULL,
+  base_donation_claim_amount NUMERIC NOT NULL,
+  quote_donation_claim_amount NUMERIC NOT NULL,
 
-  lp_coin_balance BIGINT NOT NULL,
+  lp_coin_balance NUMERIC NOT NULL,
 
   PRIMARY KEY (provider, market_id)
 );

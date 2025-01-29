@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RecentOneMinutePeriodicStateEvent {
-    pub market_id: i64,
-    pub market_nonce: i64,
+    pub market_id: BigDecimal,
+    pub market_nonce: BigDecimal,
     pub transaction_version: i64,
     pub period_quote_volume: BigDecimal,
     pub period_base_volume: BigDecimal,
@@ -27,7 +27,7 @@ impl RecentOneMinutePeriodicStateEvent {
             EventWithMarket::PeriodicState(pse) => {
                 let (period, start_time) = (
                     pse.periodic_state_metadata.period,
-                    micros_to_naive_datetime(pse.periodic_state_metadata.start_time),
+                    micros_to_naive_datetime(&pse.periodic_state_metadata.start_time),
                 );
 
                 if period == Period::OneMinute && within_past_day(start_time) {

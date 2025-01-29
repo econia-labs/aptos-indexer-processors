@@ -7,6 +7,7 @@ use crate::{
     },
     schema::market_registration_events,
 };
+use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
@@ -21,18 +22,18 @@ pub struct MarketRegistrationEventModel {
     pub transaction_timestamp: chrono::NaiveDateTime,
 
     // Market and state metadata.
-    pub market_id: i64,
+    pub market_id: BigDecimal,
     pub symbol_bytes: Vec<u8>,
     pub symbol_emojis: Vec<String>,
     pub bump_time: chrono::NaiveDateTime,
-    pub market_nonce: i64,
+    pub market_nonce: BigDecimal,
     pub trigger: enums::Trigger,
     pub market_address: String,
 
     // Market registration event data.
     pub registrant: String,
     pub integrator: String,
-    pub integrator_fee: i64,
+    pub integrator_fee: BigDecimal,
 }
 
 impl MarketRegistrationEventModel {
@@ -61,7 +62,7 @@ impl MarketRegistrationEventModel {
             market_id: market_metadata.market_id,
             symbol_bytes: market_metadata.emoji_bytes.clone(),
             symbol_emojis: symbol_bytes_to_emojis(&market_metadata.emoji_bytes),
-            bump_time: micros_to_naive_datetime(time),
+            bump_time: micros_to_naive_datetime(&time),
             market_nonce: state_event.state_metadata.market_nonce,
             trigger: state_event.state_metadata.trigger,
             market_address: market_metadata.market_address,

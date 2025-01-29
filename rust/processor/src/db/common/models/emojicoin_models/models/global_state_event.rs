@@ -19,7 +19,7 @@ pub struct GlobalStateEventModel {
     pub entry_function: Option<String>,
     pub transaction_timestamp: chrono::NaiveDateTime,
     pub emit_time: chrono::NaiveDateTime,
-    pub registry_nonce: i64,
+    pub registry_nonce: BigDecimal,
     pub trigger: enums::Trigger,
     pub cumulative_quote_volume: BigDecimal,
     pub total_quote_locked: BigDecimal,
@@ -27,8 +27,8 @@ pub struct GlobalStateEventModel {
     pub market_cap: BigDecimal,
     pub fully_diluted_value: BigDecimal,
     pub cumulative_integrator_fees: BigDecimal,
-    pub cumulative_swaps: i64,
-    pub cumulative_chat_messages: i64,
+    pub cumulative_swaps: BigDecimal,
+    pub cumulative_chat_messages: BigDecimal,
 }
 
 impl GlobalStateEventModel {
@@ -38,7 +38,7 @@ impl GlobalStateEventModel {
             sender: txn_info.sender,
             entry_function: txn_info.entry_function,
             transaction_timestamp: txn_info.timestamp,
-            emit_time: micros_to_naive_datetime(global_state_event.emit_time),
+            emit_time: micros_to_naive_datetime(&global_state_event.emit_time),
             registry_nonce: global_state_event.registry_nonce,
             trigger: global_state_event.trigger,
             cumulative_quote_volume: global_state_event.cumulative_quote_volume,
