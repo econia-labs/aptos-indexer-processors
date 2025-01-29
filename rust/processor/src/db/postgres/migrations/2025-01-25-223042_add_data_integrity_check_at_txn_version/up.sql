@@ -22,7 +22,7 @@
 -- emojicoin version, it's necessary to get the max transaction version among
 -- all transaction versions.
 CREATE FUNCTION aggregate_market_state() RETURNS TABLE(
-  last_emojicoin_transaction_version NUMERIC,
+  last_emojicoin_transaction_version BIGINT,
 
   -- The following columns are structured to match all the `registry_view` fields.
   cumulative_chat_messages NUMERIC,

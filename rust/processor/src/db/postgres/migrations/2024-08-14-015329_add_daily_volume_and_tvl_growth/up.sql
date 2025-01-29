@@ -3,7 +3,7 @@
 CREATE TABLE market_1m_periods_in_last_day (
     market_id NUMERIC NOT NULL,
     inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    transaction_version NUMERIC NOT NULL,
+    transaction_version BIGINT NOT NULL,
     nonce NUMERIC NOT NULL, -- Market nonce.
     volume NUMERIC NOT NULL, -- Quote volume.
     start_time TIMESTAMP NOT NULL,

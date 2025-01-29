@@ -2,7 +2,7 @@
 
 CREATE TABLE market_latest_state_event (
   -- Transaction metadata.
-  transaction_version NUMERIC NOT NULL,
+  transaction_version BIGINT NOT NULL,
   sender VARCHAR(66) NOT NULL,
   entry_function VARCHAR(200),
   transaction_timestamp TIMESTAMP NOT NULL,
@@ -59,7 +59,7 @@ ON market_latest_state_event (market_id);
 
 CREATE TABLE user_liquidity_pools (
   provider VARCHAR(66) NOT NULL,
-  transaction_version NUMERIC NOT NULL,
+  transaction_version BIGINT NOT NULL,
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
 

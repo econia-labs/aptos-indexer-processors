@@ -1,8 +1,8 @@
 -- Raw events
 
 CREATE TABLE arena_melee_events (
-    transaction_version NUMERIC NOT NULL,
-    event_index NUMERIC NOT NULL,
+    transaction_version BIGINT NOT NULL,
+    event_index BIGINT NOT NULL,
     sender VARCHAR(66) NOT NULL,
     entry_function VARCHAR(200),
     transaction_timestamp TIMESTAMP NOT NULL,
@@ -19,8 +19,8 @@ CREATE TABLE arena_melee_events (
 );
 
 CREATE TABLE arena_enter_events (
-    transaction_version NUMERIC NOT NULL,
-    event_index NUMERIC NOT NULL,
+    transaction_version BIGINT NOT NULL,
+    event_index BIGINT NOT NULL,
     sender VARCHAR(66) NOT NULL,
     entry_function VARCHAR(200),
     transaction_timestamp TIMESTAMP NOT NULL,
@@ -43,8 +43,8 @@ CREATE TABLE arena_enter_events (
 );
 
 CREATE TABLE arena_exit_events (
-    transaction_version NUMERIC NOT NULL,
-    event_index NUMERIC NOT NULL,
+    transaction_version BIGINT NOT NULL,
+    event_index BIGINT NOT NULL,
     sender VARCHAR(66) NOT NULL,
     entry_function VARCHAR(200),
     transaction_timestamp TIMESTAMP NOT NULL,
@@ -64,8 +64,8 @@ CREATE TABLE arena_exit_events (
 );
 
 CREATE TABLE arena_swap_events (
-    transaction_version NUMERIC NOT NULL,
-    event_index NUMERIC NOT NULL,
+    transaction_version BIGINT NOT NULL,
+    event_index BIGINT NOT NULL,
     sender VARCHAR(66) NOT NULL,
     entry_function VARCHAR(200),
     transaction_timestamp TIMESTAMP NOT NULL,
@@ -86,8 +86,8 @@ CREATE TABLE arena_swap_events (
 );
 
 CREATE TABLE arena_vault_balance_update_events (
-    transaction_version NUMERIC NOT NULL,
-    event_index NUMERIC NOT NULL,
+    transaction_version BIGINT NOT NULL,
+    event_index BIGINT NOT NULL,
     sender VARCHAR(66) NOT NULL,
     entry_function VARCHAR(200),
     transaction_timestamp TIMESTAMP NOT NULL,
@@ -142,12 +142,12 @@ CREATE VIEW arena_leaderboard AS
 WITH melee AS (
     SELECT * FROM arena_melee_events ORDER BY melee_id DESC LIMIT 1
 ), price_emojicoin_0 AS (
-    SELECT avg_execution_price_q64::NUMERIC / POW(2,64) AS price FROM swap_events
+    SELECT avg_execution_price_q64 / POW(2,64) AS price FROM swap_events
     WHERE market_address = (SELECT emojicoin_0_market_address FROM arena_melee_events WHERE melee_id = (SELECT melee_id FROM melee))
     ORDER BY market_nonce DESC
     LIMIT 1
 ), price_emojicoin_1 AS (
-    SELECT avg_execution_price_q64::NUMERIC / POW(2,64) AS price FROM swap_events
+    SELECT avg_execution_price_q64 / POW(2,64) AS price FROM swap_events
     WHERE market_address = (SELECT emojicoin_1_market_address FROM arena_melee_events WHERE melee_id = (SELECT melee_id FROM melee))
     ORDER BY market_nonce DESC
     LIMIT 1

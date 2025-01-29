@@ -34,7 +34,7 @@ CREATE TYPE period_type AS ENUM (
 
 CREATE TABLE global_state_events (
   -- Transaction metadata.
-  transaction_version NUMERIC NOT NULL,
+  transaction_version BIGINT NOT NULL,
   sender VARCHAR(66) NOT NULL,
   entry_function VARCHAR(200),
   transaction_timestamp TIMESTAMP NOT NULL,
@@ -58,7 +58,7 @@ CREATE TABLE global_state_events (
 
 CREATE TABLE periodic_state_events (
   -- Transaction metadata.
-  transaction_version NUMERIC NOT NULL,
+  transaction_version BIGINT NOT NULL,
   sender VARCHAR(66) NOT NULL,
   entry_function VARCHAR(200),
   transaction_timestamp TIMESTAMP NOT NULL,
@@ -106,7 +106,7 @@ CREATE TABLE periodic_state_events (
 
 CREATE TABLE market_registration_events (
   -- Transaction metadata.
-  transaction_version NUMERIC NOT NULL,
+  transaction_version BIGINT NOT NULL,
   sender VARCHAR(66) NOT NULL,
   entry_function VARCHAR(200),
   transaction_timestamp TIMESTAMP NOT NULL,
@@ -131,7 +131,7 @@ CREATE TABLE market_registration_events (
 
 CREATE TABLE swap_events (
   -- Transaction metadata.
-  transaction_version NUMERIC NOT NULL,
+  transaction_version BIGINT NOT NULL,
   sender VARCHAR(66) NOT NULL,
   entry_function VARCHAR(200),
   transaction_timestamp TIMESTAMP NOT NULL,
@@ -189,7 +189,7 @@ CREATE TABLE swap_events (
 
 CREATE TABLE chat_events (
   -- Transaction metadata.
-  transaction_version NUMERIC NOT NULL,
+  transaction_version BIGINT NOT NULL,
   sender VARCHAR(66) NOT NULL,
   entry_function VARCHAR(200),
   transaction_timestamp TIMESTAMP NOT NULL,
@@ -240,7 +240,7 @@ CREATE TABLE chat_events (
 
 CREATE TABLE liquidity_events (
   -- Transaction metadata.
-  transaction_version NUMERIC NOT NULL,
+  transaction_version BIGINT NOT NULL,
   sender VARCHAR(66) NOT NULL,
   entry_function VARCHAR(200),
   transaction_timestamp TIMESTAMP NOT NULL,

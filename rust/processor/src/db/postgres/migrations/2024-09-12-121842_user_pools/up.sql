@@ -1,6 +1,6 @@
 -- Your SQL goes here
 CREATE FUNCTION user_pools(provider text) RETURNS TABLE(
-  transaction_version NUMERIC,
+  transaction_version BIGINT,
   sender VARCHAR(66),
   entry_function VARCHAR(200),
   transaction_timestamp TIMESTAMP,
