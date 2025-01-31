@@ -153,6 +153,10 @@ diesel::table! {
         duration -> Nullable<Numeric>,
         max_match_percentage -> Nullable<Numeric>,
         max_match_amount -> Nullable<Numeric>,
+        emojicoin_0_symbols -> Array<Nullable<Text>>,
+        emojicoin_1_symbols -> Array<Nullable<Text>>,
+        emojicoin_0_market_id -> Numeric,
+        emojicoin_1_market_id -> Numeric,
     }
 }
 
