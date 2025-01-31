@@ -1,5 +1,8 @@
 use crate::{
-    db::common::models::emojicoin_models::json_types::{ArenaMeleeEvent, TxnInfo},
+    db::common::models::emojicoin_models::{
+        json_types::{ArenaMeleeEvent, TxnInfo},
+        utils::micros_to_naive_datetime,
+    },
     schema::arena_melee_events,
 };
 use bigdecimal::BigDecimal;
@@ -20,7 +23,7 @@ pub struct ArenaMeleeEventModel {
     pub melee_id: BigDecimal,
     pub emojicoin_0_market_address: String,
     pub emojicoin_1_market_address: String,
-    pub start_time: BigDecimal,
+    pub start_time: chrono::NaiveDateTime,
     pub duration: BigDecimal,
     pub max_match_percentage: BigDecimal,
     pub max_match_amount: BigDecimal,
@@ -40,7 +43,7 @@ impl ArenaMeleeEventModel {
             melee_id: arena_melee_event.melee_id,
             emojicoin_0_market_address: arena_melee_event.emojicoin_0_market_address,
             emojicoin_1_market_address: arena_melee_event.emojicoin_1_market_address,
-            start_time: arena_melee_event.start_time,
+            start_time: micros_to_naive_datetime(&arena_melee_event.start_time),
             duration: arena_melee_event.duration,
             max_match_percentage: arena_melee_event.max_match_percentage,
             max_match_amount: arena_melee_event.max_match_amount,
