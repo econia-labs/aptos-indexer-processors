@@ -11,7 +11,7 @@ CREATE TABLE arena_melee_events (
     melee_id NUMERIC NOT NULL PRIMARY KEY,
     emojicoin_0_market_address TEXT NOT NULL,
     emojicoin_1_market_address TEXT NOT NULL,
-    start_time NUMERIC NOT NULL,
+    start_time TIMESTAMP NOT NULL,
     duration NUMERIC NOT NULL,
     max_match_percentage NUMERIC NOT NULL,
     max_match_amount NUMERIC NOT NULL,
@@ -130,7 +130,7 @@ CREATE TABLE arena_info (
     -- Redundant information to avoid multiple queries/joins
     emojicoin_0_market_address TEXT,
     emojicoin_1_market_address TEXT,
-    start_time NUMERIC,
+    start_time TIMESTAMP,
     duration NUMERIC,
     max_match_percentage NUMERIC,
     max_match_amount NUMERIC
