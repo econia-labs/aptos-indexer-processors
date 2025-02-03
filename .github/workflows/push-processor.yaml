@@ -1,9 +1,9 @@
 ---
 env:
-  BUILD_CONTEXT: rust
-  BUILD_FILE: rust/Dockerfile
-  DOCKER_REPO: econialabs/emojicoin-dot-fun-indexer-processor
-  TAG_PREFIX: emojicoin-processor
+  BUILD_CONTEXT: 'rust'
+  BUILD_FILE: 'rust/Dockerfile'
+  DOCKER_REPO: 'econialabs/emojicoin-dot-fun-indexer-processor'
+  GIT_TAG_PREFIX: 'emojicoin-processor'
 jobs:
   build:
     outputs:
@@ -50,7 +50,7 @@ jobs:
       uses: 'docker/metadata-action@v5'
       with:
         images: '${{ env.DOCKER_REPO }}'
-        tags: 'type=match,pattern=${{ env.TAG_PREFIX }}-v(.*),group=1'
+        tags: 'type=match,pattern=${{ env.GIT_TAG_PREFIX }}-v(.*),group=1'
     - name: 'Create multi-architecture image manifest on Docker Hub'
       run: |
         TAG_ARGS=$(jq -cr '.tags | map("-t " + .) | join(" ")' \
