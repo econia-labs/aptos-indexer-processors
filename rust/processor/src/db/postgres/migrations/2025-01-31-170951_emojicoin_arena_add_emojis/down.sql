@@ -46,3 +46,48 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE TRIGGER create_melee_info_trigger AFTER INSERT ON arena_melee_events
     FOR EACH ROW EXECUTE FUNCTION create_melee_info();
+
+
+ALTER TABLE arena_leaderboard_history DROP COLUMN last_exit;
+ALTER TABLE arena_leaderboard_history DROP COLUMN emojicoin_0_balance;
+ALTER TABLE arena_leaderboard_history DROP COLUMN emojicoin_1_balance;
+
+CREATE OR REPLACE FUNCTION save_leaderboard_history() RETURNS trigger AS $$
+    BEGIN
+        INSERT INTO arena_leaderboard_history
+        SELECT
+            "user",
+            NEW.melee_id - 1,
+            profits,
+            losses
+        FROM arena_leaderboard;
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER save_leaderboard_history_trigger BEFORE INSERT ON arena_melee_events
+    FOR EACH ROW EXECUTE FUNCTION save_leaderboard_history();
+
+ALTER TABLE arena_positions DROP COLUMN last_exit;
+
+CREATE OR REPLACE FUNCTION update_position_exit() RETURNS trigger AS $$
+    BEGIN
+        UPDATE arena_positions SET
+            open = false,
+            emojicoin_0_balance = 0,
+            emojicoin_1_balance = 0,
+            withdrawals = arena_positions.withdrawals
+                + NEW.emojicoin_0_proceeds
+                    / NEW.emojicoin_0_exchange_rate_base
+                    * NEW.emojicoin_0_exchange_rate_quote
+                + NEW.emojicoin_1_proceeds
+                    / NEW.emojicoin_1_exchange_rate_base
+                    * NEW.emojicoin_1_exchange_rate_quote,
+            deposits = arena_positions.deposits + NEW.tap_out_fee
+        WHERE arena_positions."user" = NEW."user" AND arena_positions.melee_id = NEW.melee_id;
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER update_position_exit_trigger AFTER INSERT ON arena_exit_events
+    FOR EACH ROW EXECUTE FUNCTION update_position_exit();
