@@ -19,8 +19,8 @@ jobs:
       with:
         password: '${{ secrets.DOCKERHUB_TOKEN }}'
         username: '${{ secrets.DOCKERHUB_USERNAME }}'
-    - name: 'Build and push untagged ${{ matrix.arch }} digest to Docker Hub'
-      id: 'build'
+    - id: 'build'
+      name: 'Build and push untagged ${{ matrix.arch }} digest to Docker Hub'
       uses: 'docker/build-push-action@v6'
       with:
         cache-from: 'type=gha'
@@ -54,11 +54,10 @@ jobs:
     - name: 'Create multi-architecture image manifest on Docker Hub'
       run: |
         TAG_ARGS=$(jq -cr '.tags | map("-t " + .) | join(" ")' \
-          <<< '${{ steps.metadata.outputs.json }}')
-        docker buildx imagetools create \
-          ${TAG_ARGS} \
-          ${{ env.DOCKER_REPO }}@${{ needs.build.outputs.digest-amd64 }} \
-          ${{ env.DOCKER_REPO }}@${{ needs.build.outputs.digest-arm64 }}
+        <<< '${{ steps.metadata.outputs.json }}')
+        docker buildx imagetools create ${TAG_ARGS} \
+        ${{ env.DOCKER_REPO }}@${{ needs.build.outputs.digest-amd64 }} \
+        ${{ env.DOCKER_REPO }}@${{ needs.build.outputs.digest-arm64 }}
 name: 'Push multi-platform processor image to Docker Hub'
 'on':
   push:
