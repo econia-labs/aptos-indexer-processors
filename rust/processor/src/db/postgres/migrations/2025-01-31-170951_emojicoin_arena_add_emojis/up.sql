@@ -73,6 +73,7 @@ CREATE OR REPLACE TRIGGER create_melee_info_trigger AFTER INSERT ON arena_melee_
 ALTER TABLE arena_leaderboard_history ADD COLUMN last_exit TEXT;
 ALTER TABLE arena_leaderboard_history ADD COLUMN emojicoin_0_balance NUMERIC NOT NULL;
 ALTER TABLE arena_leaderboard_history ADD COLUMN emojicoin_1_balance NUMERIC NOT NULL;
+ALTER TABLE arena_leaderboard_history ADD COLUMN exited BOOLEAN NOT NULL;
 
 CREATE OR REPLACE FUNCTION save_leaderboard_history() RETURNS trigger AS $$
     BEGIN
@@ -80,42 +81,88 @@ CREATE OR REPLACE FUNCTION save_leaderboard_history() RETURNS trigger AS $$
         SELECT
             "user",
             NEW.melee_id - 1,
-            profits,
-            losses,
+            arena_leaderboard.profits,
+            arena_leaderboard.losses,
             (
                 WITH last_exit AS (
                     SELECT * FROM arena_exit_events AS aee
-                    WHERE aee.melee_id = arena_leaderboard_history.melee_id
-                    AND aee."user" = arena_leaderboard_history."user"
+                    WHERE aee.melee_id = NEW.melee_id - 1
+                    AND aee."user" = arena_leaderboard."user"
                     ORDER BY transaction_version DESC, event_index DESC
                     LIMIT 1
                 ),
                 melee AS (
                     SELECT * FROM arena_melee_events AS ame
-                    WHERE ame.melee_id = arena_leaderboard_history.melee_id
+                    WHERE ame.melee_id = NEW.melee_id - 1
                 )
                 SELECT
                     CASE
-                        WHEN (SELECT emojicoin_0_proceeds FROM last_exit) = 0 THEN (SELECT emojicoin_1_market_address FROM melee)
-                        WHEN (SELECT emojicoin_1_proceeds FROM last_exit) = 0 THEN (SELECT emojicoin_0_market_address FROM melee)
+                        WHEN (SELECT last_exit.emojicoin_0_proceeds FROM last_exit) = 0 THEN (SELECT melee.emojicoin_1_market_address FROM melee)
+                        WHEN (SELECT last_exit.emojicoin_1_proceeds FROM last_exit) = 0 THEN (SELECT melee.emojicoin_0_market_address FROM melee)
                         ELSE NULL -- aka never exited
                     END
             ),
-            emojicoin_0_balance,
-            emojicoin_1_balance
+            arena_leaderboard.emojicoin_0_balance,
+            arena_leaderboard.emojicoin_1_balance,
+            CASE WHEN arena_leaderboard.emojicoin_0_balance + arena_leaderboard.emojicoin_1_balance = 0 THEN true ELSE false END
         FROM arena_leaderboard;
         RETURN NEW;
     END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER save_leaderboard_history_trigger BEFORE INSERT ON arena_melee_events
-    FOR EACH ROW EXECUTE FUNCTION save_leaderboard_history();
+CREATE OR REPLACE FUNCTION update_leaderboard_history() RETURNS trigger AS $$
+    BEGIN
+        UPDATE arena_leaderboard_history
+        SET exited = true
+        WHERE arena_leaderboard_history.melee_id = NEW.melee_id
+        AND arena_leaderboard_history."user" = NEW."user";
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER update_leaderboard_history_trigger BEFORE INSERT ON arena_exit_events
+    FOR EACH ROW EXECUTE FUNCTION update_leaderboard_history();
 
 -- ======================================
 -- Add last exit information to positions
 -- ======================================
 
-ALTER TABLE arena_positions ADD COLUMN last_exit TEXT NOT NULL;
+ALTER TABLE arena_positions ADD COLUMN last_exit TEXT;
+ALTER TABLE arena_positions ADD COLUMN match_amount NUMERIC NOT NULL;
+
+CREATE OR REPLACE FUNCTION update_position_enter() RETURNS trigger AS $$
+    BEGIN
+        INSERT INTO arena_positions (
+            "user",
+            melee_id,
+            open,
+            emojicoin_0_balance,
+            emojicoin_1_balance,
+            withdrawals,
+            deposits,
+            match_amount
+        ) VALUES (
+            NEW."user",
+            NEW.melee_id,
+            true,
+            NEW.emojicoin_0_proceeds,
+            NEW.emojicoin_1_proceeds,
+            0,
+            NEW.input_amount + NEW.match_amount,
+            CASE WHEN NEW.match_amount > 0 THEN true ELSE false END,
+            NEW.match_amount
+        )
+        ON CONFLICT ("user", melee_id) DO
+        UPDATE SET
+            open = true,
+            emojicoin_0_balance = arena_positions.emojicoin_0_balance + NEW.emojicoin_0_proceeds,
+            emojicoin_1_balance = arena_positions.emojicoin_1_balance + NEW.emojicoin_1_proceeds,
+            deposits = arena_positions.deposits + NEW.input_amount + NEW.match_amount,
+            match_amount = arena_positions.match_amount + NEW.match_amount
+        WHERE arena_positions."user" = NEW."user" AND arena_positions.melee_id = NEW.melee_id;
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION update_position_exit() RETURNS trigger AS $$
     BEGIN
@@ -134,11 +181,15 @@ CREATE OR REPLACE FUNCTION update_position_exit() RETURNS trigger AS $$
             last_exit = CASE
                 WHEN NEW.emojicoin_1_proceeds = 0 THEN (SELECT emojicoin_0_market_address FROM arena_melee_events AS ame WHERE ame.melee_id = NEW.melee_id)
                 ELSE (SELECT emojicoin_1_market_address FROM arena_melee_events AS ame WHERE ame.melee_id = NEW.melee_id)
-            END
+            END,
+            match_amount = arena_positions.match_amount - NEW.tap_out_fee
         WHERE arena_positions."user" = NEW."user" AND arena_positions.melee_id = NEW.melee_id;
         RETURN NEW;
     END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER update_position_enter_trigger AFTER INSERT ON arena_enter_events
+    FOR EACH ROW EXECUTE FUNCTION update_position_enter();
 
 CREATE OR REPLACE TRIGGER update_position_exit_trigger AFTER INSERT ON arena_exit_events
     FOR EACH ROW EXECUTE FUNCTION update_position_exit();

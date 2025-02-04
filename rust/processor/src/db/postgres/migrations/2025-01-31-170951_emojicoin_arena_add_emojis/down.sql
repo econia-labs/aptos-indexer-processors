@@ -68,7 +68,43 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE TRIGGER save_leaderboard_history_trigger BEFORE INSERT ON arena_melee_events
     FOR EACH ROW EXECUTE FUNCTION save_leaderboard_history();
 
+DROP TRIGGER update_leaderboard_history_trigger ON arena_exit_events;
+DROP FUNCTION update_leaderboard_history;
+
+ALTER TABLE arena_leaderboard_history DROP COLUMN exited;
+
 ALTER TABLE arena_positions DROP COLUMN last_exit;
+ALTER TABLE arena_positions DROP COLUMN match_amount;
+
+CREATE OR REPLACE FUNCTION update_position_enter() RETURNS trigger AS $$
+    BEGIN
+        INSERT INTO arena_positions (
+            "user",
+            melee_id,
+            open,
+            emojicoin_0_balance,
+            emojicoin_1_balance,
+            withdrawals,
+            deposits
+        ) VALUES (
+            NEW."user",
+            NEW.melee_id,
+            true,
+            NEW.emojicoin_0_proceeds,
+            NEW.emojicoin_1_proceeds,
+            0,
+            NEW.input_amount + NEW.match_amount
+        )
+        ON CONFLICT ("user", melee_id) DO
+        UPDATE SET
+            open = true,
+            emojicoin_0_balance = arena_positions.emojicoin_0_balance + NEW.emojicoin_0_proceeds,
+            emojicoin_1_balance = arena_positions.emojicoin_1_balance + NEW.emojicoin_1_proceeds,
+            deposits = arena_positions.deposits + NEW.input_amount + NEW.match_amount
+        WHERE arena_positions."user" = NEW."user" AND arena_positions.melee_id = NEW.melee_id;
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION update_position_exit() RETURNS trigger AS $$
     BEGIN
@@ -88,6 +124,9 @@ CREATE OR REPLACE FUNCTION update_position_exit() RETURNS trigger AS $$
         RETURN NEW;
     END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER update_position_enter_trigger AFTER INSERT ON arena_enter_events
+    FOR EACH ROW EXECUTE FUNCTION update_position_enter();
 
 CREATE OR REPLACE TRIGGER update_position_exit_trigger AFTER INSERT ON arena_exit_events
     FOR EACH ROW EXECUTE FUNCTION update_position_exit();

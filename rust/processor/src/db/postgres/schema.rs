@@ -169,6 +169,7 @@ diesel::table! {
         last_exit -> Nullable<Text>,
         emojicoin_0_balance -> Numeric,
         emojicoin_1_balance -> Numeric,
+        exited -> Bool,
     }
 }
 
@@ -202,7 +203,8 @@ diesel::table! {
         emojicoin_1_balance -> Numeric,
         withdrawals -> Numeric,
         deposits -> Numeric,
-        last_exit -> Text,
+        last_exit -> Nullable<Text>,
+        match_amount -> Numeric,
     }
 }
 
