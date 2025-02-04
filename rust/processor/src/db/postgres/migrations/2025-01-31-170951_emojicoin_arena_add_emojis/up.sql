@@ -149,7 +149,6 @@ CREATE OR REPLACE FUNCTION update_position_enter() RETURNS trigger AS $$
             NEW.emojicoin_1_proceeds,
             0,
             NEW.input_amount + NEW.match_amount,
-            CASE WHEN NEW.match_amount > 0 THEN true ELSE false END,
             NEW.match_amount
         )
         ON CONFLICT ("user", melee_id) DO
