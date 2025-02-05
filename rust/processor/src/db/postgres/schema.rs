@@ -170,6 +170,7 @@ diesel::table! {
         emojicoin_0_balance -> Numeric,
         emojicoin_1_balance -> Numeric,
         exited -> Bool,
+        withdrawals -> Numeric,
     }
 }
 
