@@ -153,6 +153,10 @@ diesel::table! {
         duration -> Nullable<Numeric>,
         max_match_percentage -> Nullable<Numeric>,
         max_match_amount -> Nullable<Numeric>,
+        emojicoin_0_symbols -> Nullable<Array<Nullable<Text>>>,
+        emojicoin_1_symbols -> Nullable<Array<Nullable<Text>>>,
+        emojicoin_0_market_id -> Nullable<Numeric>,
+        emojicoin_1_market_id -> Nullable<Numeric>,
     }
 }
 
@@ -162,6 +166,10 @@ diesel::table! {
         melee_id -> Numeric,
         profits -> Numeric,
         losses -> Numeric,
+        last_exit -> Nullable<Text>,
+        emojicoin_0_balance -> Numeric,
+        emojicoin_1_balance -> Numeric,
+        exited -> Bool,
     }
 }
 
@@ -195,6 +203,8 @@ diesel::table! {
         emojicoin_1_balance -> Numeric,
         withdrawals -> Numeric,
         deposits -> Numeric,
+        last_exit -> Nullable<Text>,
+        match_amount -> Numeric,
     }
 }
 
