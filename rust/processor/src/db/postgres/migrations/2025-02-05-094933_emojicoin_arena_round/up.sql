@@ -49,8 +49,8 @@ WITH melee AS (
         emojicoin_0_balance,
         emojicoin_1_balance,
         withdrawals +
-            ROUND(emojicoin_0_balance * (SELECT * FROM price_emojicoin_0)) +
-            ROUND(emojicoin_1_balance * (SELECT * FROM price_emojicoin_1)) AS profits,
+            ROUND(emojicoin_0_balance * COALESCE((SELECT * FROM price_emojicoin_0), 0::numeric)) +
+            ROUND(emojicoin_1_balance * COALESCE((SELECT * FROM price_emojicoin_1), 0::numeric)) AS profits,
         withdrawals,
         deposits AS losses
     FROM arena_positions WHERE melee_id = (SELECT melee_id FROM melee)
@@ -167,6 +167,7 @@ INNER JOIN
 ON
     arena_info.melee_id = arena_leaderboard_history.melee_id
 WHERE "user" = $1
+ORDER BY arena_leaderboard_history.melee_id
 LIMIT 20
 OFFSET $2
 $$ LANGUAGE SQL;
