@@ -1,7 +1,8 @@
 use crate::{
     db::common::models::emojicoin_models::models::{
         arena_enter_event::ArenaEnterEventModel, arena_exit_event::ArenaExitEventModel,
-        arena_melee_event::ArenaMeleeEventModel, arena_swap_event::ArenaSwapEventModel,
+        arena_info::ArenaInfoModel, arena_melee_event::ArenaMeleeEventModel,
+        arena_position::ArenaPositionModel, arena_swap_event::ArenaSwapEventModel,
         arena_vault_balance_update_event::ArenaVaultBalanceUpdateEventModel,
         chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
         liquidity_event::LiquidityEventModel,
@@ -12,10 +13,17 @@ use crate::{
     },
     schema,
 };
+use bigdecimal::BigDecimal;
 use diesel::{
-    pg::Pg, query_builder::QueryFragment, query_dsl::methods::FilterDsl, upsert::excluded,
+    dsl::sql,
+    pg::Pg,
+    query_builder::QueryFragment,
+    query_dsl::methods::{FilterDsl, SelectDsl},
+    sql_types::{Bool, Nullable, Numeric},
+    upsert::excluded,
     ExpressionMethods,
 };
+use num::Zero;
 
 pub fn insert_chat_events_query(
     items_to_insert: Vec<ChatEventModel>,
@@ -231,6 +239,172 @@ pub fn insert_arena_melee_events_query(
             .do_nothing(),
         None,
     )
+}
+
+pub fn insert_arena_position_query(
+    items_to_insert: Vec<ArenaPositionModel>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::arena_position::dsl::*;
+    (
+        diesel::insert_into(schema::arena_position::table)
+            .values(items_to_insert)
+            .on_conflict((user, melee_id))
+            .do_update()
+            .set((
+                open.eq(excluded(open)),
+                emojicoin_0_balance.eq(emojicoin_0_balance + excluded(emojicoin_0_balance)),
+                emojicoin_1_balance.eq(emojicoin_1_balance + excluded(emojicoin_1_balance)),
+                deposits.eq(deposits + excluded(deposits)),
+                match_amount.eq(match_amount + excluded(match_amount)),
+                withdrawals.eq(withdrawals + excluded(withdrawals)),
+                last_exit_0.eq(sql::<Nullable<Bool>>(
+                    "COALESCE(EXCLUDED.last_exit_0, arena_position.last_exit_0)",
+                )),
+            )),
+        None,
+    )
+}
+
+pub fn insert_arena_info_query(
+    info: Vec<ArenaInfoModel>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::arena_info::dsl::*;
+    (
+        diesel::insert_into(schema::arena_info::table)
+            .values(info)
+            .on_conflict(melee_id)
+            .do_nothing(),
+        None,
+    )
+}
+
+pub fn update_arena_info_enter_query(
+    enter: ArenaEnterEventModel,
+) -> impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send {
+    use schema::arena_info::dsl::*;
+    diesel::insert_into(schema::arena_info::table)
+        .values((
+            melee_id.eq(enter.melee_id),
+            volume.eq(enter.quote_volume.clone()),
+            rewards_remaining.eq(-enter.match_amount.clone()),
+            apt_locked.eq(enter.quote_volume.clone()),
+        ))
+        .on_conflict(melee_id)
+        .do_update()
+        .set((
+            volume.eq(volume + enter.quote_volume.clone()),
+            rewards_remaining.eq(rewards_remaining - enter.match_amount),
+            apt_locked.eq(apt_locked + enter.quote_volume),
+        ))
+}
+
+pub fn update_arena_info_swap_query(
+    swap: ArenaSwapEventModel,
+) -> impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send {
+    use schema::arena_info::dsl::*;
+    diesel::insert_into(schema::arena_info::table)
+        .values((
+            melee_id.eq(swap.melee_id),
+            volume.eq(swap.quote_volume.clone()),
+            rewards_remaining.eq(BigDecimal::zero()),
+            apt_locked.eq(BigDecimal::zero()),
+        ))
+        .on_conflict(melee_id)
+        .do_update()
+        .set((volume.eq(volume + swap.quote_volume),))
+}
+
+pub fn update_arena_info_exit_query(
+    exit: ArenaExitEventModel,
+) -> impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send {
+    use schema::arena_info::dsl::*;
+    let locked = (exit.emojicoin_0_proceeds / exit.emojicoin_0_exchange_rate_base
+        * exit.emojicoin_0_exchange_rate_quote
+        + exit.emojicoin_1_proceeds / exit.emojicoin_1_exchange_rate_base
+            * exit.emojicoin_1_exchange_rate_quote)
+        .round(0);
+    diesel::insert_into(schema::arena_info::table)
+        .values((
+            melee_id.eq(exit.melee_id),
+            volume.eq(BigDecimal::zero()),
+            rewards_remaining.eq(exit.tap_out_fee.clone()),
+            apt_locked.eq(-locked.clone()),
+        ))
+        .on_conflict(melee_id)
+        .do_update()
+        .set((
+            rewards_remaining.eq(rewards_remaining + exit.tap_out_fee),
+            apt_locked.eq(sql::<Numeric>("GREATEST(arena_info.apt_locked - ")
+                .bind::<Numeric, _>(locked)
+                .sql(", 0)")),
+        ))
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct ArenaLeaderboardHistoryParams {
+    melee_id_value: BigDecimal,
+    emojicoin_0_exchange_rate_base: BigDecimal,
+    emojicoin_0_exchange_rate_quote: BigDecimal,
+    emojicoin_1_exchange_rate_base: BigDecimal,
+    emojicoin_1_exchange_rate_quote: BigDecimal,
+}
+
+pub fn insert_arena_leaderboard_history_query(
+    params: ArenaLeaderboardHistoryParams,
+) -> impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send {
+    use schema::arena_position::dsl::*;
+    let ArenaLeaderboardHistoryParams {
+        melee_id_value,
+        emojicoin_0_exchange_rate_base,
+        emojicoin_0_exchange_rate_quote,
+        emojicoin_1_exchange_rate_base,
+        emojicoin_1_exchange_rate_quote,
+    } = params;
+    let profits = withdrawals
+        + sql::<Numeric>("ROUND(emojicoin_0_balance / ")
+            .bind::<Numeric, _>(emojicoin_0_exchange_rate_base)
+            .sql(" * ")
+            .bind::<Numeric, _>(emojicoin_0_exchange_rate_quote)
+            .sql(" + emojicoin_1_balance / ")
+            .bind::<Numeric, _>(emojicoin_1_exchange_rate_base)
+            .sql(" * ")
+            .bind::<Numeric, _>(emojicoin_1_exchange_rate_quote)
+            .sql(")");
+    let data = arena_position.select((
+        user,
+        sql::<Numeric>("").bind::<Numeric, _>(melee_id_value),
+        profits.clone(),
+        deposits,
+        sql::<Nullable<Bool>>("emojicoin_0_balance > 0"),
+        emojicoin_0_balance,
+        emojicoin_1_balance,
+        sql::<Bool>("emojicoin_0_balance + emojicoin_1_balance = 0"),
+        withdrawals,
+    ));
+    diesel::insert_into(schema::arena_leaderboard_history::table)
+        .values(data)
+        .into_columns((
+            schema::arena_leaderboard_history::user,
+            schema::arena_leaderboard_history::melee_id,
+            schema::arena_leaderboard_history::profits,
+            schema::arena_leaderboard_history::losses,
+            schema::arena_leaderboard_history::last_exit_0,
+            schema::arena_leaderboard_history::emojicoin_0_balance,
+            schema::arena_leaderboard_history::emojicoin_1_balance,
+            schema::arena_leaderboard_history::exited,
+            schema::arena_leaderboard_history::withdrawals,
+        ))
+        .on_conflict((
+            schema::arena_leaderboard_history::user,
+            schema::arena_leaderboard_history::melee_id,
+        ))
+        .do_nothing()
 }
 
 pub fn insert_arena_enter_events_query(

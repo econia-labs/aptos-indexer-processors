@@ -100,7 +100,7 @@ CREATE TABLE arena_vault_balance_update_events (
 
 -- Derived data
 
-CREATE TABLE arena_positions (
+CREATE TABLE arena_position (
     "user" TEXT NOT NULL,
     melee_id NUMERIC NOT NULL,
     open BOOL NOT NULL,
@@ -109,7 +109,7 @@ CREATE TABLE arena_positions (
     withdrawals NUMERIC NOT NULL,
     deposits NUMERIC NOT NULL,
     match_amount NUMERIC NOT NULL,
-    last_exit TEXT,
+    last_exit_0 BOOLEAN,
 
     PRIMARY KEY ("user", melee_id)
 );
@@ -122,7 +122,7 @@ CREATE TABLE arena_leaderboard_history (
     emojicoin_0_balance NUMERIC NOT NULL,
     emojicoin_1_balance NUMERIC NOT NULL,
     exited BOOLEAN NOT NULL,
-    last_exit TEXT,
+    last_exit_0 BOOLEAN,
     withdrawals NUMERIC NOT NULL,
 
     PRIMARY KEY ("user", melee_id)
@@ -169,10 +169,11 @@ WITH melee AS (
         emojicoin_0_balance,
         emojicoin_1_balance,
         withdrawals +
-            emojicoin_0_balance * (SELECT * FROM price_emojicoin_0) +
-            emojicoin_1_balance * (SELECT * FROM price_emojicoin_1) AS profits,
+            ROUND(emojicoin_0_balance * COALESCE((SELECT * FROM price_emojicoin_0), 0::numeric)) +
+            ROUND(emojicoin_1_balance * COALESCE((SELECT * FROM price_emojicoin_1), 0::numeric)) AS profits,
+        withdrawals,
         deposits AS losses
-    FROM arena_positions WHERE melee_id = (SELECT melee_id FROM melee)
+    FROM arena_position WHERE melee_id = (SELECT melee_id FROM melee)
 )
 SELECT
     *,

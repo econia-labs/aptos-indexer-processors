@@ -1,6 +1,8 @@
 pub mod arena_enter_event;
 pub mod arena_exit_event;
+pub mod arena_info;
 pub mod arena_melee_event;
+pub mod arena_position;
 pub mod arena_swap_event;
 pub mod arena_vault_balance_update_event;
 pub mod chat_event;

@@ -147,16 +147,16 @@ diesel::table! {
         volume -> Numeric,
         rewards_remaining -> Numeric,
         apt_locked -> Numeric,
-        emojicoin_0_market_address -> Nullable<Text>,
-        emojicoin_1_market_address -> Nullable<Text>,
-        start_time -> Nullable<Timestamp>,
-        duration -> Nullable<Numeric>,
-        max_match_percentage -> Nullable<Numeric>,
-        max_match_amount -> Nullable<Numeric>,
-        emojicoin_0_symbols -> Nullable<Array<Nullable<Text>>>,
-        emojicoin_1_symbols -> Nullable<Array<Nullable<Text>>>,
-        emojicoin_0_market_id -> Nullable<Numeric>,
-        emojicoin_1_market_id -> Nullable<Numeric>,
+        emojicoin_0_market_address -> Text,
+        emojicoin_1_market_address -> Text,
+        emojicoin_0_symbols -> Array<Nullable<Text>>,
+        emojicoin_1_symbols -> Array<Nullable<Text>>,
+        emojicoin_0_market_id -> Numeric,
+        emojicoin_1_market_id -> Numeric,
+        start_time -> Timestamp,
+        duration -> Numeric,
+        max_match_percentage -> Numeric,
+        max_match_amount -> Numeric,
     }
 }
 
@@ -166,10 +166,11 @@ diesel::table! {
         melee_id -> Numeric,
         profits -> Numeric,
         losses -> Numeric,
-        last_exit -> Nullable<Text>,
         emojicoin_0_balance -> Numeric,
         emojicoin_1_balance -> Numeric,
         exited -> Bool,
+        last_exit_0 -> Nullable<Bool>,
+        withdrawals -> Numeric,
     }
 }
 
@@ -195,7 +196,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    arena_positions (user, melee_id) {
+    arena_position (user, melee_id) {
         user -> Text,
         melee_id -> Numeric,
         open -> Bool,
@@ -203,8 +204,8 @@ diesel::table! {
         emojicoin_1_balance -> Numeric,
         withdrawals -> Numeric,
         deposits -> Numeric,
-        last_exit -> Nullable<Text>,
         match_amount -> Numeric,
+        last_exit_0 -> Nullable<Bool>,
     }
 }
 
@@ -1817,7 +1818,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     arena_info,
     arena_leaderboard_history,
     arena_melee_events,
-    arena_positions,
+    arena_position,
     arena_swap_events,
     arena_vault_balance_update_events,
     block_metadata_transactions,

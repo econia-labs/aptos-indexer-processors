@@ -8,7 +8,8 @@ use crate::{
         },
         models::{
             arena_enter_event::ArenaEnterEventModel, arena_exit_event::ArenaExitEventModel,
-            arena_melee_event::ArenaMeleeEventModel, arena_swap_event::ArenaSwapEventModel,
+            arena_info::ArenaInfoModel, arena_melee_event::ArenaMeleeEventModel,
+            arena_position::ArenaPositionModel, arena_swap_event::ArenaSwapEventModel,
             arena_vault_balance_update_event::ArenaVaultBalanceUpdateEventModel,
             chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
             liquidity_event::LiquidityEventModel,
@@ -21,12 +22,16 @@ use crate::{
         },
         queries::insertion_queries::{
             delete_unregistered_markets_query, insert_arena_enter_events_query,
-            insert_arena_exit_events_query, insert_arena_melee_events_query,
-            insert_arena_swap_events_query, insert_arena_vault_balance_update_events_query,
-            insert_chat_events_query, insert_global_events, insert_liquidity_events_query,
+            insert_arena_exit_events_query, insert_arena_info_query,
+            insert_arena_leaderboard_history_query, insert_arena_melee_events_query,
+            insert_arena_position_query, insert_arena_swap_events_query,
+            insert_arena_vault_balance_update_events_query, insert_chat_events_query,
+            insert_global_events, insert_liquidity_events_query,
             insert_market_latest_state_event_query, insert_market_registration_events_query,
             insert_periodic_state_events_query, insert_swap_events_query,
-            insert_user_liquidity_pools_query,
+            insert_user_liquidity_pools_query, update_arena_info_enter_query,
+            update_arena_info_exit_query, update_arena_info_swap_query,
+            ArenaLeaderboardHistoryParams,
         },
     },
     emojicoin_dot_fun::EmojicoinDbEvent,
@@ -34,7 +39,7 @@ use crate::{
     processors::{DefaultProcessingResult, ProcessorName, ProcessorTrait},
     utils::{
         counters::PROCESSOR_UNKNOWN_TYPE_COUNT,
-        database::{execute_in_chunks, get_config_table_chunk_size, ArcDbPool},
+        database::{execute_in_chunks, execute_single, get_config_table_chunk_size, ArcDbPool},
         util::{
             bigdecimal_to_u64, get_entry_function_from_user_request, parse_timestamp,
             standardize_address,
@@ -104,6 +109,9 @@ struct InsertEvents<'a> {
     arena_exit_events: &'a [ArenaExitEventModel],
     arena_swap_events: &'a [ArenaSwapEventModel],
     arena_vault_balance_update_events: &'a [ArenaVaultBalanceUpdateEventModel],
+    arena_position: &'a [ArenaPositionModel],
+    arena_info: &'a [ArenaInfoModel],
+    arena_leaderboard_history: &'a [ArenaLeaderboardHistoryParams],
 }
 
 async fn insert_to_db(
@@ -135,6 +143,9 @@ async fn insert_to_db(
         arena_exit_events,
         arena_swap_events,
         arena_vault_balance_update_events,
+        arena_position,
+        arena_info,
+        arena_leaderboard_history,
     } = insert_events;
     let market_registration = execute_in_chunks(
         conn.clone(),
@@ -218,6 +229,44 @@ async fn insert_to_db(
         ),
     );
 
+    let arena_position = execute_in_chunks(
+        conn.clone(),
+        insert_arena_position_query,
+        arena_position,
+        get_config_table_chunk_size::<ArenaPositionModel>("arena_position", per_table_chunk_sizes),
+    );
+
+    let arena_leaderboard_history = execute_single(
+        conn.clone(),
+        insert_arena_leaderboard_history_query,
+        arena_leaderboard_history,
+    );
+
+    let arena_info = execute_in_chunks(
+        conn.clone(),
+        insert_arena_info_query,
+        arena_info,
+        get_config_table_chunk_size::<ArenaPositionModel>("arena_info", per_table_chunk_sizes),
+    );
+
+    let update_arena_info_enter = execute_single(
+        conn.clone(),
+        update_arena_info_enter_query,
+        arena_enter_events,
+    );
+
+    let update_arena_info_swap = execute_single(
+        conn.clone(),
+        update_arena_info_swap_query,
+        arena_swap_events,
+    );
+
+    let update_arena_info_exit = execute_single(
+        conn.clone(),
+        update_arena_info_exit_query,
+        arena_exit_events,
+    );
+
     let arena_enter = execute_in_chunks(
         conn.clone(),
         insert_arena_enter_events_query,
@@ -268,7 +317,29 @@ async fn insert_to_db(
         ),
     );
 
-    let (m, u, s, c, l, per, g, pools, lse, update_1mins, am, aen, aex, asw, avbu) = tokio::join!(
+    let (
+        m,
+        u,
+        s,
+        c,
+        l,
+        per,
+        g,
+        pools,
+        lse,
+        update_1mins,
+        am,
+        aen,
+        aex,
+        asw,
+        avbu,
+        alh,
+        ai,
+        ap,
+        uaien,
+        uais,
+        uaiex,
+    ) = tokio::join!(
         market_registration,
         unregistered_markets_update,
         swap,
@@ -284,9 +355,17 @@ async fn insert_to_db(
         arena_exit,
         arena_swap,
         arena_vault_balance_update,
+        arena_leaderboard_history,
+        arena_info,
+        arena_position,
+        update_arena_info_enter,
+        update_arena_info_swap,
+        update_arena_info_exit,
     );
 
-    for res in [m, u, s, c, l, per, g, pools, lse, am, aen, aex, asw, avbu] {
+    for res in [
+        m, u, s, c, l, per, g, pools, lse, am, aen, aex, asw, avbu, alh, ai, ap, uaien, uais, uaiex,
+    ] {
         res?;
     }
 
