@@ -1,8 +1,4 @@
-use super::{
-    arena_enter_event::ArenaEnterEventModel, arena_exit_event::ArenaExitEventModel,
-    arena_swap_event::ArenaSwapEventModel, swap_event::SwapEventModel,
-};
-use crate::schema::arena_position;
+use crate::{db::common::models::emojicoin_models::json_types::{ArenaEnterEvent, ArenaExitEvent, ArenaSwapEvent, SwapEvent}, schema::arena_position};
 use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use num::Zero;
@@ -11,7 +7,36 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(melee_id))]
 #[diesel(table_name = arena_position)]
-pub struct ArenaPositionModel {
+/// Arena position difference model.
+///
+/// The fields represent not the amount after an event, but the difference in that amount generated
+/// by the event.
+///
+/// For example, an enter would produce the following model:
+///
+/// ```json5
+/// {
+///     // ...
+///     "emojicoin_0_balance": 123,
+///     "emojicoin_1_balance": 0,
+///     // ...
+/// }
+/// ```
+///
+/// And a subsequent swap would produce:
+///
+/// ```json5
+/// {
+///     // ...
+///     "emojicoin_0_balance": -123,
+///     "emojicoin_1_balance": 987,
+///     // ...
+/// }
+/// ```
+///
+/// This means that we can insert events into the database out of order without risking to insert
+/// outdated data.
+pub struct ArenaPositionDiffModel {
     pub user: String,
     pub melee_id: BigDecimal,
     pub open: bool,
@@ -23,9 +48,9 @@ pub struct ArenaPositionModel {
     pub last_exit_0: Option<bool>,
 }
 
-impl From<ArenaEnterEventModel> for ArenaPositionModel {
-    fn from(arena_enter_event: ArenaEnterEventModel) -> ArenaPositionModel {
-        ArenaPositionModel {
+impl From<ArenaEnterEvent> for ArenaPositionDiffModel {
+    fn from(arena_enter_event: ArenaEnterEvent) -> ArenaPositionDiffModel {
+        ArenaPositionDiffModel {
             user: arena_enter_event.user,
             melee_id: arena_enter_event.melee_id,
             open: true,
@@ -39,12 +64,12 @@ impl From<ArenaEnterEventModel> for ArenaPositionModel {
     }
 }
 
-impl ArenaPositionModel {
-    fn from_swap(
-        arena_swap_event: ArenaSwapEventModel,
-        swaps: (SwapEventModel, SwapEventModel),
-    ) -> ArenaPositionModel {
-        ArenaPositionModel {
+impl ArenaPositionDiffModel {
+    pub fn from_swap(
+        arena_swap_event: ArenaSwapEvent,
+        swaps: (SwapEvent, SwapEvent),
+    ) -> ArenaPositionDiffModel {
+        ArenaPositionDiffModel {
             user: arena_swap_event.user,
             melee_id: arena_swap_event.melee_id,
             open: true,
@@ -58,20 +83,20 @@ impl ArenaPositionModel {
     }
 }
 
-impl From<ArenaExitEventModel> for ArenaPositionModel {
-    fn from(arena_exit_event: ArenaExitEventModel) -> ArenaPositionModel {
-        ArenaPositionModel {
+impl From<ArenaExitEvent> for ArenaPositionDiffModel {
+    fn from(arena_exit_event: ArenaExitEvent) -> ArenaPositionDiffModel {
+        ArenaPositionDiffModel {
             user: arena_exit_event.user,
             melee_id: arena_exit_event.melee_id,
             open: false,
             emojicoin_0_balance: -arena_exit_event.emojicoin_0_proceeds.clone(),
             emojicoin_1_balance: -arena_exit_event.emojicoin_1_proceeds.clone(),
             withdrawals: arena_exit_event.emojicoin_0_proceeds
-                / arena_exit_event.emojicoin_0_exchange_rate_base
-                * arena_exit_event.emojicoin_0_exchange_rate_quote
+                / arena_exit_event.emojicoin_0_exchange_rate.base
+                * arena_exit_event.emojicoin_0_exchange_rate.quote
                 + arena_exit_event.emojicoin_1_proceeds.clone()
-                    / arena_exit_event.emojicoin_1_exchange_rate_base
-                    * arena_exit_event.emojicoin_1_exchange_rate_quote,
+                    / arena_exit_event.emojicoin_1_exchange_rate.base
+                    * arena_exit_event.emojicoin_1_exchange_rate.quote,
             deposits: BigDecimal::zero(),
             match_amount: -arena_exit_event.tap_out_fee,
             last_exit_0: Some(arena_exit_event.emojicoin_1_proceeds.is_zero()),

@@ -2,7 +2,7 @@ use crate::{
     db::common::models::emojicoin_models::models::{
         arena_enter_event::ArenaEnterEventModel, arena_exit_event::ArenaExitEventModel,
         arena_info::ArenaInfoModel, arena_melee_event::ArenaMeleeEventModel,
-        arena_position::ArenaPositionModel, arena_swap_event::ArenaSwapEventModel,
+        arena_position::ArenaPositionDiffModel, arena_swap_event::ArenaSwapEventModel,
         arena_vault_balance_update_event::ArenaVaultBalanceUpdateEventModel,
         chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
         liquidity_event::LiquidityEventModel,
@@ -242,7 +242,7 @@ pub fn insert_arena_melee_events_query(
 }
 
 pub fn insert_arena_position_query(
-    items_to_insert: Vec<ArenaPositionModel>,
+    items_to_insert: Vec<ArenaPositionDiffModel>,
 ) -> (
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
@@ -348,11 +348,9 @@ pub fn update_arena_info_exit_query(
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct ArenaLeaderboardHistoryParams {
-    melee_id_value: BigDecimal,
-    emojicoin_0_exchange_rate_base: BigDecimal,
-    emojicoin_0_exchange_rate_quote: BigDecimal,
-    emojicoin_1_exchange_rate_base: BigDecimal,
-    emojicoin_1_exchange_rate_quote: BigDecimal,
+    pub melee_id_value: BigDecimal,
+    pub emojicoin_0_price: BigDecimal,
+    pub emojicoin_1_price: BigDecimal,
 }
 
 pub fn insert_arena_leaderboard_history_query(
@@ -361,20 +359,14 @@ pub fn insert_arena_leaderboard_history_query(
     use schema::arena_position::dsl::*;
     let ArenaLeaderboardHistoryParams {
         melee_id_value,
-        emojicoin_0_exchange_rate_base,
-        emojicoin_0_exchange_rate_quote,
-        emojicoin_1_exchange_rate_base,
-        emojicoin_1_exchange_rate_quote,
+        emojicoin_0_price,
+        emojicoin_1_price,
     } = params;
     let profits = withdrawals
-        + sql::<Numeric>("ROUND(emojicoin_0_balance / ")
-            .bind::<Numeric, _>(emojicoin_0_exchange_rate_base)
-            .sql(" * ")
-            .bind::<Numeric, _>(emojicoin_0_exchange_rate_quote)
-            .sql(" + emojicoin_1_balance / ")
-            .bind::<Numeric, _>(emojicoin_1_exchange_rate_base)
-            .sql(" * ")
-            .bind::<Numeric, _>(emojicoin_1_exchange_rate_quote)
+        + sql::<Numeric>("ROUND(emojicoin_0_balance * ")
+            .bind::<Numeric, _>(emojicoin_0_price)
+            .sql(" + emojicoin_1_balance * ")
+            .bind::<Numeric, _>(emojicoin_1_price)
             .sql(")");
     let data = arena_position.select((
         user,

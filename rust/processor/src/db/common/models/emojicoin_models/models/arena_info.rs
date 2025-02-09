@@ -1,10 +1,10 @@
-use crate::{
-    db::common::models::emojicoin_models::json_types::ArenaMeleeEvent, schema::arena_info,
-};
-use bigdecimal::{BigDecimal, ToPrimitive};
+use crate::schema::arena_info;
+use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use num::Zero;
 use serde::{Deserialize, Serialize};
+
+use super::arena_melee_event::ArenaMeleeEventModel;
 
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(melee_id))]
@@ -35,7 +35,7 @@ pub struct ArenaInfoData {
 }
 
 impl ArenaInfoModel {
-    pub fn new(arena_melee_event: ArenaMeleeEvent, data: ArenaInfoData) -> ArenaInfoModel {
+    pub fn new(arena_melee_event: ArenaMeleeEventModel, data: ArenaInfoData) -> ArenaInfoModel {
         ArenaInfoModel {
             melee_id: arena_melee_event.melee_id,
             volume: BigDecimal::zero(),
@@ -48,14 +48,7 @@ impl ArenaInfoModel {
             emojicoin_1_market_id: data.emojicoin_1_market_id,
             emojicoin_0_symbols: data.emojicoin_0_symbols,
             emojicoin_1_symbols: data.emojicoin_1_symbols,
-            start_time: chrono::DateTime::from_timestamp_micros(
-                // This unwrap would faild if start_time as microseconds > i64::MAX.
-                // So in ~290000 years.
-                arena_melee_event.start_time.to_i64().unwrap(),
-            )
-            // This unwrap would never fail, because the one above would fail first.
-            .unwrap()
-            .naive_utc(),
+            start_time: arena_melee_event.start_time,
             duration: arena_melee_event.duration,
             max_match_percentage: arena_melee_event.max_match_percentage,
             max_match_amount: arena_melee_event.max_match_amount,
