@@ -186,6 +186,11 @@ SELECT
     arena_leaderboard_history.melee_id,
     arena_leaderboard_history.profits,
     arena_leaderboard_history.losses,
+    arena_leaderboard_history.withdrawals,
+    arena_leaderboard_history.emojicoin_0_balance,
+    arena_leaderboard_history.emojicoin_1_balance,
+    arena_leaderboard_history.exited,
+    arena_leaderboard_history.last_exit_0,
 
     arena_info.emojicoin_0_symbols,
     arena_info.emojicoin_1_symbols,
