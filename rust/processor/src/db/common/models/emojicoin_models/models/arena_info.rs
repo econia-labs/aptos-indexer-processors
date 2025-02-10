@@ -1,10 +1,9 @@
+use super::arena_melee_event::ArenaMeleeEventModel;
 use crate::schema::arena_info;
 use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use num::Zero;
 use serde::{Deserialize, Serialize};
-
-use super::arena_melee_event::ArenaMeleeEventModel;
 
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(melee_id))]

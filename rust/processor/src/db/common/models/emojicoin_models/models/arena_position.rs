@@ -1,4 +1,9 @@
-use crate::{db::common::models::emojicoin_models::json_types::{ArenaEnterEvent, ArenaExitEvent, ArenaSwapEvent, SwapEvent}, schema::arena_position};
+use crate::{
+    db::common::models::emojicoin_models::json_types::{
+        ArenaEnterEvent, ArenaExitEvent, ArenaSwapEvent, SwapEvent,
+    },
+    schema::arena_position,
+};
 use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use num::Zero;
