@@ -48,6 +48,7 @@ use async_trait::async_trait;
 use bigdecimal::BigDecimal;
 use diesel::{ExpressionMethods as _, QueryDsl as _};
 use diesel_async::RunQueryDsl;
+use futures::{future::try_join_all, FutureExt};
 use itertools::Itertools;
 use num::Zero;
 use std::fmt::Debug;
@@ -148,229 +149,169 @@ async fn insert_to_db(
         arena_info,
         arena_leaderboard_history,
     } = insert_events;
-    let market_registration = execute_in_chunks(
-        conn.clone(),
-        insert_market_registration_events_query,
-        market_registration_events,
-        get_config_table_chunk_size::<MarketRegistrationEventModel>(
-            "market_registration_events",
-            per_table_chunk_sizes,
-        ),
-    );
-    let unregistered_markets_update = execute_in_chunks(
-        conn.clone(),
-        delete_unregistered_markets_query,
-        market_registration_events,
-        get_config_table_chunk_size::<MarketRegistrationEventModel>(
-            "unregistered_markets",
-            per_table_chunk_sizes,
-        ),
-    );
 
-    // Note that this is currently not chunked and could result in a query that deletes several hundred rows at once.
-    let update_one_min_periods = MarketOneMinutePeriodsInLastDayModel::insert_and_delete_periods(
-        market_1m_periods,
-        conn.clone(),
-    );
-    let swap = execute_in_chunks(
-        conn.clone(),
-        insert_swap_events_query,
-        swap_events,
-        get_config_table_chunk_size::<SwapEventModel>("swap_events", per_table_chunk_sizes),
-    );
-    let chat = execute_in_chunks(
-        conn.clone(),
-        insert_chat_events_query,
-        chat_events,
-        get_config_table_chunk_size::<ChatEventModel>("chat_events", per_table_chunk_sizes),
-    );
-    let liquidity = execute_in_chunks(
-        conn.clone(),
-        insert_liquidity_events_query,
-        liquidity_events,
-        get_config_table_chunk_size::<LiquidityEventModel>(
-            "liquidity_events",
-            per_table_chunk_sizes,
-        ),
-    );
-    let periodic = execute_in_chunks(
-        conn.clone(),
-        insert_periodic_state_events_query,
-        periodic_state_events,
-        get_config_table_chunk_size::<PeriodicStateEventModel>(
-            "periodic_state_events",
-            per_table_chunk_sizes,
-        ),
-    );
-    let global = execute_in_chunks(
-        conn.clone(),
-        insert_global_events,
-        global_state_events,
-        get_config_table_chunk_size::<GlobalStateEventModel>(
-            "global_state_events",
-            per_table_chunk_sizes,
-        ),
-    );
-    let lp_pools = execute_in_chunks(
-        conn.clone(),
-        insert_user_liquidity_pools_query,
-        user_pools,
-        get_config_table_chunk_size::<UserLiquidityPoolsModel>(
-            "user_liquidity_pools",
-            per_table_chunk_sizes,
-        ),
-    );
-    let latest_state_events = execute_in_chunks(
-        conn.clone(),
-        insert_market_latest_state_event_query,
-        market_latest_state_events,
-        get_config_table_chunk_size::<MarketLatestStateEventModel>(
-            "market_latest_state_events",
-            per_table_chunk_sizes,
-        ),
-    );
+    let futures = vec![
+        execute_in_chunks(
+            conn.clone(),
+            insert_market_registration_events_query,
+            market_registration_events,
+            get_config_table_chunk_size::<MarketRegistrationEventModel>(
+                "market_registration_events",
+                per_table_chunk_sizes,
+            ),
+        ).boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            delete_unregistered_markets_query,
+            market_registration_events,
+            get_config_table_chunk_size::<MarketRegistrationEventModel>(
+                "unregistered_markets",
+                per_table_chunk_sizes,
+            ),
+        ).boxed(),
+        // Note that this is currently not chunked and could result in a query that deletes several
+        // hundred rows at once.
+        MarketOneMinutePeriodsInLastDayModel::insert_and_delete_periods(
+            market_1m_periods,
+            conn.clone(),
+        ).boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_swap_events_query,
+            swap_events,
+            get_config_table_chunk_size::<SwapEventModel>("swap_events", per_table_chunk_sizes),
+        ).boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_chat_events_query,
+            chat_events,
+            get_config_table_chunk_size::<ChatEventModel>("chat_events", per_table_chunk_sizes),
+        ).boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_liquidity_events_query,
+            liquidity_events,
+            get_config_table_chunk_size::<LiquidityEventModel>(
+                "liquidity_events",
+                per_table_chunk_sizes,
+            ),
+        ).boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_periodic_state_events_query,
+            periodic_state_events,
+            get_config_table_chunk_size::<PeriodicStateEventModel>(
+                "periodic_state_events",
+                per_table_chunk_sizes,
+            ),
+        ).boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_global_events,
+            global_state_events,
+            get_config_table_chunk_size::<GlobalStateEventModel>(
+                "global_state_events",
+                per_table_chunk_sizes,
+            ),
+        ).boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_user_liquidity_pools_query,
+            user_pools,
+            get_config_table_chunk_size::<UserLiquidityPoolsModel>(
+                "user_liquidity_pools",
+                per_table_chunk_sizes,
+            ),
+        ).boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_market_latest_state_event_query,
+            market_latest_state_events,
+            get_config_table_chunk_size::<MarketLatestStateEventModel>(
+                "market_latest_state_events",
+                per_table_chunk_sizes,
+            ),
+        ).boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_arena_position_query,
+            arena_position,
+            get_config_table_chunk_size::<ArenaPositionDiffModel>("arena_position", per_table_chunk_sizes),
+        ).boxed(),
+        execute_single(
+            conn.clone(),
+            insert_arena_leaderboard_history_query,
+            arena_leaderboard_history,
+        ).boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_arena_info_query,
+            arena_info,
+            get_config_table_chunk_size::<ArenaPositionDiffModel>("arena_info", per_table_chunk_sizes),
+        ).boxed(),
+        execute_single(
+            conn.clone(),
+            update_arena_info_enter_query,
+            arena_enter_events,
+        ).boxed(),
+        execute_single(
+            conn.clone(),
+            update_arena_info_swap_query,
+            arena_swap_events,
+        ).boxed(),
+        execute_single(
+            conn.clone(),
+            update_arena_info_exit_query,
+            arena_exit_events,
+        ).boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_arena_enter_events_query,
+            arena_enter_events,
+            get_config_table_chunk_size::<ArenaEnterEventModel>(
+                "arena_enter_events",
+                per_table_chunk_sizes,
+            ),
+        ).boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_arena_exit_events_query,
+            arena_exit_events,
+            get_config_table_chunk_size::<ArenaExitEventModel>(
+                "arena_exit_events",
+                per_table_chunk_sizes,
+            ),
+        ).boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_arena_swap_events_query,
+            arena_swap_events,
+            get_config_table_chunk_size::<ArenaSwapEventModel>(
+                "arena_swap_events",
+                per_table_chunk_sizes,
+            ),
+        ).boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_arena_vault_balance_update_events_query,
+            arena_vault_balance_update_events,
+            get_config_table_chunk_size::<ArenaVaultBalanceUpdateEventModel>(
+                "arena_vault_balance_update_events",
+                per_table_chunk_sizes,
+            ),
+        ).boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_arena_melee_events_query,
+            arena_melee_events,
+            get_config_table_chunk_size::<ArenaMeleeEventModel>(
+                "arena_melee_events",
+                per_table_chunk_sizes,
+            ),
+        ).boxed(),
+    ];
 
-    let arena_position = execute_in_chunks(
-        conn.clone(),
-        insert_arena_position_query,
-        arena_position,
-        get_config_table_chunk_size::<ArenaPositionDiffModel>("arena_position", per_table_chunk_sizes),
-    );
-
-    let arena_leaderboard_history = execute_single(
-        conn.clone(),
-        insert_arena_leaderboard_history_query,
-        arena_leaderboard_history,
-    );
-
-    let arena_info = execute_in_chunks(
-        conn.clone(),
-        insert_arena_info_query,
-        arena_info,
-        get_config_table_chunk_size::<ArenaPositionDiffModel>("arena_info", per_table_chunk_sizes),
-    );
-
-    let update_arena_info_enter = execute_single(
-        conn.clone(),
-        update_arena_info_enter_query,
-        arena_enter_events,
-    );
-
-    let update_arena_info_swap = execute_single(
-        conn.clone(),
-        update_arena_info_swap_query,
-        arena_swap_events,
-    );
-
-    let update_arena_info_exit = execute_single(
-        conn.clone(),
-        update_arena_info_exit_query,
-        arena_exit_events,
-    );
-
-    let arena_enter = execute_in_chunks(
-        conn.clone(),
-        insert_arena_enter_events_query,
-        arena_enter_events,
-        get_config_table_chunk_size::<ArenaEnterEventModel>(
-            "arena_enter_events",
-            per_table_chunk_sizes,
-        ),
-    );
-
-    let arena_exit = execute_in_chunks(
-        conn.clone(),
-        insert_arena_exit_events_query,
-        arena_exit_events,
-        get_config_table_chunk_size::<ArenaExitEventModel>(
-            "arena_exit_events",
-            per_table_chunk_sizes,
-        ),
-    );
-
-    let arena_swap = execute_in_chunks(
-        conn.clone(),
-        insert_arena_swap_events_query,
-        arena_swap_events,
-        get_config_table_chunk_size::<ArenaSwapEventModel>(
-            "arena_swap_events",
-            per_table_chunk_sizes,
-        ),
-    );
-
-    let arena_vault_balance_update = execute_in_chunks(
-        conn.clone(),
-        insert_arena_vault_balance_update_events_query,
-        arena_vault_balance_update_events,
-        get_config_table_chunk_size::<ArenaVaultBalanceUpdateEventModel>(
-            "arena_vault_balance_update_events",
-            per_table_chunk_sizes,
-        ),
-    );
-
-    let arena_melee = execute_in_chunks(
-        conn.clone(),
-        insert_arena_melee_events_query,
-        arena_melee_events,
-        get_config_table_chunk_size::<ArenaMeleeEventModel>(
-            "arena_melee_events",
-            per_table_chunk_sizes,
-        ),
-    );
-
-    let (
-        m,
-        u,
-        s,
-        c,
-        l,
-        per,
-        g,
-        pools,
-        lse,
-        update_1mins,
-        am,
-        aen,
-        aex,
-        asw,
-        avbu,
-        alh,
-        ai,
-        ap,
-        uaien,
-        uais,
-        uaiex,
-    ) = tokio::join!(
-        market_registration,
-        unregistered_markets_update,
-        swap,
-        chat,
-        liquidity,
-        periodic,
-        global,
-        lp_pools,
-        latest_state_events,
-        update_one_min_periods,
-        arena_melee,
-        arena_enter,
-        arena_exit,
-        arena_swap,
-        arena_vault_balance_update,
-        arena_leaderboard_history,
-        arena_info,
-        arena_position,
-        update_arena_info_enter,
-        update_arena_info_swap,
-        update_arena_info_exit,
-    );
-
-    for res in [
-        m, u, s, c, l, per, g, pools, lse, am, aen, aex, asw, avbu, alh, ai, ap, uaien, uais, uaiex,
-    ] {
-        res?;
-    }
-
-    update_1mins?;
+    try_join_all(futures).await?;
 
     Ok(())
 }
