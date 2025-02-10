@@ -755,15 +755,14 @@ impl ProcessorTrait for EmojicoinProcessor {
                 &register_events_db,
                 &swap_events_db,
                 &pool,
-            )
-            .await?;
+            );
             let market_data_1 = get_market_data(
                 &melee.emojicoin_1_market_address,
                 &register_events_db,
                 &swap_events_db,
                 &pool,
-            )
-            .await?;
+            );
+            let (market_data_0, market_data_1) = tokio::try_join!(market_data_0, market_data_1)?;
             arena_leaderboard_history_db.push(ArenaLeaderboardHistoryParams {
                 melee_id_value: melee.melee_id.clone() - 1,
                 emojicoin_0_price: market_data_0.price,
