@@ -36,7 +36,6 @@ use crate::{
             insert_periodic_state_events_query, insert_swap_events_query,
             insert_user_liquidity_pools_query, update_arena_info_enter_query,
             update_arena_info_exit_query, update_arena_info_swap_query,
-            ArenaLeaderboardHistoryParams,
         },
     },
     emojicoin_dot_fun::EmojicoinDbEvent,
@@ -65,8 +64,6 @@ use num::Zero;
 use std::fmt::Debug;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::error;
-
-const Q64_DIVISOR: u128 = 2u128.pow(64u32);
 
 pub struct EmojicoinProcessor {
     connection_pool: ArcDbPool,
@@ -124,7 +121,7 @@ struct InsertEvents<'a> {
     arena_vault_balance_update_events: &'a [ArenaVaultBalanceUpdateEventModel],
     arena_position: &'a [ArenaPositionDiffModel],
     arena_info: &'a [ArenaInfoModel],
-    arena_leaderboard_history: &'a [ArenaLeaderboardHistoryParams],
+    arena_leaderboard_history: &'a [BigDecimal],
 }
 
 async fn insert_to_db(
@@ -356,18 +353,16 @@ async fn insert_to_db(
 
 struct MarketData {
     market_id: BigDecimal,
-    price: BigDecimal,
     symbol_emojis: Vec<String>,
 }
 
-/// Get id, price and symbol emojis for a market.
+/// Get id and symbol emojis for a market.
 ///
 /// If possible, the data will be extracted from the current batch of events.
 /// If not, the database will be queried for historical data.
 async fn get_market_data(
     market_address_str: &str,
     register_events_db: &Vec<MarketRegistrationEventModel>,
-    swap_events_db: &Vec<SwapEventModel>,
     pool: &ArcDbPool,
 ) -> anyhow::Result<MarketData> {
     // Get market registration event for the market.
@@ -382,24 +377,8 @@ async fn get_market_data(
         .iter()
         .find(|r| r.market_address == market_address_str);
     let data = if let Some(registration) = registration {
-        // Get latest swap.
-        //
-        // If no swap is present, but the market was registered in this batch of transactions, we
-        // know there are no swaps in the DB either and we can just say that the price is 0.
-        let last_swap = swap_events_db
-            .iter()
-            .rev()
-            .find(|s| s.market_id == registration.market_id);
-
-        let price = if let Some(last_swap) = last_swap {
-            last_swap.avg_execution_price_q64.clone() / BigDecimal::from(Q64_DIVISOR)
-        } else {
-            BigDecimal::zero()
-        };
-
         MarketData {
             market_id: registration.market_id.clone(),
-            price,
             symbol_emojis: registration.symbol_emojis.clone(),
         }
     } else {
@@ -407,26 +386,15 @@ async fn get_market_data(
         let conn = &mut pool.get().await?;
 
         // Since the market was NOT registered in this batch of events, then a mlse MUST be present
-        // in the DB. If no swap ever happened on the market, the price field is set to 0.
+        // in the DB.
         let state = market_latest_state_event
             .filter(market_address.eq(market_address_str))
-            .select((market_id, symbol_emojis, last_swap_avg_execution_price_q64))
-            .first::<(BigDecimal, Vec<Option<String>>, BigDecimal)>(conn)
+            .select((market_id, symbol_emojis))
+            .first::<(BigDecimal, Vec<Option<String>>)>(conn)
             .await?;
-
-        // We try to get a swap from the current batch of transactions, in case there's a more
-        // recent one.
-        let last_swap = swap_events_db.iter().rev().find(|s| s.market_id == state.0);
-
-        let price = if let Some(last_swap) = last_swap {
-            last_swap.avg_execution_price_q64.clone()
-        } else {
-            state.2
-        };
 
         MarketData {
             market_id: state.0,
-            price: price / BigDecimal::from(Q64_DIVISOR),
             symbol_emojis: state.1.into_iter().map(|s| s.unwrap()).collect::<Vec<_>>(),
         }
     };
@@ -753,21 +721,15 @@ impl ProcessorTrait for EmojicoinProcessor {
             let market_data_0 = get_market_data(
                 &melee.emojicoin_0_market_address,
                 &register_events_db,
-                &swap_events_db,
                 &pool,
             );
             let market_data_1 = get_market_data(
                 &melee.emojicoin_1_market_address,
                 &register_events_db,
-                &swap_events_db,
                 &pool,
             );
             let (market_data_0, market_data_1) = tokio::try_join!(market_data_0, market_data_1)?;
-            arena_leaderboard_history_db.push(ArenaLeaderboardHistoryParams {
-                melee_id_value: melee.melee_id.clone() - 1,
-                emojicoin_0_price: market_data_0.price,
-                emojicoin_1_price: market_data_1.price,
-            });
+            arena_leaderboard_history_db.push(melee.melee_id.clone() - 1);
 
             let arena_info_data = ArenaInfoData {
                 emojicoin_0_market_id: market_data_0.market_id,
@@ -821,6 +783,8 @@ impl ProcessorTrait for EmojicoinProcessor {
         .collect_vec();
 
         self.publish_events(all_db_events);
+
+        arena_position_db = ArenaPositionDiffModel::merge(arena_position_db);
 
         let tx_result = insert_to_db(
             pool,

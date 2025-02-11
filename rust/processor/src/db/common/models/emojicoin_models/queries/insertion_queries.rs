@@ -18,7 +18,8 @@ use diesel::{
     dsl::sql,
     pg::Pg,
     query_builder::QueryFragment,
-    query_dsl::methods::{FilterDsl, SelectDsl},
+    query_dsl::methods::FilterDsl,
+    sql_query,
     sql_types::{Bool, Nullable, Numeric},
     upsert::excluded,
     ExpressionMethods,
@@ -279,7 +280,20 @@ pub fn insert_arena_info_query(
         diesel::insert_into(schema::arena_info::table)
             .values(info)
             .on_conflict(melee_id)
-            .do_nothing(),
+            .do_update()
+            .set((
+                rewards_remaining.eq(rewards_remaining + excluded(rewards_remaining)),
+                emojicoin_0_market_address.eq(excluded(emojicoin_0_market_address)),
+                emojicoin_1_market_address.eq(excluded(emojicoin_1_market_address)),
+                emojicoin_0_symbols.eq(excluded(emojicoin_0_symbols)),
+                emojicoin_1_symbols.eq(excluded(emojicoin_1_symbols)),
+                emojicoin_0_market_id.eq(excluded(emojicoin_0_market_id)),
+                emojicoin_1_market_id.eq(excluded(emojicoin_1_market_id)),
+                start_time.eq(excluded(start_time)),
+                duration.eq(excluded(duration)),
+                max_match_percentage.eq(excluded(max_match_percentage)),
+                max_match_amount.eq(excluded(max_match_amount)),
+            )),
         None,
     )
 }
@@ -346,57 +360,14 @@ pub fn update_arena_info_exit_query(
         ))
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct ArenaLeaderboardHistoryParams {
-    pub melee_id_value: BigDecimal,
-    pub emojicoin_0_price: BigDecimal,
-    pub emojicoin_1_price: BigDecimal,
-}
-
 pub fn insert_arena_leaderboard_history_query(
-    params: ArenaLeaderboardHistoryParams,
+    melee_id: BigDecimal,
 ) -> impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send {
-    use schema::arena_position::dsl::*;
-    let ArenaLeaderboardHistoryParams {
-        melee_id_value,
-        emojicoin_0_price,
-        emojicoin_1_price,
-    } = params;
-    let profits = withdrawals
-        + sql::<Numeric>("ROUND(emojicoin_0_balance * ")
-            .bind::<Numeric, _>(emojicoin_0_price)
-            .sql(" + emojicoin_1_balance * ")
-            .bind::<Numeric, _>(emojicoin_1_price)
-            .sql(")");
-    let data = arena_position.select((
-        user,
-        sql::<Numeric>("").bind::<Numeric, _>(melee_id_value),
-        profits.clone(),
-        deposits,
-        sql::<Nullable<Bool>>("emojicoin_0_balance > 0"),
-        emojicoin_0_balance,
-        emojicoin_1_balance,
-        sql::<Bool>("emojicoin_0_balance + emojicoin_1_balance = 0"),
-        withdrawals,
-    ));
-    diesel::insert_into(schema::arena_leaderboard_history::table)
-        .values(data)
-        .into_columns((
-            schema::arena_leaderboard_history::user,
-            schema::arena_leaderboard_history::melee_id,
-            schema::arena_leaderboard_history::profits,
-            schema::arena_leaderboard_history::losses,
-            schema::arena_leaderboard_history::last_exit_0,
-            schema::arena_leaderboard_history::emojicoin_0_balance,
-            schema::arena_leaderboard_history::emojicoin_1_balance,
-            schema::arena_leaderboard_history::exited,
-            schema::arena_leaderboard_history::withdrawals,
-        ))
-        .on_conflict((
-            schema::arena_leaderboard_history::user,
-            schema::arena_leaderboard_history::melee_id,
-        ))
-        .do_nothing()
+    let mut query = include_str!("./leaderboard.sql").to_string();
+
+    query = query.replace("$1", &melee_id.to_string());
+
+    sql_query(query)
 }
 
 pub fn insert_arena_enter_events_query(

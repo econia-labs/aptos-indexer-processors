@@ -8,6 +8,7 @@ use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use num::Zero;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(melee_id))]
@@ -85,6 +86,25 @@ impl ArenaPositionDiffModel {
             match_amount: BigDecimal::zero(),
             last_exit_0: None,
         }
+    }
+
+    pub fn merge(arena_positions: Vec<Self>) -> Vec<Self> {
+        let mut map: HashMap<(BigDecimal, String), Self> = HashMap::new();
+        for position in arena_positions {
+            let position_clone = position.clone();
+            map.entry((position.melee_id, position.user))
+                .and_modify(|p| {
+                    p.open = position.open;
+                    p.emojicoin_0_balance += position.emojicoin_0_balance;
+                    p.emojicoin_1_balance += position.emojicoin_1_balance;
+                    p.withdrawals += position.withdrawals;
+                    p.deposits += position.deposits;
+                    p.match_amount += position.match_amount;
+                    p.last_exit_0 = position.last_exit_0;
+                })
+                .or_insert(position_clone);
+        }
+        map.into_values().collect()
     }
 }
 
