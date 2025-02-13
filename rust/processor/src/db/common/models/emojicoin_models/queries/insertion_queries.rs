@@ -1,14 +1,19 @@
 use crate::{
     db::common::models::emojicoin_models::models::{
-        arena_enter_event::ArenaEnterEventModel, arena_exit_event::ArenaExitEventModel,
-        arena_info::ArenaInfoModel, arena_melee_event::ArenaMeleeEventModel,
-        arena_position::ArenaPositionDiffModel, arena_swap_event::ArenaSwapEventModel,
+        arena_enter_event::ArenaEnterEventModel,
+        arena_exit_event::ArenaExitEventModel,
+        arena_info::{ArenaInfoDiffUpdate, ArenaInfoModel},
+        arena_melee_event::ArenaMeleeEventModel,
+        arena_position::ArenaPositionDiffModel,
+        arena_swap_event::ArenaSwapEventModel,
         arena_vault_balance_update_event::ArenaVaultBalanceUpdateEventModel,
-        chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
+        chat_event::ChatEventModel,
+        global_state_event::GlobalStateEventModel,
         liquidity_event::LiquidityEventModel,
         market_latest_state_event::MarketLatestStateEventModel,
         market_registration_event::MarketRegistrationEventModel,
-        periodic_state_event::PeriodicStateEventModel, swap_event::SwapEventModel,
+        periodic_state_event::PeriodicStateEventModel,
+        swap_event::SwapEventModel,
         user_liquidity_pools::UserLiquidityPoolsModel,
     },
     schema,
@@ -20,11 +25,10 @@ use diesel::{
     query_builder::QueryFragment,
     query_dsl::methods::FilterDsl,
     sql_query,
-    sql_types::{Bool, Nullable, Numeric},
+    sql_types::{Bool, Nullable},
     upsert::excluded,
     ExpressionMethods,
 };
-use num::Zero;
 
 pub fn insert_chat_events_query(
     items_to_insert: Vec<ChatEventModel>,
@@ -298,66 +302,36 @@ pub fn insert_arena_info_query(
     )
 }
 
-pub fn update_arena_info_enter_query(
-    enter: ArenaEnterEventModel,
-) -> impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send {
+pub fn update_arena_info_query(
+    items_to_update: Vec<ArenaInfoDiffUpdate>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
     use schema::arena_info::dsl::*;
-    diesel::insert_into(schema::arena_info::table)
-        .values((
-            melee_id.eq(enter.melee_id),
-            volume.eq(enter.quote_volume.clone()),
-            rewards_remaining.eq(-enter.match_amount.clone()),
-            apt_locked.eq(enter.quote_volume.clone()),
-        ))
-        .on_conflict(melee_id)
-        .do_update()
-        .set((
-            volume.eq(volume + enter.quote_volume.clone()),
-            rewards_remaining.eq(rewards_remaining - enter.match_amount),
-            apt_locked.eq(apt_locked + enter.quote_volume),
-        ))
-}
-
-pub fn update_arena_info_swap_query(
-    swap: ArenaSwapEventModel,
-) -> impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send {
-    use schema::arena_info::dsl::*;
-    diesel::insert_into(schema::arena_info::table)
-        .values((
-            melee_id.eq(swap.melee_id),
-            volume.eq(swap.quote_volume.clone()),
-            rewards_remaining.eq(BigDecimal::zero()),
-            apt_locked.eq(BigDecimal::zero()),
-        ))
-        .on_conflict(melee_id)
-        .do_update()
-        .set((volume.eq(volume + swap.quote_volume),))
-}
-
-pub fn update_arena_info_exit_query(
-    exit: ArenaExitEventModel,
-) -> impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send {
-    use schema::arena_info::dsl::*;
-    let locked = (exit.emojicoin_0_proceeds / exit.emojicoin_0_exchange_rate_base
-        * exit.emojicoin_0_exchange_rate_quote
-        + exit.emojicoin_1_proceeds / exit.emojicoin_1_exchange_rate_base
-            * exit.emojicoin_1_exchange_rate_quote)
-        .round(0);
-    diesel::insert_into(schema::arena_info::table)
-        .values((
-            melee_id.eq(exit.melee_id),
-            volume.eq(BigDecimal::zero()),
-            rewards_remaining.eq(exit.tap_out_fee.clone()),
-            apt_locked.eq(-locked.clone()),
-        ))
-        .on_conflict(melee_id)
-        .do_update()
-        .set((
-            rewards_remaining.eq(rewards_remaining + exit.tap_out_fee),
-            apt_locked.eq(sql::<Numeric>("GREATEST(arena_info.apt_locked - ")
-                .bind::<Numeric, _>(locked)
-                .sql(", 0)")),
-        ))
+    let i: Vec<_> = items_to_update
+        .into_iter()
+        .map(|i| {
+            (
+                melee_id.eq(i.melee_id),
+                volume.eq(i.volume.clone()),
+                rewards_remaining.eq(i.rewards_remaining),
+                apt_locked.eq(i.apt_locked),
+            )
+        })
+        .collect();
+    (
+        diesel::insert_into(schema::arena_info::table)
+            .values(i)
+            .on_conflict(melee_id)
+            .do_update()
+            .set((
+                volume.eq(volume + excluded(volume)),
+                rewards_remaining.eq(rewards_remaining + excluded(rewards_remaining)),
+                apt_locked.eq(apt_locked + excluded(apt_locked)),
+            )),
+        None,
+    )
 }
 
 pub fn insert_arena_leaderboard_history_query(

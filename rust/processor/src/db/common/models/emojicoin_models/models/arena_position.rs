@@ -121,7 +121,8 @@ impl From<ArenaExitEvent> for ArenaPositionDiffModel {
                 * arena_exit_event.emojicoin_0_exchange_rate.quote
                 + arena_exit_event.emojicoin_1_proceeds.clone()
                     / arena_exit_event.emojicoin_1_exchange_rate.base
-                    * arena_exit_event.emojicoin_1_exchange_rate.quote).round(0),
+                    * arena_exit_event.emojicoin_1_exchange_rate.quote)
+                .round(0),
             deposits: BigDecimal::zero(),
             match_amount: -arena_exit_event.tap_out_fee,
             last_exit_0: Some(arena_exit_event.emojicoin_1_proceeds.is_zero()),

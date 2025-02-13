@@ -9,7 +9,7 @@ use crate::{
         models::{
             arena_enter_event::ArenaEnterEventModel,
             arena_exit_event::ArenaExitEventModel,
-            arena_info::{ArenaInfoData, ArenaInfoModel},
+            arena_info::{ArenaInfoData, ArenaInfoDiffUpdate, ArenaInfoModel},
             arena_melee_event::ArenaMeleeEventModel,
             arena_position::ArenaPositionDiffModel,
             arena_swap_event::ArenaSwapEventModel,
@@ -34,8 +34,7 @@ use crate::{
             insert_global_events, insert_liquidity_events_query,
             insert_market_latest_state_event_query, insert_market_registration_events_query,
             insert_periodic_state_events_query, insert_swap_events_query,
-            insert_user_liquidity_pools_query, update_arena_info_enter_query,
-            update_arena_info_exit_query, update_arena_info_swap_query,
+            insert_user_liquidity_pools_query, update_arena_info_query,
         },
     },
     emojicoin_dot_fun::EmojicoinDbEvent,
@@ -122,6 +121,7 @@ struct InsertEvents<'a> {
     arena_position: &'a [ArenaPositionDiffModel],
     arena_info: &'a [ArenaInfoModel],
     arena_leaderboard_history: &'a [BigDecimal],
+    arena_info_update: &'a [ArenaInfoDiffUpdate],
 }
 
 async fn insert_to_db(
@@ -156,6 +156,7 @@ async fn insert_to_db(
         arena_position,
         arena_info,
         arena_leaderboard_history,
+        arena_info_update,
     } = insert_events;
 
     let futures = vec![
@@ -270,22 +271,14 @@ async fn insert_to_db(
             ),
         )
         .boxed(),
-        execute_single(
+        execute_in_chunks(
             conn.clone(),
-            update_arena_info_enter_query,
-            arena_enter_events,
-        )
-        .boxed(),
-        execute_single(
-            conn.clone(),
-            update_arena_info_swap_query,
-            arena_swap_events,
-        )
-        .boxed(),
-        execute_single(
-            conn.clone(),
-            update_arena_info_exit_query,
-            arena_exit_events,
+            update_arena_info_query,
+            arena_info_update,
+            get_config_table_chunk_size::<ArenaPositionDiffModel>(
+                "arena_info",
+                per_table_chunk_sizes,
+            ),
         )
         .boxed(),
         execute_in_chunks(
@@ -348,7 +341,8 @@ async fn insert_to_db(
         conn.clone(),
         insert_arena_leaderboard_history_query,
         arena_leaderboard_history,
-    ).await?;
+    )
+    .await?;
 
     Ok(())
 }
@@ -788,6 +782,29 @@ impl ProcessorTrait for EmojicoinProcessor {
 
         arena_position_db = ArenaPositionDiffModel::merge(arena_position_db);
 
+        let arena_info_update_db = ArenaInfoDiffUpdate::merge(
+            vec![
+                arena_enter_events_db
+                    .clone()
+                    .into_iter()
+                    .map(ArenaInfoDiffUpdate::from)
+                    .collect::<Vec<_>>(),
+                arena_swap_events_db
+                    .clone()
+                    .into_iter()
+                    .map(ArenaInfoDiffUpdate::from)
+                    .collect::<Vec<_>>(),
+                arena_exit_events_db
+                    .clone()
+                    .into_iter()
+                    .map(ArenaInfoDiffUpdate::from)
+                    .collect::<Vec<_>>(),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+        );
+
         let tx_result = insert_to_db(
             pool,
             self.name(),
@@ -811,6 +828,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                 arena_position: &arena_position_db,
                 arena_info: &arena_info_db,
                 arena_leaderboard_history: &arena_leaderboard_history_db,
+                arena_info_update: &arena_info_update_db,
             },
             &self.per_table_chunk_sizes,
         )
