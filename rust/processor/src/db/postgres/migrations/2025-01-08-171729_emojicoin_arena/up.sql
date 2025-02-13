@@ -183,6 +183,7 @@ FROM realized_position;
 
 CREATE VIEW arena_leaderboard_history_with_arena_info AS
 SELECT
+    arena_leaderboard_history.user,
     arena_leaderboard_history.melee_id,
     arena_leaderboard_history.profits,
     arena_leaderboard_history.losses,

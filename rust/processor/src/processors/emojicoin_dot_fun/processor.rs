@@ -477,7 +477,7 @@ impl ProcessorTrait for EmojicoinProcessor {
 
                 // Stock the two latest swap events.
                 // When an arena swap event is encountered in the for loop, this variable will
-                // contain the two corrensponding normal swap events.
+                // contain the two corresponding normal swap events.
                 let mut last_swaps: (Option<SwapEvent>, Option<SwapEvent>) = (None, None);
 
                 for (event_index, event) in user_txn.events.iter().enumerate() {
@@ -532,15 +532,15 @@ impl ProcessorTrait for EmojicoinProcessor {
                                 },
                                 ArenaEvent::Swap(swap) => {
                                     let swaps = (last_swaps.0.unwrap(), last_swaps.1.unwrap());
-                                    // This checks that the two previous swaps do indeed
-                                    // correnspond to an arena swap. If stars align, two unrelated
-                                    // swaps (not part of an arena swap) from the same transaction
-                                    // could have net proceeds equal to input amount, and the
-                                    // second swap could have net proceeds equal to the net
-                                    // proceeds of the arena swap, but it is highly unlikely.
-                                    // Moreover, this check is a "just to be sure" check: in
-                                    // theory, last_swaps should always contain the correct swaps
-                                    // due to the way events are emitted.
+                                    // This checks that the two previous swaps do indeed correspond
+                                    // to an arena swap. If stars align, two unrelated swaps (not
+                                    // part of an arena swap) from the same transaction could have
+                                    // net proceeds equal to input amount, and the second swap
+                                    // could have net proceeds equal to the net proceeds of the
+                                    // arena swap, but it is highly unlikely. Moreover, this check
+                                    // is a "just to be sure" check: in theory, last_swaps should
+                                    // always contain the correct swaps due to the way events are
+                                    // emitted.
                                     if swaps.0.net_proceeds != swaps.1.input_amount
                                         && (swap.emojicoin_0_proceeds == swaps.1.net_proceeds
                                             || swap.emojicoin_0_proceeds == swaps.1.net_proceeds)

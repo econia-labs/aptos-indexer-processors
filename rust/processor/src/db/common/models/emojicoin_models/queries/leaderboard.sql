@@ -71,7 +71,7 @@ WITH last_txn AS(
         0::numeric AS emojicoin_1_balance
     FROM arena_exit_events
     WHERE melee_id = $1
-    -- Here, we want his data at the end of the melee before exiting the melee
+    -- Here, we want this data at the end of the melee before exiting the melee
     -- for the final time so we only look for exits before the melee end.
     AND transaction_version < (SELECT txn FROM last_txn)
 ), last_balances AS ( -- Get the last balance the user had at the end of the melee.
