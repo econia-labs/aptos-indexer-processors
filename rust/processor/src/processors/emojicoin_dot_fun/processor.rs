@@ -260,12 +260,6 @@ async fn insert_to_db(
             ),
         )
         .boxed(),
-        execute_single(
-            conn.clone(),
-            insert_arena_leaderboard_history_query,
-            arena_leaderboard_history,
-        )
-        .boxed(),
         execute_in_chunks(
             conn.clone(),
             insert_arena_info_query,
@@ -347,6 +341,14 @@ async fn insert_to_db(
     ];
 
     try_join_all(futures).await?;
+
+    // Run this after everything else to make sure necessary events for the generation of the
+    // leaderboard history are already inserted.
+    let _ = execute_single(
+        conn.clone(),
+        insert_arena_leaderboard_history_query,
+        arena_leaderboard_history,
+    ).await?;
 
     Ok(())
 }
