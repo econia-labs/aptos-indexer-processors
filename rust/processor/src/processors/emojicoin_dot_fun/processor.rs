@@ -337,7 +337,7 @@ async fn insert_to_db(
 
     // Run this after everything else to make sure necessary events for the generation of the
     // leaderboard history are already inserted.
-    let _ = execute_single(
+    execute_single(
         conn.clone(),
         insert_arena_leaderboard_history_query,
         arena_leaderboard_history,
@@ -358,7 +358,7 @@ struct MarketData {
 /// If not, the database will be queried for historical data.
 async fn get_market_data(
     market_address_str: &str,
-    register_events_db: &Vec<MarketRegistrationEventModel>,
+    register_events_db: &[MarketRegistrationEventModel],
     pool: &ArcDbPool,
 ) -> anyhow::Result<MarketData> {
     // Get market registration event for the market.
@@ -536,8 +536,8 @@ impl ProcessorTrait for EmojicoinProcessor {
                                     // always contain the correct swaps due to the way events are
                                     // emitted.
                                     if swaps.0.net_proceeds != swaps.1.input_amount
-                                        && (swap.emojicoin_0_proceeds == swaps.1.net_proceeds
-                                            || swap.emojicoin_0_proceeds == swaps.1.net_proceeds)
+                                        || (swap.emojicoin_0_proceeds != swaps.1.net_proceeds
+                                            && swap.emojicoin_1_proceeds != swaps.1.net_proceeds)
                                     {
                                         bail!("The two previous swaps to an arena swap are not related to the arena swap.");
                                     }
