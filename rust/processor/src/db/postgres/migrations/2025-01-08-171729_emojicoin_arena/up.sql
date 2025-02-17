@@ -132,7 +132,8 @@ CREATE TABLE arena_info (
     melee_id NUMERIC NOT NULL PRIMARY KEY,
     volume NUMERIC NOT NULL,
     rewards_remaining NUMERIC NOT NULL,
-    apt_locked NUMERIC NOT NULL,
+    emojicoin_0_locked NUMERIC NOT NULL,
+    emojicoin_1_locked NUMERIC NOT NULL,
 
     -- Redundant information to avoid multiple queries/joins
     emojicoin_0_market_address TEXT,

@@ -409,6 +409,7 @@ impl ProcessorTrait for EmojicoinProcessor {
         let mut arena_position_db = vec![];
         let mut arena_info_db = vec![];
         let mut arena_leaderboard_history_db = vec![];
+        let mut arena_info_update_db = vec![];
         // Store the writeset changes for each market in the transaction so we can lazily parse them later only for the
         // latest event for that market. We may get several writeset changes for the same market across all the transactions.
         let mut latest_market_resources: AHashMap<
@@ -496,14 +497,18 @@ impl ProcessorTrait for EmojicoinProcessor {
                                 ArenaEvent::Enter(enter) => {
                                     arena_position_db
                                         .push(ArenaPositionDiffModel::from(enter.clone()));
+                                    let model = ArenaEnterEventModel::new(txn_info.clone(), enter);
+                                    arena_info_update_db.push(ArenaInfoDiffUpdate::from(model.clone()));
                                     arena_enter_events_db
-                                        .push(ArenaEnterEventModel::new(txn_info.clone(), enter))
+                                        .push(model)
                                 },
                                 ArenaEvent::Exit(exit) => {
                                     arena_position_db
                                         .push(ArenaPositionDiffModel::from(exit.clone()));
+                                    let model = ArenaExitEventModel::new(txn_info.clone(), exit);
+                                    arena_info_update_db.push(ArenaInfoDiffUpdate::from(model.clone()));
                                     arena_exit_events_db
-                                        .push(ArenaExitEventModel::new(txn_info.clone(), exit))
+                                        .push(model)
                                 },
                                 ArenaEvent::Swap(swap) => {
                                     let swaps = (last_swaps.0.unwrap(), last_swaps.1.unwrap());
@@ -531,11 +536,14 @@ impl ProcessorTrait for EmojicoinProcessor {
                                     };
                                     arena_position_db.push(ArenaPositionDiffModel::from_swap(
                                         swap.clone(),
-                                        swaps,
+                                        swaps.clone(),
                                     ));
+                                    let model = ArenaSwapEventModel::new(txn_info.clone(), swap);
+                                    arena_info_update_db.push(ArenaInfoDiffUpdate::from_swaps(model.clone(), swaps));
                                     last_swaps = (None, None);
                                     arena_swap_events_db
-                                        .push(ArenaSwapEventModel::new(txn_info.clone(), swap))
+                                        .push(model);
+
                                 },
                                 ArenaEvent::VaultBalanceUpdate(vault_balance_update) => {
                                     arena_vault_balance_update_events_db.push(
@@ -763,28 +771,7 @@ impl ProcessorTrait for EmojicoinProcessor {
 
         arena_position_db = ArenaPositionDiffModel::merge(arena_position_db);
 
-        let arena_info_update_db = ArenaInfoDiffUpdate::merge(
-            vec![
-                arena_enter_events_db
-                    .clone()
-                    .into_iter()
-                    .map(ArenaInfoDiffUpdate::from)
-                    .collect::<Vec<_>>(),
-                arena_swap_events_db
-                    .clone()
-                    .into_iter()
-                    .map(ArenaInfoDiffUpdate::from)
-                    .collect::<Vec<_>>(),
-                arena_exit_events_db
-                    .clone()
-                    .into_iter()
-                    .map(ArenaInfoDiffUpdate::from)
-                    .collect::<Vec<_>>(),
-            ]
-            .into_iter()
-            .flatten()
-            .collect(),
-        );
+        arena_info_update_db = ArenaInfoDiffUpdate::merge(arena_info_update_db);
 
         let tx_result = insert_to_db(
             pool,

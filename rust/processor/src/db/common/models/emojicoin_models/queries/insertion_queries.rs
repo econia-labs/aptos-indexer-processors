@@ -300,7 +300,8 @@ pub fn update_arena_info_query(
                 melee_id.eq(i.melee_id),
                 volume.eq(i.volume.clone()),
                 rewards_remaining.eq(i.rewards_remaining),
-                apt_locked.eq(i.apt_locked),
+                emojicoin_0_locked.eq(i.emojicoin_0_locked),
+                emojicoin_1_locked.eq(i.emojicoin_1_locked),
             )
         })
         .collect();
@@ -312,7 +313,8 @@ pub fn update_arena_info_query(
             .set((
                 volume.eq(volume + excluded(volume)),
                 rewards_remaining.eq(rewards_remaining + excluded(rewards_remaining)),
-                apt_locked.eq(apt_locked + excluded(apt_locked)),
+                emojicoin_0_locked.eq(emojicoin_0_locked + excluded(emojicoin_0_locked)),
+                emojicoin_1_locked.eq(emojicoin_1_locked + excluded(emojicoin_1_locked)),
             )),
         None,
     )

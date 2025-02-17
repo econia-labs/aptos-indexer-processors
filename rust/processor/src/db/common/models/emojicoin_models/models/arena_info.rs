@@ -2,7 +2,7 @@ use super::{
     arena_enter_event::ArenaEnterEventModel, arena_exit_event::ArenaExitEventModel,
     arena_melee_event::ArenaMeleeEventModel, arena_swap_event::ArenaSwapEventModel,
 };
-use crate::schema::arena_info;
+use crate::{db::common::models::emojicoin_models::json_types::SwapEvent, schema::arena_info};
 use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use num::Zero;
@@ -16,7 +16,8 @@ pub struct ArenaInfoModel {
     pub melee_id: BigDecimal,
     pub volume: BigDecimal,
     pub rewards_remaining: BigDecimal,
-    pub apt_locked: BigDecimal,
+    pub emojicoin_0_locked: BigDecimal,
+    pub emojicoin_1_locked: BigDecimal,
 
     pub emojicoin_0_market_address: String,
     pub emojicoin_1_market_address: String,
@@ -42,7 +43,8 @@ pub struct ArenaInfoDiffUpdate {
     pub melee_id: BigDecimal,
     pub volume: BigDecimal,
     pub rewards_remaining: BigDecimal,
-    pub apt_locked: BigDecimal,
+    pub emojicoin_0_locked: BigDecimal,
+    pub emojicoin_1_locked: BigDecimal,
 }
 
 impl ArenaInfoModel {
@@ -51,7 +53,8 @@ impl ArenaInfoModel {
             melee_id: arena_melee_event.melee_id,
             volume: BigDecimal::zero(),
             rewards_remaining: arena_melee_event.available_rewards,
-            apt_locked: BigDecimal::zero(),
+            emojicoin_0_locked: BigDecimal::zero(),
+            emojicoin_1_locked: BigDecimal::zero(),
 
             emojicoin_0_market_address: arena_melee_event.emojicoin_0_market_address,
             emojicoin_1_market_address: arena_melee_event.emojicoin_1_market_address,
@@ -73,33 +76,31 @@ impl From<ArenaEnterEventModel> for ArenaInfoDiffUpdate {
             melee_id: value.melee_id,
             volume: value.quote_volume.clone(),
             rewards_remaining: -value.match_amount,
-            apt_locked: value.quote_volume,
+            emojicoin_0_locked: value.emojicoin_0_proceeds,
+            emojicoin_1_locked: value.emojicoin_1_proceeds,
         }
     }
 }
 
-impl From<ArenaSwapEventModel> for ArenaInfoDiffUpdate {
-    fn from(value: ArenaSwapEventModel) -> Self {
+impl ArenaInfoDiffUpdate {
+    pub fn from_swaps(value: ArenaSwapEventModel, swaps: (SwapEvent, SwapEvent)) -> Self {
         Self {
             melee_id: value.melee_id,
             volume: value.quote_volume,
             rewards_remaining: BigDecimal::zero(),
-            apt_locked: BigDecimal::zero(),
+            emojicoin_0_locked: swaps.0.base_volume * if swaps.0.is_sell { -1 } else { 1 },
+            emojicoin_1_locked: swaps.1.base_volume * if swaps.1.is_sell { -1 } else { 1 },
         }
     }
 }
-
 impl From<ArenaExitEventModel> for ArenaInfoDiffUpdate {
     fn from(value: ArenaExitEventModel) -> Self {
         Self {
             melee_id: value.melee_id,
             volume: BigDecimal::zero(),
             rewards_remaining: -value.tap_out_fee,
-            apt_locked: -(value.emojicoin_0_proceeds / value.emojicoin_0_exchange_rate_base
-                * value.emojicoin_0_exchange_rate_quote
-                + value.emojicoin_1_proceeds / value.emojicoin_1_exchange_rate_base
-                    * value.emojicoin_1_exchange_rate_quote)
-                .round(0),
+            emojicoin_0_locked: -value.emojicoin_0_proceeds,
+            emojicoin_1_locked: -value.emojicoin_1_proceeds,
         }
     }
 }
@@ -112,7 +113,8 @@ impl ArenaInfoDiffUpdate {
                 .and_modify(|a| {
                     a.volume += value.volume.clone();
                     a.rewards_remaining += value.rewards_remaining.clone();
-                    a.apt_locked += value.apt_locked.clone();
+                    a.emojicoin_0_locked += value.emojicoin_0_locked.clone();
+                    a.emojicoin_1_locked += value.emojicoin_1_locked.clone();
                 })
                 .or_insert(value);
         }
