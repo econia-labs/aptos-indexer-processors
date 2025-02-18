@@ -1,9 +1,11 @@
-use crate::{
-    db::common::models::emojicoin_models::models::prelude::*,
-    schema,
-};
+use crate::{db::common::models::emojicoin_models::models::prelude::*, schema};
 use diesel::{
-    pg::Pg, query_builder::QueryFragment, query_dsl::methods::FilterDsl, upsert::excluded,
+    dsl::sql,
+    pg::Pg,
+    query_builder::QueryFragment,
+    query_dsl::methods::FilterDsl,
+    sql_types::{Bool, Nullable},
+    upsert::excluded,
     ExpressionMethods,
 };
 
@@ -219,6 +221,96 @@ pub fn insert_arena_melee_events_query(
             .values(items_to_insert)
             .on_conflict(melee_id)
             .do_nothing(),
+        None,
+    )
+}
+
+pub fn insert_arena_position_query(
+    items_to_insert: Vec<ArenaPositionDiffModel>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::arena_position::dsl::*;
+    (
+        diesel::insert_into(schema::arena_position::table)
+            .values(items_to_insert)
+            .on_conflict((user, melee_id))
+            .do_update()
+            .set((
+                open.eq(excluded(open)),
+                emojicoin_0_balance.eq(emojicoin_0_balance + excluded(emojicoin_0_balance)),
+                emojicoin_1_balance.eq(emojicoin_1_balance + excluded(emojicoin_1_balance)),
+                deposits.eq(deposits + excluded(deposits)),
+                match_amount.eq(match_amount + excluded(match_amount)),
+                withdrawals.eq(withdrawals + excluded(withdrawals)),
+                last_exit_0.eq(sql::<Nullable<Bool>>(
+                    "COALESCE(EXCLUDED.last_exit_0, arena_position.last_exit_0)",
+                )),
+            )),
+        None,
+    )
+}
+
+pub fn insert_arena_info_query(
+    info: Vec<ArenaInfoModel>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::arena_info::dsl::*;
+    (
+        diesel::insert_into(schema::arena_info::table)
+            .values(info)
+            .on_conflict(melee_id)
+            .do_update()
+            .set((
+                rewards_remaining.eq(rewards_remaining + excluded(rewards_remaining)),
+                emojicoin_0_market_address.eq(excluded(emojicoin_0_market_address)),
+                emojicoin_1_market_address.eq(excluded(emojicoin_1_market_address)),
+                emojicoin_0_symbols.eq(excluded(emojicoin_0_symbols)),
+                emojicoin_1_symbols.eq(excluded(emojicoin_1_symbols)),
+                emojicoin_0_market_id.eq(excluded(emojicoin_0_market_id)),
+                emojicoin_1_market_id.eq(excluded(emojicoin_1_market_id)),
+                start_time.eq(excluded(start_time)),
+                duration.eq(excluded(duration)),
+                max_match_percentage.eq(excluded(max_match_percentage)),
+                max_match_amount.eq(excluded(max_match_amount)),
+            )),
+        None,
+    )
+}
+
+pub fn update_arena_info_query(
+    items_to_update: Vec<ArenaInfoDiffUpdate>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::arena_info::dsl::*;
+    let i: Vec<_> = items_to_update
+        .into_iter()
+        .map(|i| {
+            (
+                melee_id.eq(i.melee_id),
+                volume.eq(i.volume.clone()),
+                rewards_remaining.eq(i.rewards_remaining),
+                emojicoin_0_locked.eq(i.emojicoin_0_locked),
+                emojicoin_1_locked.eq(i.emojicoin_1_locked),
+            )
+        })
+        .collect();
+    (
+        diesel::insert_into(schema::arena_info::table)
+            .values(i)
+            .on_conflict(melee_id)
+            .do_update()
+            .set((
+                volume.eq(volume + excluded(volume)),
+                rewards_remaining.eq(rewards_remaining + excluded(rewards_remaining)),
+                emojicoin_0_locked.eq(emojicoin_0_locked + excluded(emojicoin_0_locked)),
+                emojicoin_1_locked.eq(emojicoin_1_locked + excluded(emojicoin_1_locked)),
+            )),
         None,
     )
 }
