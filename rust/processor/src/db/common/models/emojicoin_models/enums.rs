@@ -256,11 +256,14 @@ impl EmojicoinTypeTag {
             str if str == GLOBAL_STATE_EVENT.as_str() => Some(Self::GlobalState),
             str if str == LIQUIDITY_EVENT.as_str() => Some(Self::Liquidity),
             str if str == MARKET_RESOURCE.as_str() => Some(Self::Market),
-            str if str == ARENA_MELEE_EVENT.as_str() => Some(Self::ArenaMelee),
-            str if str == ARENA_ENTER_EVENT.as_str() => Some(Self::ArenaEnter),
-            str if str == ARENA_EXIT_EVENT.as_str() => Some(Self::ArenaExit),
-            str if str == ARENA_SWAP_EVENT.as_str() => Some(Self::ArenaSwap),
-            str if str == ARENA_VAULT_BALANCE_UPDATE_EVENT.as_str() => {
+            str if ARENA_MELEE_EVENT.as_ref().is_some_and(|s| s == str) => Some(Self::ArenaMelee),
+            str if ARENA_ENTER_EVENT.as_ref().is_some_and(|s| s == str) => Some(Self::ArenaEnter),
+            str if ARENA_EXIT_EVENT.as_ref().is_some_and(|s| s == str) => Some(Self::ArenaExit),
+            str if ARENA_SWAP_EVENT.as_ref().is_some_and(|s| s == str) => Some(Self::ArenaSwap),
+            str if ARENA_VAULT_BALANCE_UPDATE_EVENT
+                .as_ref()
+                .map_or(false, |s| s == str) =>
+            {
                 Some(Self::ArenaVaultBalanceUpdate)
             },
             _ => None,
