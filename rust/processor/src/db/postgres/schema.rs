@@ -134,6 +134,7 @@ diesel::table! {
         tap_out_fee -> Numeric,
         emojicoin_0_proceeds -> Numeric,
         emojicoin_1_proceeds -> Numeric,
+        apt_proceeds -> Numeric,
         emojicoin_0_exchange_rate_base -> Numeric,
         emojicoin_0_exchange_rate_quote -> Numeric,
         emojicoin_1_exchange_rate_base -> Numeric,

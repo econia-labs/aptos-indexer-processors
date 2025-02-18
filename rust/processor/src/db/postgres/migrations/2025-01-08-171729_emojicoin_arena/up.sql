@@ -55,6 +55,7 @@ CREATE TABLE arena_exit_events (
     tap_out_fee NUMERIC NOT NULL,
     emojicoin_0_proceeds NUMERIC NOT NULL,
     emojicoin_1_proceeds NUMERIC NOT NULL,
+    apt_proceeds NUMERIC NOT NULL,
     emojicoin_0_exchange_rate_base NUMERIC NOT NULL,
     emojicoin_0_exchange_rate_quote NUMERIC NOT NULL,
     emojicoin_1_exchange_rate_base NUMERIC NOT NULL,

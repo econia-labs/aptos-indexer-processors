@@ -1,12 +1,3 @@
--- Get the total proceeds of an exit event in APT.
-CREATE FUNCTION apt_proceeds(exit arena_exit_events) RETURNS numeric
-    LANGUAGE SQL
-    IMMUTABLE
-    RETURN ROUND(
-        exit.emojicoin_0_proceeds / exit.emojicoin_0_exchange_rate_base * exit.emojicoin_0_exchange_rate_quote +
-        exit.emojicoin_1_proceeds / exit.emojicoin_1_exchange_rate_base * exit.emojicoin_1_exchange_rate_quote
-    );
-
 -- Get the curve price of a market at a certain transaction version.
 CREATE FUNCTION price_at_txn(market_id numeric, txn numeric) RETURNS numeric AS $$
     WITH latest_swap AS (

@@ -40,8 +40,8 @@ deposits AS (
 withdrawals AS (
     SELECT
         "user",
-        SUM(apt_proceeds(exit.*)) as withdrawals
-    FROM arena_exit_events AS exit
+        SUM(apt_proceeds) as withdrawals
+    FROM arena_exit_events
     WHERE melee_id = $1
     AND transaction_version < (SELECT last_txn FROM last_txn)
     GROUP BY "user"
@@ -99,7 +99,7 @@ SELECT
     COALESCE(withdrawals, 0) +
         ROUND(
             emojicoin_0_balance * price_at_txn(emojicoin_0_market_id, last_txn) +
-            emojicoin_1_balance * price_at_txn(emojicoin_0_market_id, last_txn)
+            emojicoin_1_balance * price_at_txn(emojicoin_1_market_id, last_txn)
         ) AS profits,
     deposits AS losses,
     emojicoin_0_balance,
