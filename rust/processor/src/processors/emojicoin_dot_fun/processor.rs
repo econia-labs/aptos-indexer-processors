@@ -498,17 +498,17 @@ impl ProcessorTrait for EmojicoinProcessor {
                                     arena_position_db
                                         .push(ArenaPositionDiffModel::from(enter.clone()));
                                     let model = ArenaEnterEventModel::new(txn_info.clone(), enter);
-                                    arena_info_update_db.push(ArenaInfoDiffUpdate::from(model.clone()));
-                                    arena_enter_events_db
-                                        .push(model)
+                                    arena_info_update_db
+                                        .push(ArenaInfoDiffUpdate::from(model.clone()));
+                                    arena_enter_events_db.push(model)
                                 },
                                 ArenaEvent::Exit(exit) => {
                                     arena_position_db
                                         .push(ArenaPositionDiffModel::from(exit.clone()));
                                     let model = ArenaExitEventModel::new(txn_info.clone(), exit);
-                                    arena_info_update_db.push(ArenaInfoDiffUpdate::from(model.clone()));
-                                    arena_exit_events_db
-                                        .push(model)
+                                    arena_info_update_db
+                                        .push(ArenaInfoDiffUpdate::from(model.clone()));
+                                    arena_exit_events_db.push(model)
                                 },
                                 ArenaEvent::Swap(swap) => {
                                     let swaps = (last_swaps.0.unwrap(), last_swaps.1.unwrap());
@@ -539,11 +539,12 @@ impl ProcessorTrait for EmojicoinProcessor {
                                         swaps.clone(),
                                     ));
                                     let model = ArenaSwapEventModel::new(txn_info.clone(), swap);
-                                    arena_info_update_db.push(ArenaInfoDiffUpdate::from_swaps(model.clone(), swaps));
+                                    arena_info_update_db.push(ArenaInfoDiffUpdate::from_swaps(
+                                        model.clone(),
+                                        swaps,
+                                    ));
                                     last_swaps = (None, None);
-                                    arena_swap_events_db
-                                        .push(model);
-
+                                    arena_swap_events_db.push(model);
                                 },
                                 ArenaEvent::VaultBalanceUpdate(vault_balance_update) => {
                                     arena_vault_balance_update_events_db.push(

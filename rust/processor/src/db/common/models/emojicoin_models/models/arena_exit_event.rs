@@ -46,8 +46,13 @@ impl ArenaExitEventModel {
 
             emojicoin_0_proceeds: arena_exit_event.emojicoin_0_proceeds.clone(),
             emojicoin_1_proceeds: arena_exit_event.emojicoin_1_proceeds.clone(),
-            apt_proceeds: (arena_exit_event.emojicoin_0_proceeds / arena_exit_event.emojicoin_0_exchange_rate.base.clone() * arena_exit_event.emojicoin_0_exchange_rate.quote.clone() +
-                arena_exit_event.emojicoin_1_proceeds / arena_exit_event.emojicoin_1_exchange_rate.base.clone() * arena_exit_event.emojicoin_1_exchange_rate.quote.clone()).round(0),
+            apt_proceeds: (arena_exit_event.emojicoin_0_proceeds
+                / arena_exit_event.emojicoin_0_exchange_rate.base.clone()
+                * arena_exit_event.emojicoin_0_exchange_rate.quote.clone()
+                + arena_exit_event.emojicoin_1_proceeds
+                    / arena_exit_event.emojicoin_1_exchange_rate.base.clone()
+                    * arena_exit_event.emojicoin_1_exchange_rate.quote.clone())
+            .round(0),
             emojicoin_0_exchange_rate_base: arena_exit_event.emojicoin_0_exchange_rate.base,
             emojicoin_0_exchange_rate_quote: arena_exit_event.emojicoin_0_exchange_rate.quote,
             emojicoin_1_exchange_rate_base: arena_exit_event.emojicoin_1_exchange_rate.base,

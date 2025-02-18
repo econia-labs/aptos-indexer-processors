@@ -1,7 +1,4 @@
-use crate::{
-    db::common::models::emojicoin_models::models::prelude::*,
-    schema,
-};
+use crate::{db::common::models::emojicoin_models::models::prelude::*, schema};
 use bigdecimal::{BigDecimal, Zero};
 use diesel::{
     dsl::sql,
@@ -337,7 +334,10 @@ pub fn update_arena_leaderboard_history_query(
     diesel::update(arena_leaderboard_history)
         .filter(melee_id.eq(exit.melee_id))
         .filter(user.eq(exit.user))
-        .set((exited.eq(true), last_exit_0.eq(exit.emojicoin_1_proceeds.is_zero())))
+        .set((
+            exited.eq(true),
+            last_exit_0.eq(exit.emojicoin_1_proceeds.is_zero()),
+        ))
 }
 
 pub fn insert_arena_enter_events_query(
