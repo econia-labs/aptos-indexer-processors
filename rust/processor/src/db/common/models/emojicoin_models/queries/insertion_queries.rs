@@ -403,3 +403,44 @@ pub fn insert_arena_vault_balance_update_events_query(
         None,
     )
 }
+
+pub fn insert_arena_candlesticks_query(
+    items_to_insert: Vec<ArenaCandlestickDiffModel>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::arena_candlestick::dsl::*;
+    (
+        diesel::insert_into(schema::arena_candlestick::table)
+            .values(items_to_insert)
+            .on_conflict((melee_id, period, start_time))
+            .do_update()
+            .set((
+                open_price.eq(sql("COALESCE(")
+                    .bind(open_price)
+                    .sql(",")
+                    .bind(excluded(open_price))
+                    .sql(")")),
+                high_price.eq(sql("GREATEST(COALESCE(")
+                    .bind(high_price)
+                    .sql(",")
+                    .bind(excluded(high_price))
+                    .sql("),")
+                    .bind(excluded(high_price))
+                    .sql(")")),
+                low_price.eq(sql("LEAST(COALESCE(")
+                    .bind(low_price)
+                    .sql(",")
+                    .bind(excluded(low_price))
+                    .sql("),")
+                    .bind(excluded(low_price))
+                    .sql(")")),
+                close_price.eq(excluded(close_price)),
+                volume.eq(volume + excluded(volume)),
+                integrator_fees.eq(integrator_fees + excluded(integrator_fees)),
+                n_swaps.eq(n_swaps + excluded(n_swaps)),
+            )),
+        None,
+    )
+}

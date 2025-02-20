@@ -149,6 +149,23 @@ CREATE TABLE arena_info (
     max_match_amount NUMERIC
 );
 
+CREATE TABLE arena_candlestick (
+    melee_id NUMERIC NOT NULL,
+
+    period period_type NOT NULL,
+    start_time TIMESTAMP NOT NULL,
+
+    open_price NUMERIC,
+    high_price NUMERIC,
+    low_price NUMERIC,
+    close_price NUMERIC,
+    volume NUMERIC NOT NULL,
+    integrator_fees NUMERIC NOT NULL,
+    n_swaps NUMERIC NOT NULL,
+
+    PRIMARY KEY (melee_id, period, start_time)
+);
+
 -- Views
 
 CREATE VIEW arena_leaderboard AS
@@ -209,3 +226,5 @@ INNER JOIN
     arena_info
 ON
     arena_info.melee_id = arena_leaderboard_history.melee_id;
+
+ALTER TYPE period_type ADD VALUE IF NOT EXISTS 'period_15s';
