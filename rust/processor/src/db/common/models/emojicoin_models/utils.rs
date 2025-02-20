@@ -1,6 +1,6 @@
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime};
-use num::ToPrimitive;
+use num::{FromPrimitive, ToPrimitive};
 
 pub fn micros_to_naive_datetime(microseconds: &BigDecimal) -> NaiveDateTime {
     // There should be no truncation issues for almost ~300,000 years.
@@ -15,4 +15,8 @@ pub fn within_past_day(time: NaiveDateTime) -> bool {
     let one_day_ago = chrono::Utc::now() - chrono::Duration::hours(24);
 
     time.and_utc() > one_day_ago
+}
+
+pub fn unq64(q64: BigDecimal) -> BigDecimal {
+    q64 / BigDecimal::from_u128(2u128.pow(64)).unwrap()
 }

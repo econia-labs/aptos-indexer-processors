@@ -1,3 +1,4 @@
+pub mod arena_candlestick;
 pub mod arena_enter_event;
 pub mod arena_exit_event;
 pub mod arena_info;
@@ -18,10 +19,11 @@ pub mod user_liquidity_pools;
 
 pub mod prelude {
     pub use super::{
-        arena_enter_event::*, arena_exit_event::*, arena_info::*, arena_melee_event::*,
-        arena_position::*, arena_swap_event::*, arena_vault_balance_update_event::*, chat_event::*,
-        global_state_event::*, liquidity_event::*, market_1m_periods_in_last_day::*,
-        market_24h_rolling_volume::*, market_latest_state_event::*, market_registration_event::*,
-        periodic_state_event::*, swap_event::*, user_liquidity_pools::*,
+        arena_candlestick::*, arena_enter_event::*, arena_exit_event::*, arena_info::*,
+        arena_melee_event::*, arena_position::*, arena_swap_event::*,
+        arena_vault_balance_update_event::*, chat_event::*, global_state_event::*,
+        liquidity_event::*, market_1m_periods_in_last_day::*, market_24h_rolling_volume::*,
+        market_latest_state_event::*, market_registration_event::*, periodic_state_event::*,
+        swap_event::*, user_liquidity_pools::*,
     };
 }
