@@ -1,5 +1,5 @@
 use crate::{db::common::models::emojicoin_models::models::prelude::*, schema};
-use bigdecimal::{BigDecimal, Zero};
+use bigdecimal::Zero;
 use diesel::{
     dsl::sql,
     pg::Pg,
@@ -318,11 +318,23 @@ pub fn update_arena_info_query(
 }
 
 pub fn insert_arena_leaderboard_history_query(
-    melee_id: BigDecimal,
+    arena_leaderboard_history_model: ArenaLeaderboardHistoryModel,
 ) -> impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send {
     let mut query = include_str!("./leaderboard.sql").to_string();
 
-    query = query.replace("$1", &melee_id.to_string());
+    query = query.replace("$1", &arena_leaderboard_history_model.melee_id.to_string());
+    query = query.replace(
+        "$2",
+        &arena_leaderboard_history_model
+            .emojicoin_0_price
+            .to_string(),
+    );
+    query = query.replace(
+        "$3",
+        &arena_leaderboard_history_model
+            .emojicoin_1_price
+            .to_string(),
+    );
 
     sql_query(query)
 }
