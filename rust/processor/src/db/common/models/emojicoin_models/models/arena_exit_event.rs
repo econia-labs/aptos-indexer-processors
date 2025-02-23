@@ -1,5 +1,6 @@
 use crate::{
     db::common::models::emojicoin_models::json_types::{ArenaExitEvent, TxnInfo},
+    processors::emojicoin_dot_fun::processor::MeleeData,
     schema::arena_exit_events,
 };
 use bigdecimal::BigDecimal;
@@ -28,10 +29,16 @@ pub struct ArenaExitEventModel {
     pub emojicoin_0_exchange_rate_quote: BigDecimal,
     pub emojicoin_1_exchange_rate_base: BigDecimal,
     pub emojicoin_1_exchange_rate_quote: BigDecimal,
+
+    pub after_end: bool,
 }
 
 impl ArenaExitEventModel {
-    pub fn new(txn_info: TxnInfo, arena_exit_event: ArenaExitEvent) -> ArenaExitEventModel {
+    pub fn new(
+        txn_info: TxnInfo,
+        arena_exit_event: ArenaExitEvent,
+        melee_data: &MeleeData,
+    ) -> ArenaExitEventModel {
         ArenaExitEventModel {
             // Transaction metadata.
             transaction_version: txn_info.version,
@@ -41,6 +48,7 @@ impl ArenaExitEventModel {
             transaction_timestamp: txn_info.timestamp,
 
             user: arena_exit_event.user,
+            after_end: melee_data.melee_id != arena_exit_event.melee_id,
             melee_id: arena_exit_event.melee_id,
             tap_out_fee: arena_exit_event.tap_out_fee,
 

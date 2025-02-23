@@ -39,7 +39,7 @@ use std::{fmt::Debug, sync::Arc};
 use tokio::sync::{mpsc::UnboundedSender, RwLock};
 use tracing::error;
 
-struct MeleeData {
+pub struct MeleeData {
     pub price_0: BigDecimal,
     pub price_1: BigDecimal,
     pub market_id_0: BigDecimal,
@@ -61,6 +61,9 @@ impl EmojicoinProcessor {
         notif_sender: UnboundedSender<EmojicoinDbEvent>,
     ) -> Self {
         let task = async {
+            if ARENA_MODULE_ADDRESS.is_none() {
+                return Ok::<Option<MeleeData>, anyhow::Error>(None);
+            }
             let conn = &mut connection_pool.get().await?;
             let melee = {
                 use schema::arena_info::dsl::*;
@@ -147,7 +150,7 @@ struct InsertEvents<'a> {
     arena_vault_balance_update_events: &'a [ArenaVaultBalanceUpdateEventModel],
     arena_position: &'a [ArenaPositionDiffModel],
     arena_info: &'a [ArenaInfoModel],
-    arena_leaderboard_history: &'a [BigDecimal],
+    arena_leaderboard_history: &'a [ArenaLeaderboardHistoryModel],
     arena_info_update: &'a [ArenaInfoDiffUpdate],
     arena_candlesticks: &'a [ArenaCandlestickDiffModel],
 }
@@ -465,6 +468,8 @@ impl ProcessorTrait for EmojicoinProcessor {
         end_version: u64,
         _: Option<u64>,
     ) -> anyhow::Result<ProcessingResult> {
+        let mut melee_data = self.melee_data.write().await;
+
         let processing_start = std::time::Instant::now();
         let last_transaction_timestamp = transactions.last().unwrap().timestamp.clone();
 
@@ -544,7 +549,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                             event_index as i64,
                         )? {
                             if let EventWithMarket::Swap(swap) = evt.clone() {
-                                if let Some(melee_data) = self.melee_data.write().await.as_mut() {
+                                if let Some(melee_data) = melee_data.as_mut() {
                                     if swap.market_id == melee_data.market_id_0
                                         || swap.market_id == melee_data.market_id_1
                                     {
@@ -618,24 +623,29 @@ impl ProcessorTrait for EmojicoinProcessor {
                                     arena_melee_events_db.push(model.clone());
 
                                     // Add to leaderboard history
-                                    *self.melee_data.write().await = Some(MeleeData {
-                                        melee_id: melee.melee_id.clone(),
-                                        market_id_0: market_0.market_id.clone(),
-                                        market_id_1: market_1.market_id.clone(),
-                                        price_0: market_0.price,
-                                        price_1: market_1.price,
-                                    });
-                                    arena_leaderboard_history_db.push(melee.melee_id.clone() - 1);
+                                    if let Some(melee_data) = melee_data.as_ref() {
+                                        arena_leaderboard_history_db
+                                            .push(ArenaLeaderboardHistoryModel::new(melee_data));
+                                    }
 
                                     // Add to arena info
                                     let arena_info_data = ArenaInfoData {
-                                        emojicoin_0_market_id: market_0.market_id,
-                                        emojicoin_1_market_id: market_1.market_id,
+                                        emojicoin_0_market_id: market_0.market_id.clone(),
+                                        emojicoin_1_market_id: market_1.market_id.clone(),
                                         emojicoin_0_symbols: market_0.symbol_emojis,
                                         emojicoin_1_symbols: market_1.symbol_emojis,
                                     };
                                     let arena_info = ArenaInfoModel::new(model, arena_info_data);
                                     arena_info_db.push(arena_info);
+
+                                    // Update state
+                                    *melee_data = Some(MeleeData {
+                                        melee_id: melee.melee_id,
+                                        market_id_0: market_0.market_id,
+                                        market_id_1: market_1.market_id,
+                                        price_0: market_0.price,
+                                        price_1: market_1.price,
+                                    });
                                 },
                                 ArenaEvent::Enter(enter) => {
                                     arena_position_db
@@ -648,7 +658,11 @@ impl ProcessorTrait for EmojicoinProcessor {
                                 ArenaEvent::Exit(exit) => {
                                     arena_position_db
                                         .push(ArenaPositionDiffModel::from(exit.clone()));
-                                    let model = ArenaExitEventModel::new(txn_info.clone(), exit);
+                                    let model = ArenaExitEventModel::new(
+                                        txn_info.clone(),
+                                        exit,
+                                        melee_data.as_ref().unwrap(),
+                                    );
                                     arena_info_update_db
                                         .push(ArenaInfoDiffUpdate::from(model.clone()));
                                     arena_exit_events_db.push(model)

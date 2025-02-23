@@ -16,25 +16,14 @@ INSERT INTO arena_leaderboard_history (
     last_exit_0,
     withdrawals
 )
-WITH melee AS (
-    SELECT emojicoin_0_market_id, emojicoin_1_market_id
-    FROM arena_info
-    WHERE melee_id = $1
-),
--- Get the latest transaction version (i.e. last transaction of this melee before the next one starts).
-last_txn AS (
-    SELECT transaction_version - 1 AS last_txn
-    FROM arena_melee_events
-    WHERE melee_id = $1 + 1
-),
--- Get the total deposit amount for each user.
-deposits AS (
+-- Get the total deposit amount and last exit for each user.
+WITH position AS (
     SELECT
         "user",
-        SUM(input_amount) as deposits
-    FROM arena_enter_events
+        deposits,
+        last_exit_0
+    FROM arena_position
     WHERE melee_id = $1
-    GROUP BY "user"
 ),
 -- Get the total withdrawal amount for each user.
 withdrawals AS (
@@ -43,7 +32,7 @@ withdrawals AS (
         SUM(apt_proceeds) as withdrawals
     FROM arena_exit_events
     WHERE melee_id = $1
-    AND transaction_version < (SELECT last_txn FROM last_txn)
+    AND NOT after_end
     GROUP BY "user"
 ),
 -- Get the last balance the user had at the end of the melee.
@@ -79,27 +68,18 @@ last_balances AS (
             0::numeric AS emojicoin_1_balance
         FROM arena_exit_events
         WHERE melee_id = $1
-        -- Here, we want this data at the end of the melee before exiting the melee
-        -- for the final time so we only look for exits before the melee end.
-        AND transaction_version < (SELECT last_txn FROM last_txn)
+        AND NOT after_end
     ) AS a
-    ORDER BY "user", transaction_version DESC, event_index DESC
-),
--- Get wether the user last exited on emojicoin_0 or emojicoin_1.
-last_exit_0 AS (
-    SELECT DISTINCT ON ("user") "user", emojicoin_0_proceeds > 0 AS last_exit_0
-    FROM arena_exit_events
-    WHERE melee_id = $1
     ORDER BY "user", transaction_version DESC, event_index DESC
 )
 SELECT
-    deposits."user",
+    position."user",
     $1 AS melee_id,
     -- Proifts = Withdrawals in APT + current emojicoin balance converted to APT.
     COALESCE(withdrawals, 0) +
         ROUND(
-            emojicoin_0_balance * price_at_txn(emojicoin_0_market_id, last_txn) +
-            emojicoin_1_balance * price_at_txn(emojicoin_1_market_id, last_txn)
+            emojicoin_0_balance * $2 +
+            emojicoin_1_balance * $3
         ) AS profits,
     deposits AS losses,
     emojicoin_0_balance,
@@ -109,13 +89,15 @@ SELECT
     -- to true, otherwise to false.
     emojicoin_0_balance + emojicoin_1_balance = 0
     OR
-    EXISTS(SELECT * FROM arena_exit_events WHERE transaction_version >= (select last_txn from last_txn))
+    EXISTS(
+        SELECT * FROM arena_exit_events AS aee
+        WHERE aee."user" = position."user"
+        AND melee_id = $1
+        AND after_end
+    )
     AS exited,
     last_exit_0,
     COALESCE(withdrawals, 0) AS withdrawals
-FROM melee, last_txn, deposits
+FROM position
     NATURAL INNER JOIN last_balances
-    NATURAL LEFT JOIN withdrawals
-    NATURAL LEFT JOIN last_exit_0
-ON CONFLICT
-DO NOTHING;
+    NATURAL LEFT JOIN withdrawals;
