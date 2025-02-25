@@ -5,12 +5,11 @@ use crate::{
         event_utils::EventGroupBuilder,
         json_types::{
             ArenaEvent, BumpEvent, EventGroup, EventWithMarket, GlobalStateEvent,
-            InstantaneousStats, MarketResource, SwapEvent, TxnInfo,
+            InstantaneousStats, MarketRegistrationEvent, MarketResource, StateEvent, TxnInfo,
         },
         models::prelude::*,
         parsers::emojis::parser::symbol_bytes_to_emojis,
         queries::insertion_queries::*,
-        utils::unq64,
     },
     emojicoin_dot_fun::EmojicoinDbEvent,
     gap_detectors::ProcessingResult,
@@ -409,8 +408,8 @@ struct MarketData {
 /// If not, the database will be queried for historical data.
 async fn get_market_data(
     market_address_str: &str,
-    registers: &[(String, BigDecimal, Vec<String>)],
-    swaps: &[(BigDecimal, BigDecimal)],
+    registers: &[MarketRegistrationEvent],
+    states: &AHashMap<BigDecimal, StateEvent>,
     pool: &ArcDbPool,
 ) -> anyhow::Result<MarketData> {
     // Get market registration event for the market.
@@ -421,35 +420,71 @@ async fn get_market_data(
     // for a melee in the same transaction (or in two very close ones). Because of this, the market
     // latest state event could not be yet in the DB, and thus we have to check that it is not in
     // memory.
-    let registration = registers.iter().find(|r| r.0 == market_address_str);
+    let registration = registers
+        .iter()
+        .find(|r| r.market_metadata.market_address == market_address_str);
     let data = if let Some(registration) = registration {
-        let price = if let Some(swap) = swaps.iter().rev().find(|s| s.0 == registration.1) {
-            swap.1.clone()
+        let price = if let Some(state) = states.get(&registration.market_metadata.market_id) {
+            state.curve_price()
         } else {
             BigDecimal::zero()
         };
         MarketData {
-            market_id: registration.1.clone(),
-            symbol_emojis: registration.2.clone(),
-            price: unq64(price),
+            market_id: registration.market_metadata.market_id.clone(),
+            symbol_emojis: symbol_bytes_to_emojis(&registration.market_metadata.emoji_bytes),
+            price,
         }
     } else {
-        use schema::market_latest_state_event::dsl::*;
-
         let conn = &mut pool.get().await?;
 
         // Since the market was NOT registered in this batch of events, then a mlse MUST be present
         // in the DB.
-        let state = market_latest_state_event
-            .filter(market_address.eq(market_address_str))
-            .select((market_id, symbol_emojis, last_swap_avg_execution_price_q64))
-            .first::<(BigDecimal, Vec<Option<String>>, BigDecimal)>(conn)
-            .await?;
+        let (
+            market_id,
+            symbol_emojis,
+            lp_coin_supply,
+            clamm_virtual_reserves_base,
+            clamm_virtual_reserves_quote,
+            cpamm_real_reserves_base,
+            cpamm_real_reserves_quote,
+        ) = {
+            use schema::market_latest_state_event::dsl::*;
+            market_latest_state_event
+                .filter(market_address.eq(market_address_str))
+                .select((
+                    market_id,
+                    symbol_emojis,
+                    lp_coin_supply,
+                    clamm_virtual_reserves_base,
+                    clamm_virtual_reserves_quote,
+                    cpamm_real_reserves_base,
+                    cpamm_real_reserves_quote,
+                ))
+                .first::<(
+                    BigDecimal,
+                    Vec<Option<String>>,
+                    BigDecimal,
+                    BigDecimal,
+                    BigDecimal,
+                    BigDecimal,
+                    BigDecimal,
+                )>(conn)
+                .await?
+        };
+
+        let price = if lp_coin_supply.is_zero() {
+            clamm_virtual_reserves_quote / clamm_virtual_reserves_base
+        } else {
+            cpamm_real_reserves_quote / cpamm_real_reserves_base
+        };
 
         MarketData {
-            market_id: state.0,
-            symbol_emojis: state.1.into_iter().map(|s| s.unwrap()).collect::<Vec<_>>(),
-            price: unq64(state.2),
+            market_id,
+            symbol_emojis: symbol_emojis
+                .into_iter()
+                .map(|s| s.unwrap())
+                .collect::<Vec<_>>(),
+            price,
         }
     };
     Ok(data)
@@ -497,8 +532,8 @@ impl ProcessorTrait for EmojicoinProcessor {
             (TxnInfo, MarketResource, Trigger, InstantaneousStats),
         > = AHashMap::new();
         let mut user_pools_db: AHashMap<(String, u64), UserLiquidityPoolsModel> = AHashMap::new();
-        let mut swaps: Vec<SwapEvent> = vec![];
-        let mut market_registrations: Vec<(String, BigDecimal, Vec<String>)> = vec![];
+        let mut market_registrations = vec![];
+        let mut states: AHashMap<BigDecimal, StateEvent> = AHashMap::new();
         for txn in &transactions {
             let txn_version = txn.version as i64;
             let block_number = txn.block_height as i64;
@@ -548,38 +583,48 @@ impl ProcessorTrait for EmojicoinProcessor {
                             txn_version,
                             event_index as i64,
                         )? {
-                            if let EventWithMarket::Swap(swap) = evt.clone() {
-                                if let Some(melee_data) = melee_data.as_mut() {
-                                    if swap.market_id == melee_data.market_id_0
-                                        || swap.market_id == melee_data.market_id_1
-                                    {
-                                        if swap.market_id == melee_data.market_id_0 {
-                                            melee_data.price_0 =
-                                                unq64(swap.avg_execution_price_q64.clone());
-                                        } else {
-                                            melee_data.price_1 =
-                                                unq64(swap.avg_execution_price_q64.clone());
-                                        };
-                                        let candlestick =
-                                            ArenaCandlestickDiffModelBuilder::from_swap_event(
-                                                melee_data.melee_id.clone(),
-                                                swap.clone(),
-                                                txn_info.timestamp.clone(),
-                                                (txn_info.version, event_index as i64),
-                                                melee_data.price_0.clone(),
-                                                melee_data.price_1.clone(),
-                                            );
-                                        arena_candlesticks.extend(candlestick);
+                            match &evt {
+                                EventWithMarket::State(state) => {
+                                    states.insert(
+                                        state.market_metadata.market_id.clone(),
+                                        state.clone(),
+                                    );
+                                    if let Some(melee_data) = melee_data.as_mut() {
+                                        if state.last_swap.nonce
+                                            == state.state_metadata.market_nonce
+                                            && (state.market_metadata.market_id
+                                                == melee_data.market_id_0
+                                                || state.market_metadata.market_id
+                                                    == melee_data.market_id_1)
+                                        {
+                                            if state.market_metadata.market_id
+                                                == melee_data.market_id_0
+                                            {
+                                                melee_data.price_0 = state.curve_price();
+                                            } else {
+                                                melee_data.price_1 = state.curve_price();
+                                            };
+                                            let candlestick =
+                                                ArenaCandlestickDiffModelBuilder::from_state_event(
+                                                    melee_data.melee_id.clone(),
+                                                    // We know at this point that the swap is in swaps
+                                                    // because the Swap event is emitted before its
+                                                    // corresponding State event.
+                                                    // We call rev as is should be the latest swap.
+                                                    state.clone(),
+                                                    txn_info.timestamp.clone(),
+                                                    (txn_info.version, event_index as i64),
+                                                    melee_data.price_0.clone(),
+                                                    melee_data.price_1.clone(),
+                                                );
+                                            arena_candlesticks.extend(candlestick);
+                                        }
                                     }
-                                }
-                                swaps.push(swap)
-                            }
-                            if let EventWithMarket::MarketRegistration(mr) = evt.clone() {
-                                market_registrations.push((
-                                    mr.market_metadata.market_address,
-                                    mr.market_metadata.market_id,
-                                    symbol_bytes_to_emojis(&mr.market_metadata.emoji_bytes),
-                                ));
+                                },
+                                EventWithMarket::MarketRegistration(mr) => {
+                                    market_registrations.push(mr.clone());
+                                },
+                                _ => {},
                             }
                             market_events.push(evt.clone());
                             if let Some(one_min_pse) =
@@ -587,7 +632,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                             {
                                 period_data.push(one_min_pse);
                             }
-                        // If it's an arena event, parse it and add it to the proper arena events vector.
+                            // If it's an arena event, parse it and add it to the proper arena events vector.
                         } else if let Some(evt) = ArenaEvent::from_event_type(
                             type_str,
                             data,
@@ -599,22 +644,17 @@ impl ProcessorTrait for EmojicoinProcessor {
                                     let pool = self.get_pool();
                                     let model =
                                         ArenaMeleeEventModel::new(txn_info.clone(), melee.clone());
-                                    let s = swaps
-                                        .clone()
-                                        .into_iter()
-                                        .map(|r| (r.market_id, r.avg_execution_price_q64))
-                                        .collect::<Vec<_>>();
                                     let market_0 = get_market_data(
                                         &melee.emojicoin_0_market_address,
                                         &market_registrations,
-                                        &s,
+                                        &states,
                                         &pool,
                                     )
                                     .await?;
                                     let market_1 = get_market_data(
                                         &melee.emojicoin_1_market_address,
                                         &market_registrations,
-                                        &s,
+                                        &states,
                                         &pool,
                                     )
                                     .await?;
@@ -623,6 +663,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                                     arena_melee_events_db.push(model.clone());
 
                                     // Add to leaderboard history
+                                    // This would be None only on the first MeleeEvent
                                     if let Some(melee_data) = melee_data.as_ref() {
                                         arena_leaderboard_history_db
                                             .push(ArenaLeaderboardHistoryModel::new(melee_data));
@@ -661,6 +702,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                                     let model = ArenaExitEventModel::new(
                                         txn_info.clone(),
                                         exit,
+                                        // This can never be None.
                                         melee_data.as_ref().unwrap(),
                                     );
                                     arena_info_update_db
@@ -668,44 +710,29 @@ impl ProcessorTrait for EmojicoinProcessor {
                                     arena_exit_events_db.push(model)
                                 },
                                 ArenaEvent::Swap(swap) => {
-                                    if swaps.len() < 2 {
-                                        bail!("The two previous swaps to an arena swap are not related to the arena swap.");
-                                    }
-                                    let swaps = (
-                                        swaps.get(swaps.len() - 2).unwrap().clone(),
-                                        swaps.get(swaps.len() - 1).unwrap().clone(),
+                                    // This can never be None.
+                                    let melee_data = melee_data.as_ref().unwrap();
+                                    let (state_0, state_1) = (
+                                        states.get(&melee_data.market_id_0),
+                                        states.get(&melee_data.market_id_1),
                                     );
-                                    // This checks that the two previous swaps do indeed correspond
-                                    // to an arena swap. If stars align, two unrelated swaps (not
-                                    // part of an arena swap) from the same transaction could have
-                                    // net proceeds equal to input amount, and the second swap
-                                    // could have net proceeds equal to the net proceeds of the
-                                    // arena swap, but it is highly unlikely. Moreover, this check
-                                    // is a "just to be sure" check: in theory, last_swaps should
-                                    // always contain the correct swaps due to the way events are
-                                    // emitted.
-                                    if swaps.0.net_proceeds != swaps.1.input_amount
-                                        || (swap.emojicoin_0_proceeds != swaps.1.net_proceeds
-                                            && swap.emojicoin_1_proceeds != swaps.1.net_proceeds)
-                                    {
-                                        bail!("The two previous swaps to an arena swap are not related to the arena swap.");
+                                    if state_0.is_none() || state_0.is_none() {
+                                        bail!("The two previous State events related to this ArenaSwap event were not found.");
                                     }
-                                    // ArenaPositionModel::from_swap expects (swap_emojicoin_0,
-                                    // swap_emojicoin_1).
-                                    let swaps = if swap.emojicoin_0_proceeds > BigDecimal::zero() {
-                                        (swaps.1, swaps.0)
-                                    } else {
-                                        swaps
-                                    };
+                                    let (state_0, state_1) = (state_0.unwrap(), state_1.unwrap());
                                     arena_position_db.push(ArenaPositionDiffModel::from_swap(
                                         swap.clone(),
-                                        swaps.clone(),
+                                        &state_0,
+                                        &state_1,
                                     ));
                                     let model = ArenaSwapEventModel::new(txn_info.clone(), swap);
-                                    arena_info_update_db.push(ArenaInfoDiffUpdate::from_swaps(
-                                        model.clone(),
-                                        swaps,
-                                    ));
+                                    arena_info_update_db.push(
+                                        ArenaInfoDiffUpdate::from_state_events(
+                                            model.clone(),
+                                            &state_0,
+                                            &state_1,
+                                        ),
+                                    );
                                     arena_swap_events_db.push(model);
                                 },
                                 ArenaEvent::VaultBalanceUpdate(vault_balance_update) => {

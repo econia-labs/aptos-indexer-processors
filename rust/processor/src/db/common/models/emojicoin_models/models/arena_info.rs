@@ -2,7 +2,7 @@ use super::{
     arena_enter_event::ArenaEnterEventModel, arena_exit_event::ArenaExitEventModel,
     arena_melee_event::ArenaMeleeEventModel, arena_swap_event::ArenaSwapEventModel,
 };
-use crate::{db::common::models::emojicoin_models::json_types::SwapEvent, schema::arena_info};
+use crate::{db::common::models::emojicoin_models::json_types::StateEvent, schema::arena_info};
 use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use num::Zero;
@@ -83,13 +83,19 @@ impl From<ArenaEnterEventModel> for ArenaInfoDiffUpdate {
 }
 
 impl ArenaInfoDiffUpdate {
-    pub fn from_swaps(value: ArenaSwapEventModel, swaps: (SwapEvent, SwapEvent)) -> Self {
+    pub fn from_state_events(
+        value: ArenaSwapEventModel,
+        state_0: &StateEvent,
+        state_1: &StateEvent,
+    ) -> Self {
         Self {
             melee_id: value.melee_id,
             volume: value.quote_volume,
             rewards_remaining: BigDecimal::zero(),
-            emojicoin_0_locked: swaps.0.base_volume * if swaps.0.is_sell { -1 } else { 1 },
-            emojicoin_1_locked: swaps.1.base_volume * if swaps.1.is_sell { -1 } else { 1 },
+            emojicoin_0_locked: state_0.last_swap.base_volume.clone()
+                * if state_0.last_swap.is_sell { -1 } else { 1 },
+            emojicoin_1_locked: state_1.last_swap.base_volume.clone()
+                * if state_1.last_swap.is_sell { -1 } else { 1 },
         }
     }
 }

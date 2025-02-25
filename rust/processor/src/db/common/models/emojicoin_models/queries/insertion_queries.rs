@@ -450,7 +450,6 @@ pub fn insert_arena_candlesticks_query(
                     .sql(")")),
                 close_price.eq(excluded(close_price)),
                 volume.eq(volume + excluded(volume)),
-                integrator_fees.eq(integrator_fees + excluded(integrator_fees)),
                 n_swaps.eq(n_swaps + excluded(n_swaps)),
             )),
         None,

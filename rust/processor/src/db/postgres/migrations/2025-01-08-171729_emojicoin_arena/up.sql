@@ -162,7 +162,6 @@ CREATE TABLE arena_candlestick (
     low_price NUMERIC,
     close_price NUMERIC,
     volume NUMERIC NOT NULL,
-    integrator_fees NUMERIC NOT NULL,
     n_swaps NUMERIC NOT NULL,
 
     PRIMARY KEY (melee_id, period, start_time)
