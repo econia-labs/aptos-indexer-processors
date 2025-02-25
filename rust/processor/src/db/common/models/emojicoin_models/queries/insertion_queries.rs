@@ -1,15 +1,5 @@
 use crate::{
-    db::common::models::emojicoin_models::models::{
-        arena_enter_event::ArenaEnterEventModel, arena_exit_event::ArenaExitEventModel,
-        arena_melee_event::ArenaMeleeEventModel, arena_swap_event::ArenaSwapEventModel,
-        arena_vault_balance_update_event::ArenaVaultBalanceUpdateEventModel,
-        chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
-        liquidity_event::LiquidityEventModel,
-        market_latest_state_event::MarketLatestStateEventModel,
-        market_registration_event::MarketRegistrationEventModel,
-        periodic_state_event::PeriodicStateEventModel, swap_event::SwapEventModel,
-        user_liquidity_pools::UserLiquidityPoolsModel,
-    },
+    db::common::models::emojicoin_models::models::prelude::*,
     schema,
 };
 use diesel::{
