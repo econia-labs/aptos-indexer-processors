@@ -1,5 +1,6 @@
 use crate::{
     db::common::models::emojicoin_models::{
+        constants::ARENA_MODULE_ADDRESS,
         enums::{EmojicoinTypeTag, Trigger},
         event_utils::EventGroupBuilder,
         json_types::{
@@ -313,14 +314,16 @@ async fn insert_to_db(
 
     try_join_all(futures).await?;
 
-    // Run this after everything else to make sure necessary events for the generation of the
-    // leaderboard history are already inserted.
-    execute_single(
-        conn.clone(),
-        insert_arena_leaderboard_history_query,
-        arena_leaderboard_history,
-    )
-    .await?;
+    if ARENA_MODULE_ADDRESS.is_some() {
+        // Run this after everything else to make sure necessary events for the generation of the
+        // leaderboard history are already inserted.
+        execute_single(
+            conn.clone(),
+            insert_arena_leaderboard_history_query,
+            arena_leaderboard_history,
+        )
+        .await?;
+    }
 
     Ok(())
 }
