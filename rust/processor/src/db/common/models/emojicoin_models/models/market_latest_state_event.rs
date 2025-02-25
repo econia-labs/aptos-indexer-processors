@@ -11,7 +11,17 @@ use bigdecimal::{BigDecimal, Zero};
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
+#[derive(
+    Clone,
+    Debug,
+    Deserialize,
+    FieldCount,
+    Identifiable,
+    Insertable,
+    Queryable,
+    Selectable,
+    Serialize,
+)]
 #[diesel(primary_key(market_id))]
 #[diesel(table_name = market_latest_state_event)]
 pub struct MarketLatestStateEventModel {
@@ -64,6 +74,18 @@ pub struct MarketLatestStateEventModel {
 }
 
 impl MarketLatestStateEventModel {
+    pub fn in_bonding_curve(&self) -> bool {
+        !self.lp_coin_supply.is_zero()
+    }
+
+    pub fn curve_price(&self) -> BigDecimal {
+        if self.in_bonding_curve() {
+            self.clamm_virtual_reserves_quote.clone() / self.clamm_virtual_reserves_base.clone()
+        } else {
+            self.cpamm_real_reserves_quote.clone() / self.cpamm_real_reserves_base.clone()
+        }
+    }
+
     pub fn from_txn_and_market_resource(
         txn_info: TxnInfo,
         market: MarketResource,
