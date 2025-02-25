@@ -4,34 +4,15 @@ use crate::{
         event_utils::EventGroupBuilder,
         json_types::{
             ArenaEvent, BumpEvent, EventGroup, EventWithMarket, GlobalStateEvent,
-            InstantaneousStats, MarketResource, TxnInfo,
+            InstantaneousStats, MarketResource, SwapEvent, TxnInfo,
         },
-        models::{
-            arena_enter_event::ArenaEnterEventModel, arena_exit_event::ArenaExitEventModel,
-            arena_melee_event::ArenaMeleeEventModel, arena_swap_event::ArenaSwapEventModel,
-            arena_vault_balance_update_event::ArenaVaultBalanceUpdateEventModel,
-            chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
-            liquidity_event::LiquidityEventModel,
-            market_1m_periods_in_last_day::MarketOneMinutePeriodsInLastDayModel,
-            market_24h_rolling_volume::RecentOneMinutePeriodicStateEvent,
-            market_latest_state_event::MarketLatestStateEventModel,
-            market_registration_event::MarketRegistrationEventModel,
-            periodic_state_event::PeriodicStateEventModel, swap_event::SwapEventModel,
-            user_liquidity_pools::UserLiquidityPoolsModel,
-        },
-        queries::insertion_queries::{
-            delete_unregistered_markets_query, insert_arena_enter_events_query,
-            insert_arena_exit_events_query, insert_arena_melee_events_query,
-            insert_arena_swap_events_query, insert_arena_vault_balance_update_events_query,
-            insert_chat_events_query, insert_global_events, insert_liquidity_events_query,
-            insert_market_latest_state_event_query, insert_market_registration_events_query,
-            insert_periodic_state_events_query, insert_swap_events_query,
-            insert_user_liquidity_pools_query,
-        },
+        models::prelude::*,
+        queries::insertion_queries::*,
     },
     emojicoin_dot_fun::EmojicoinDbEvent,
     gap_detectors::ProcessingResult,
     processors::{DefaultProcessingResult, ProcessorName, ProcessorTrait},
+    schema,
     utils::{
         counters::PROCESSOR_UNKNOWN_TYPE_COUNT,
         database::{execute_in_chunks, get_config_table_chunk_size, ArcDbPool},
@@ -45,7 +26,12 @@ use ahash::AHashMap;
 use anyhow::bail;
 use aptos_protos::transaction::v1::{transaction::TxnData, Transaction};
 use async_trait::async_trait;
+use bigdecimal::BigDecimal;
+use diesel::{ExpressionMethods as _, QueryDsl as _};
+use diesel_async::RunQueryDsl;
+use futures::{future::try_join_all, FutureExt};
 use itertools::Itertools;
+use num::Zero;
 use std::fmt::Debug;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::error;
@@ -104,6 +90,9 @@ struct InsertEvents<'a> {
     arena_exit_events: &'a [ArenaExitEventModel],
     arena_swap_events: &'a [ArenaSwapEventModel],
     arena_vault_balance_update_events: &'a [ArenaVaultBalanceUpdateEventModel],
+    arena_position: &'a [ArenaPositionDiffModel],
+    arena_info: &'a [ArenaInfoModel],
+    arena_info_update: &'a [ArenaInfoDiffUpdate],
 }
 
 async fn insert_to_db(
@@ -135,164 +124,238 @@ async fn insert_to_db(
         arena_exit_events,
         arena_swap_events,
         arena_vault_balance_update_events,
+        arena_position,
+        arena_info,
+        arena_info_update,
     } = insert_events;
-    let market_registration = execute_in_chunks(
-        conn.clone(),
-        insert_market_registration_events_query,
-        market_registration_events,
-        get_config_table_chunk_size::<MarketRegistrationEventModel>(
-            "market_registration_events",
-            per_table_chunk_sizes,
-        ),
-    );
-    let unregistered_markets_update = execute_in_chunks(
-        conn.clone(),
-        delete_unregistered_markets_query,
-        market_registration_events,
-        get_config_table_chunk_size::<MarketRegistrationEventModel>(
-            "unregistered_markets",
-            per_table_chunk_sizes,
-        ),
-    );
 
-    // Note that this is currently not chunked and could result in a query that deletes several hundred rows at once.
-    let update_one_min_periods = MarketOneMinutePeriodsInLastDayModel::insert_and_delete_periods(
-        market_1m_periods,
-        conn.clone(),
-    );
-    let swap = execute_in_chunks(
-        conn.clone(),
-        insert_swap_events_query,
-        swap_events,
-        get_config_table_chunk_size::<SwapEventModel>("swap_events", per_table_chunk_sizes),
-    );
-    let chat = execute_in_chunks(
-        conn.clone(),
-        insert_chat_events_query,
-        chat_events,
-        get_config_table_chunk_size::<ChatEventModel>("chat_events", per_table_chunk_sizes),
-    );
-    let liquidity = execute_in_chunks(
-        conn.clone(),
-        insert_liquidity_events_query,
-        liquidity_events,
-        get_config_table_chunk_size::<LiquidityEventModel>(
-            "liquidity_events",
-            per_table_chunk_sizes,
-        ),
-    );
-    let periodic = execute_in_chunks(
-        conn.clone(),
-        insert_periodic_state_events_query,
-        periodic_state_events,
-        get_config_table_chunk_size::<PeriodicStateEventModel>(
-            "periodic_state_events",
-            per_table_chunk_sizes,
-        ),
-    );
-    let global = execute_in_chunks(
-        conn.clone(),
-        insert_global_events,
-        global_state_events,
-        get_config_table_chunk_size::<GlobalStateEventModel>(
-            "global_state_events",
-            per_table_chunk_sizes,
-        ),
-    );
-    let lp_pools = execute_in_chunks(
-        conn.clone(),
-        insert_user_liquidity_pools_query,
-        user_pools,
-        get_config_table_chunk_size::<UserLiquidityPoolsModel>(
-            "user_liquidity_pools",
-            per_table_chunk_sizes,
-        ),
-    );
-    let latest_state_events = execute_in_chunks(
-        conn.clone(),
-        insert_market_latest_state_event_query,
-        market_latest_state_events,
-        get_config_table_chunk_size::<MarketLatestStateEventModel>(
-            "market_latest_state_events",
-            per_table_chunk_sizes,
-        ),
-    );
+    let futures = vec![
+        execute_in_chunks(
+            conn.clone(),
+            insert_market_registration_events_query,
+            market_registration_events,
+            get_config_table_chunk_size::<MarketRegistrationEventModel>(
+                "market_registration_events",
+                per_table_chunk_sizes,
+            ),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            delete_unregistered_markets_query,
+            market_registration_events,
+            get_config_table_chunk_size::<MarketRegistrationEventModel>(
+                "unregistered_markets",
+                per_table_chunk_sizes,
+            ),
+        )
+        .boxed(),
+        // Note that this is currently not chunked and could result in a query that deletes several
+        // hundred rows at once.
+        MarketOneMinutePeriodsInLastDayModel::insert_and_delete_periods(
+            market_1m_periods,
+            conn.clone(),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_swap_events_query,
+            swap_events,
+            get_config_table_chunk_size::<SwapEventModel>("swap_events", per_table_chunk_sizes),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_chat_events_query,
+            chat_events,
+            get_config_table_chunk_size::<ChatEventModel>("chat_events", per_table_chunk_sizes),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_liquidity_events_query,
+            liquidity_events,
+            get_config_table_chunk_size::<LiquidityEventModel>(
+                "liquidity_events",
+                per_table_chunk_sizes,
+            ),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_periodic_state_events_query,
+            periodic_state_events,
+            get_config_table_chunk_size::<PeriodicStateEventModel>(
+                "periodic_state_events",
+                per_table_chunk_sizes,
+            ),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_global_events,
+            global_state_events,
+            get_config_table_chunk_size::<GlobalStateEventModel>(
+                "global_state_events",
+                per_table_chunk_sizes,
+            ),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_user_liquidity_pools_query,
+            user_pools,
+            get_config_table_chunk_size::<UserLiquidityPoolsModel>(
+                "user_liquidity_pools",
+                per_table_chunk_sizes,
+            ),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_market_latest_state_event_query,
+            market_latest_state_events,
+            get_config_table_chunk_size::<MarketLatestStateEventModel>(
+                "market_latest_state_events",
+                per_table_chunk_sizes,
+            ),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_arena_position_query,
+            arena_position,
+            get_config_table_chunk_size::<ArenaPositionDiffModel>(
+                "arena_position",
+                per_table_chunk_sizes,
+            ),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_arena_info_query,
+            arena_info,
+            get_config_table_chunk_size::<ArenaPositionDiffModel>(
+                "arena_info",
+                per_table_chunk_sizes,
+            ),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            update_arena_info_query,
+            arena_info_update,
+            get_config_table_chunk_size::<ArenaPositionDiffModel>(
+                "arena_info",
+                per_table_chunk_sizes,
+            ),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_arena_enter_events_query,
+            arena_enter_events,
+            get_config_table_chunk_size::<ArenaEnterEventModel>(
+                "arena_enter_events",
+                per_table_chunk_sizes,
+            ),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_arena_exit_events_query,
+            arena_exit_events,
+            get_config_table_chunk_size::<ArenaExitEventModel>(
+                "arena_exit_events",
+                per_table_chunk_sizes,
+            ),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_arena_swap_events_query,
+            arena_swap_events,
+            get_config_table_chunk_size::<ArenaSwapEventModel>(
+                "arena_swap_events",
+                per_table_chunk_sizes,
+            ),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_arena_vault_balance_update_events_query,
+            arena_vault_balance_update_events,
+            get_config_table_chunk_size::<ArenaVaultBalanceUpdateEventModel>(
+                "arena_vault_balance_update_events",
+                per_table_chunk_sizes,
+            ),
+        )
+        .boxed(),
+        execute_in_chunks(
+            conn.clone(),
+            insert_arena_melee_events_query,
+            arena_melee_events,
+            get_config_table_chunk_size::<ArenaMeleeEventModel>(
+                "arena_melee_events",
+                per_table_chunk_sizes,
+            ),
+        )
+        .boxed(),
+    ];
 
-    let arena_enter = execute_in_chunks(
-        conn.clone(),
-        insert_arena_enter_events_query,
-        arena_enter_events,
-        get_config_table_chunk_size::<ArenaEnterEventModel>(
-            "arena_enter_events",
-            per_table_chunk_sizes,
-        ),
-    );
-
-    let arena_exit = execute_in_chunks(
-        conn.clone(),
-        insert_arena_exit_events_query,
-        arena_exit_events,
-        get_config_table_chunk_size::<ArenaExitEventModel>(
-            "arena_exit_events",
-            per_table_chunk_sizes,
-        ),
-    );
-
-    let arena_swap = execute_in_chunks(
-        conn.clone(),
-        insert_arena_swap_events_query,
-        arena_swap_events,
-        get_config_table_chunk_size::<ArenaSwapEventModel>(
-            "arena_swap_events",
-            per_table_chunk_sizes,
-        ),
-    );
-
-    let arena_vault_balance_update = execute_in_chunks(
-        conn.clone(),
-        insert_arena_vault_balance_update_events_query,
-        arena_vault_balance_update_events,
-        get_config_table_chunk_size::<ArenaVaultBalanceUpdateEventModel>(
-            "arena_vault_balance_update_events",
-            per_table_chunk_sizes,
-        ),
-    );
-
-    let arena_melee = execute_in_chunks(
-        conn.clone(),
-        insert_arena_melee_events_query,
-        arena_melee_events,
-        get_config_table_chunk_size::<ArenaMeleeEventModel>(
-            "arena_melee_events",
-            per_table_chunk_sizes,
-        ),
-    );
-
-    let (m, u, s, c, l, per, g, pools, lse, update_1mins, am, aen, aex, asw, avbu) = tokio::join!(
-        market_registration,
-        unregistered_markets_update,
-        swap,
-        chat,
-        liquidity,
-        periodic,
-        global,
-        lp_pools,
-        latest_state_events,
-        update_one_min_periods,
-        arena_melee,
-        arena_enter,
-        arena_exit,
-        arena_swap,
-        arena_vault_balance_update,
-    );
-
-    for res in [m, u, s, c, l, per, g, pools, lse, am, aen, aex, asw, avbu] {
-        res?;
-    }
-
-    update_1mins?;
+    try_join_all(futures).await?;
 
     Ok(())
+}
+
+struct MarketData {
+    market_id: BigDecimal,
+    symbol_emojis: Vec<String>,
+}
+
+/// Get id and symbol emojis for a market.
+///
+/// If possible, the data will be extracted from the current batch of events.
+/// If not, the database will be queried for historical data.
+async fn get_market_data(
+    market_address_str: &str,
+    register_events_db: &[MarketRegistrationEventModel],
+    pool: &ArcDbPool,
+) -> anyhow::Result<MarketData> {
+    // Get market registration event for the market.
+    //
+    // This will return Some if the market was registered in the current batch of transactions.
+    //
+    // Although this is highly unlikely, it is possible for a market to be registered then selected
+    // for a melee in the same transaction (or in two very close ones). Because of this, the market
+    // latest state event could not be yet in the DB, and thus we have to check that it is not in
+    // memory.
+    let registration = register_events_db
+        .iter()
+        .find(|r| r.market_address == market_address_str);
+    let data = if let Some(registration) = registration {
+        MarketData {
+            market_id: registration.market_id.clone(),
+            symbol_emojis: registration.symbol_emojis.clone(),
+        }
+    } else {
+        use schema::market_latest_state_event::dsl::*;
+        let conn = &mut pool.get().await?;
+
+        // Since the market was NOT registered in this batch of events, then a mlse MUST be present
+        // in the DB.
+        let state = market_latest_state_event
+            .filter(market_address.eq(market_address_str))
+            .select((market_id, symbol_emojis))
+            .first::<(BigDecimal, Vec<Option<String>>)>(conn)
+            .await?;
+
+        MarketData {
+            market_id: state.0,
+            symbol_emojis: state.1.into_iter().map(|s| s.unwrap()).collect::<Vec<_>>(),
+        }
+    };
+    Ok(data)
 }
 
 #[async_trait]
@@ -323,6 +386,9 @@ impl ProcessorTrait for EmojicoinProcessor {
         let mut arena_exit_events_db = vec![];
         let mut arena_swap_events_db = vec![];
         let mut arena_vault_balance_update_events_db = vec![];
+        let mut arena_position_db = vec![];
+        let mut arena_info_db = vec![];
+        let mut arena_info_update_db = vec![];
         // Store the writeset changes for each market in the transaction so we can lazily parse them later only for the
         // latest event for that market. We may get several writeset changes for the same market across all the transactions.
         let mut latest_market_resources: AHashMap<
@@ -363,6 +429,12 @@ impl ProcessorTrait for EmojicoinProcessor {
 
                 // Group the market events in this transaction.
                 let mut market_events = vec![];
+
+                // Stock the two latest swap events.
+                // When an arena swap event is encountered in the for loop, this variable will
+                // contain the two corresponding normal swap events.
+                let mut last_swaps: (Option<SwapEvent>, Option<SwapEvent>) = (None, None);
+
                 for (event_index, event) in user_txn.events.iter().enumerate() {
                     let type_str = event.type_str.as_str();
                     let data = event.data.as_str();
@@ -378,6 +450,9 @@ impl ProcessorTrait for EmojicoinProcessor {
                             txn_version,
                             event_index as i64,
                         )? {
+                            if let EventWithMarket::Swap(swap) = evt.clone() {
+                                last_swaps = (last_swaps.1, Some(swap));
+                            }
                             market_events.push(evt.clone());
                             if let Some(one_min_pse) =
                                 RecentOneMinutePeriodicStateEvent::try_from_event(evt, txn_version)
@@ -392,14 +467,64 @@ impl ProcessorTrait for EmojicoinProcessor {
                             event_index as i64,
                         )? {
                             match evt {
-                                ArenaEvent::Melee(melee) => arena_melee_events_db
-                                    .push(ArenaMeleeEventModel::new(txn_info.clone(), melee)),
-                                ArenaEvent::Enter(enter) => arena_enter_events_db
-                                    .push(ArenaEnterEventModel::new(txn_info.clone(), enter)),
-                                ArenaEvent::Exit(exit) => arena_exit_events_db
-                                    .push(ArenaExitEventModel::new(txn_info.clone(), exit)),
-                                ArenaEvent::Swap(swap) => arena_swap_events_db
-                                    .push(ArenaSwapEventModel::new(txn_info.clone(), swap)),
+                                ArenaEvent::Melee(melee) => {
+                                    arena_melee_events_db.push(ArenaMeleeEventModel::new(
+                                        txn_info.clone(),
+                                        melee.clone(),
+                                    ));
+                                },
+                                ArenaEvent::Enter(enter) => {
+                                    arena_position_db
+                                        .push(ArenaPositionDiffModel::from(enter.clone()));
+                                    let model = ArenaEnterEventModel::new(txn_info.clone(), enter);
+                                    arena_info_update_db
+                                        .push(ArenaInfoDiffUpdate::from(model.clone()));
+                                    arena_enter_events_db.push(model)
+                                },
+                                ArenaEvent::Exit(exit) => {
+                                    arena_position_db
+                                        .push(ArenaPositionDiffModel::from(exit.clone()));
+                                    let model = ArenaExitEventModel::new(txn_info.clone(), exit);
+                                    arena_info_update_db
+                                        .push(ArenaInfoDiffUpdate::from(model.clone()));
+                                    arena_exit_events_db.push(model)
+                                },
+                                ArenaEvent::Swap(swap) => {
+                                    let swaps = (last_swaps.0.unwrap(), last_swaps.1.unwrap());
+                                    // This checks that the two previous swaps do indeed correspond
+                                    // to an arena swap. If stars align, two unrelated swaps (not
+                                    // part of an arena swap) from the same transaction could have
+                                    // net proceeds equal to input amount, and the second swap
+                                    // could have net proceeds equal to the net proceeds of the
+                                    // arena swap, but it is highly unlikely. Moreover, this check
+                                    // is a "just to be sure" check: in theory, last_swaps should
+                                    // always contain the correct swaps due to the way events are
+                                    // emitted.
+                                    if swaps.0.net_proceeds != swaps.1.input_amount
+                                        || (swap.emojicoin_0_proceeds != swaps.1.net_proceeds
+                                            && swap.emojicoin_1_proceeds != swaps.1.net_proceeds)
+                                    {
+                                        bail!("The two previous swaps to an arena swap are not related to the arena swap.");
+                                    }
+                                    // ArenaPositionModel::from_swap expects (swap_emojicoin_0,
+                                    // swap_emojicoin_1).
+                                    let swaps = if swap.emojicoin_0_proceeds > BigDecimal::zero() {
+                                        (swaps.1, swaps.0)
+                                    } else {
+                                        swaps
+                                    };
+                                    arena_position_db.push(ArenaPositionDiffModel::from_swap(
+                                        swap.clone(),
+                                        swaps.clone(),
+                                    ));
+                                    let model = ArenaSwapEventModel::new(txn_info.clone(), swap);
+                                    arena_info_update_db.push(ArenaInfoDiffUpdate::from_swaps(
+                                        model.clone(),
+                                        swaps,
+                                    ));
+                                    last_swaps = (None, None);
+                                    arena_swap_events_db.push(model);
+                                },
                                 ArenaEvent::VaultBalanceUpdate(vault_balance_update) => {
                                     arena_vault_balance_update_events_db.push(
                                         ArenaVaultBalanceUpdateEventModel::new(
@@ -556,6 +681,30 @@ impl ProcessorTrait for EmojicoinProcessor {
             }
         }
 
+        let pool = self.get_pool();
+        for melee in &arena_melee_events_db {
+            let market_data_0 = get_market_data(
+                &melee.emojicoin_0_market_address,
+                &register_events_db,
+                &pool,
+            );
+            let market_data_1 = get_market_data(
+                &melee.emojicoin_1_market_address,
+                &register_events_db,
+                &pool,
+            );
+            let (market_data_0, market_data_1) = tokio::try_join!(market_data_0, market_data_1)?;
+
+            let arena_info_data = ArenaInfoData {
+                emojicoin_0_market_id: market_data_0.market_id,
+                emojicoin_1_market_id: market_data_1.market_id,
+                emojicoin_0_symbols: market_data_0.symbol_emojis,
+                emojicoin_1_symbols: market_data_1.symbol_emojis,
+            };
+            let arena_info = ArenaInfoModel::new(melee.clone(), arena_info_data);
+            arena_info_db.push(arena_info);
+        }
+
         let market_latest_state_events = latest_market_resources
             .into_values()
             .map(|(txn_info, market, trigger, instant_stats)| {
@@ -599,8 +748,12 @@ impl ProcessorTrait for EmojicoinProcessor {
 
         self.publish_events(all_db_events);
 
+        arena_position_db = ArenaPositionDiffModel::merge(arena_position_db);
+
+        arena_info_update_db = ArenaInfoDiffUpdate::merge(arena_info_update_db);
+
         let tx_result = insert_to_db(
-            self.get_pool(),
+            pool,
             self.name(),
             start_version,
             end_version,
@@ -619,6 +772,9 @@ impl ProcessorTrait for EmojicoinProcessor {
                 arena_exit_events: &arena_exit_events_db,
                 arena_swap_events: &arena_swap_events_db,
                 arena_vault_balance_update_events: &arena_vault_balance_update_events_db,
+                arena_position: &arena_position_db,
+                arena_info: &arena_info_db,
+                arena_info_update: &arena_info_update_db,
             },
             &self.per_table_chunk_sizes,
         )
