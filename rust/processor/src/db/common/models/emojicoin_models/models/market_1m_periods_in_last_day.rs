@@ -8,7 +8,6 @@ use chrono::NaiveDateTime;
 use diesel::{
     dsl::{now, IntervalDsl},
     result::Error,
-    QueryResult,
 };
 use diesel_async::{scoped_futures::ScopedFutureExt, AsyncConnection};
 use field_count::FieldCount;
@@ -43,7 +42,7 @@ impl MarketOneMinutePeriodsInLastDayModel {
     pub async fn insert_and_delete_periods(
         items: &[MarketOneMinutePeriodsInLastDayModel],
         pool: ArcDbPool,
-    ) -> QueryResult<(usize, usize)> {
+    ) -> Result<(), diesel::result::Error> {
         use diesel::prelude::*;
         use schema::market_1m_periods_in_last_day::dsl::*;
 
@@ -77,6 +76,8 @@ impl MarketOneMinutePeriodsInLastDayModel {
             }
             .scope_boxed()
         })
-        .await
+        .await?;
+
+        Ok(())
     }
 }

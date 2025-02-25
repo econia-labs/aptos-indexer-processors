@@ -23,6 +23,7 @@ pub struct ArenaExitEventModel {
 
     pub emojicoin_0_proceeds: BigDecimal,
     pub emojicoin_1_proceeds: BigDecimal,
+    pub apt_proceeds: BigDecimal,
     pub emojicoin_0_exchange_rate_base: BigDecimal,
     pub emojicoin_0_exchange_rate_quote: BigDecimal,
     pub emojicoin_1_exchange_rate_base: BigDecimal,
@@ -43,8 +44,15 @@ impl ArenaExitEventModel {
             melee_id: arena_exit_event.melee_id,
             tap_out_fee: arena_exit_event.tap_out_fee,
 
-            emojicoin_0_proceeds: arena_exit_event.emojicoin_0_proceeds,
-            emojicoin_1_proceeds: arena_exit_event.emojicoin_1_proceeds,
+            emojicoin_0_proceeds: arena_exit_event.emojicoin_0_proceeds.clone(),
+            emojicoin_1_proceeds: arena_exit_event.emojicoin_1_proceeds.clone(),
+            apt_proceeds: (arena_exit_event.emojicoin_0_proceeds
+                / arena_exit_event.emojicoin_0_exchange_rate.base.clone()
+                * arena_exit_event.emojicoin_0_exchange_rate.quote.clone()
+                + arena_exit_event.emojicoin_1_proceeds
+                    / arena_exit_event.emojicoin_1_exchange_rate.base.clone()
+                    * arena_exit_event.emojicoin_1_exchange_rate.quote.clone())
+            .round(0),
             emojicoin_0_exchange_rate_base: arena_exit_event.emojicoin_0_exchange_rate.base,
             emojicoin_0_exchange_rate_quote: arena_exit_event.emojicoin_0_exchange_rate.quote,
             emojicoin_1_exchange_rate_base: arena_exit_event.emojicoin_1_exchange_rate.base,
