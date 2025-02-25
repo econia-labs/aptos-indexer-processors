@@ -159,6 +159,30 @@ where
     Ok(())
 }
 
+pub async fn execute_single<U, T>(
+    conn: ArcDbPool,
+    build_query: fn(T) -> U,
+    items_to_insert: &[T],
+) -> Result<(), diesel::result::Error>
+where
+    U: QueryFragment<Backend> + diesel::query_builder::QueryId + Send + 'static,
+    T: serde::Serialize + for<'de> serde::Deserialize<'de> + Clone + Send + 'static,
+{
+    let r = futures_util::future::try_join_all(items_to_insert.iter().cloned().map(|m| {
+        let conn = conn.clone();
+        tokio::spawn(async move {
+            let query = build_query(m);
+            execute_with_better_error(conn, query, None).await
+        })
+    }))
+    .await
+    .unwrap();
+    for res in r {
+        res?;
+    }
+    Ok(())
+}
+
 pub async fn execute_with_better_error<U>(
     pool: ArcDbPool,
     query: U,
@@ -234,7 +258,7 @@ where
     res
 }
 
-async fn execute_or_retry_cleaned<U, T>(
+pub async fn execute_or_retry_cleaned<U, T>(
     conn: ArcDbPool,
     build_query: fn(Vec<T>) -> (U, Option<&'static str>),
     items: Vec<T>,
