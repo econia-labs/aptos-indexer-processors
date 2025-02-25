@@ -261,7 +261,8 @@ impl EmojicoinTypeTag {
             str if ARENA_EXIT_EVENT.as_ref().is_some_and(|s| s == str) => Some(Self::ArenaExit),
             str if ARENA_SWAP_EVENT.as_ref().is_some_and(|s| s == str) => Some(Self::ArenaSwap),
             str if ARENA_VAULT_BALANCE_UPDATE_EVENT
-                .as_ref().is_some_and(|s| s == str) =>
+                .as_ref()
+                .is_some_and(|s| s == str) =>
             {
                 Some(Self::ArenaVaultBalanceUpdate)
             },
