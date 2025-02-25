@@ -1,9 +1,11 @@
 use crate::{db::common::models::emojicoin_models::models::prelude::*, schema};
+use bigdecimal::{BigDecimal, Zero};
 use diesel::{
     dsl::sql,
     pg::Pg,
     query_builder::QueryFragment,
     query_dsl::methods::FilterDsl,
+    sql_query,
     sql_types::{Bool, Nullable},
     upsert::excluded,
     ExpressionMethods,
@@ -313,6 +315,29 @@ pub fn update_arena_info_query(
             )),
         None,
     )
+}
+
+pub fn insert_arena_leaderboard_history_query(
+    melee_id: BigDecimal,
+) -> impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send {
+    let mut query = include_str!("./leaderboard.sql").to_string();
+
+    query = query.replace("$1", &melee_id.to_string());
+
+    sql_query(query)
+}
+
+pub fn update_arena_leaderboard_history_query(
+    exit: ArenaExitEventModel,
+) -> impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send {
+    use schema::arena_leaderboard_history::dsl::*;
+    diesel::update(arena_leaderboard_history)
+        .filter(melee_id.eq(exit.melee_id))
+        .filter(user.eq(exit.user))
+        .set((
+            exited.eq(true),
+            last_exit_0.eq(exit.emojicoin_1_proceeds.is_zero()),
+        ))
 }
 
 pub fn insert_arena_enter_events_query(
