@@ -15,7 +15,7 @@ use crate::{
     schema,
     utils::{
         counters::PROCESSOR_UNKNOWN_TYPE_COUNT,
-        database::{execute_in_chunks, get_config_table_chunk_size, ArcDbPool},
+        database::{execute_in_chunks, execute_single, get_config_table_chunk_size, ArcDbPool},
         util::{
             bigdecimal_to_u64, get_entry_function_from_user_request, parse_timestamp,
             standardize_address,
@@ -92,6 +92,7 @@ struct InsertEvents<'a> {
     arena_vault_balance_update_events: &'a [ArenaVaultBalanceUpdateEventModel],
     arena_position: &'a [ArenaPositionDiffModel],
     arena_info: &'a [ArenaInfoModel],
+    arena_leaderboard_history: &'a [BigDecimal],
     arena_info_update: &'a [ArenaInfoDiffUpdate],
 }
 
@@ -126,6 +127,7 @@ async fn insert_to_db(
         arena_vault_balance_update_events,
         arena_position,
         arena_info,
+        arena_leaderboard_history,
         arena_info_update,
     } = insert_events;
 
@@ -301,9 +303,24 @@ async fn insert_to_db(
             ),
         )
         .boxed(),
+        execute_single(
+            conn.clone(),
+            update_arena_leaderboard_history_query,
+            arena_exit_events,
+        )
+        .boxed(),
     ];
 
     try_join_all(futures).await?;
+
+    // Run this after everything else to make sure necessary events for the generation of the
+    // leaderboard history are already inserted.
+    execute_single(
+        conn.clone(),
+        insert_arena_leaderboard_history_query,
+        arena_leaderboard_history,
+    )
+    .await?;
 
     Ok(())
 }
@@ -388,6 +405,7 @@ impl ProcessorTrait for EmojicoinProcessor {
         let mut arena_vault_balance_update_events_db = vec![];
         let mut arena_position_db = vec![];
         let mut arena_info_db = vec![];
+        let mut arena_leaderboard_history_db = vec![];
         let mut arena_info_update_db = vec![];
         // Store the writeset changes for each market in the transaction so we can lazily parse them later only for the
         // latest event for that market. We may get several writeset changes for the same market across all the transactions.
@@ -694,6 +712,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                 &pool,
             );
             let (market_data_0, market_data_1) = tokio::try_join!(market_data_0, market_data_1)?;
+            arena_leaderboard_history_db.push(melee.melee_id.clone() - 1);
 
             let arena_info_data = ArenaInfoData {
                 emojicoin_0_market_id: market_data_0.market_id,
@@ -774,6 +793,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                 arena_vault_balance_update_events: &arena_vault_balance_update_events_db,
                 arena_position: &arena_position_db,
                 arena_info: &arena_info_db,
+                arena_leaderboard_history: &arena_leaderboard_history_db,
                 arena_info_update: &arena_info_update_db,
             },
             &self.per_table_chunk_sizes,
