@@ -107,7 +107,6 @@ diesel::table! {
         low_price -> Nullable<Numeric>,
         close_price -> Nullable<Numeric>,
         volume -> Numeric,
-        integrator_fees -> Numeric,
         n_swaps -> Numeric,
     }
 }
