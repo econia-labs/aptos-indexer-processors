@@ -66,6 +66,7 @@ last_balances AS (
             emojicoin_1_proceeds AS emojicoin_1_balance
         FROM arena_swap_events
         WHERE melee_id = $1
+        AND during_melee
         UNION ALL
         SELECT
             "user",

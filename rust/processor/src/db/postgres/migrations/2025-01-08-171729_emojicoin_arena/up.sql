@@ -85,6 +85,8 @@ CREATE TABLE arena_swap_events (
     emojicoin_1_exchange_rate_base NUMERIC NOT NULL,
     emojicoin_1_exchange_rate_quote NUMERIC NOT NULL,
 
+    during_melee BOOLEAN NOT NULL,
+
     PRIMARY KEY (transaction_version, event_index)
 );
 

@@ -539,6 +539,8 @@ impl EmojicoinProcessor {
             // Group the market events in this transaction.
             let mut market_events = vec![];
 
+            let mut last_two_states: (Option<StateEvent>, Option<StateEvent>) = (None, None);
+
             for (event_index, event) in user_txn.events.iter().enumerate() {
                 let type_str = event.type_str.as_str();
                 let data = event.data.as_str();
@@ -558,6 +560,7 @@ impl EmojicoinProcessor {
                             EventWithMarket::State(state) => {
                                 states
                                     .insert(state.market_metadata.market_id.clone(), state.clone());
+                                last_two_states = (Some(state.clone()), last_two_states.0);
                                 if let Some(melee_data) = melee_data.as_mut() {
                                     if state.last_swap.nonce == state.state_metadata.market_nonce
                                         && (state.market_metadata.market_id
@@ -682,27 +685,36 @@ impl EmojicoinProcessor {
                                 insert_events.arena_exit_events.push(model)
                             },
                             ArenaEvent::Swap(swap) => {
-                                // This can never be None.
-                                let melee_data = melee_data.as_ref().unwrap();
-                                let (state_0, state_1) = (
-                                    states.get(&melee_data.market_id_0),
-                                    states.get(&melee_data.market_id_1),
+                                ensure!(
+                                    last_two_states.0.is_some() && last_two_states.1.is_some(),
+                                    "The two previous State events related to this ArenaSwap event were not found."
                                 );
-                                ensure!(state_0.is_some() && state_1.is_some(), "The two previous State events related to this ArenaSwap event were not found.");
+                                let (mut state_0, mut state_1) = (None, None);
+                                std::mem::swap(&mut state_0, &mut last_two_states.0);
+                                std::mem::swap(&mut state_1, &mut last_two_states.1);
                                 let (state_0, state_1) = (state_0.unwrap(), state_1.unwrap());
+                                let (state_0, state_1) = if swap.emojicoin_0_proceeds.is_zero() {
+                                    (state_1, state_0)
+                                } else {
+                                    (state_0, state_1)
+                                };
                                 insert_events.arena_position.push(
                                     ArenaPositionDiffModel::from_swap(
                                         swap.clone(),
-                                        state_0,
-                                        state_1,
+                                        &state_0,
+                                        &state_1,
                                     ),
                                 );
-                                let model = ArenaSwapEventModel::new(txn_info.clone(), swap);
+                                let model = ArenaSwapEventModel::new(
+                                    txn_info.clone(),
+                                    swap,
+                                    melee_data.as_ref().unwrap(),
+                                );
                                 insert_events.arena_info_update.push(
                                     ArenaInfoDiffUpdate::from_state_events(
                                         model.clone(),
-                                        state_0,
-                                        state_1,
+                                        &state_0,
+                                        &state_1,
                                     ),
                                 );
                                 insert_events.arena_swap_events.push(model);
