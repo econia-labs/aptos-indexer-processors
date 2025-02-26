@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 pub struct ChatEventModel {
     // Transaction metadata.
     pub transaction_version: i64,
+    pub event_index: i64,
     pub sender: String,
     pub entry_function: Option<String>,
     pub transaction_timestamp: chrono::NaiveDateTime,
@@ -88,12 +89,14 @@ impl ChatEventModel {
             user_emojicoin_balance,
             circulating_supply,
             balance_as_fraction_of_circulating_supply_q64,
+            event_index,
             ..
         } = chat_event;
 
         ChatEventModel {
             // Transaction metadata.
             transaction_version: txn_info.version,
+            event_index,
             sender: txn_info.sender.clone(),
             entry_function: txn_info.entry_function.clone(),
             transaction_timestamp: txn_info.timestamp,

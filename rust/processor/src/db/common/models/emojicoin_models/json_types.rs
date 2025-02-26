@@ -237,6 +237,9 @@ pub struct SwapEvent {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ChatEvent {
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub event_index: i64,
     pub market_metadata: MarketMetadata,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
@@ -260,6 +263,9 @@ pub struct ChatEvent {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MarketRegistrationEvent {
+    #[serde(deserialize_with = "deserialize_from_string")]
+    #[serde(serialize_with = "serialize_to_string")]
+    pub event_index: i64,
     pub market_metadata: MarketMetadata,
     #[serde(deserialize_with = "deserialize_from_string")]
     #[serde(serialize_with = "serialize_to_string")]
@@ -574,10 +580,14 @@ impl EventWithMarket {
                 serde_json::from_value(json_data).map(|inner: SwapEvent| Some(Self::Swap(inner)))
             },
             Some(EmojicoinTypeTag::Chat) => {
-                serde_json::from_str(data).map(|inner| Some(Self::Chat(inner)))
+                let mut json_data = serde_json::Value::from_str(data)?;
+                json_data["event_index"] = serde_json::Value::from(event_index.to_string());
+                serde_json::from_value(json_data).map(|inner| Some(Self::Chat(inner)))
             },
             Some(EmojicoinTypeTag::MarketRegistration) => {
-                serde_json::from_str(data).map(|inner| Some(Self::MarketRegistration(inner)))
+                let mut json_data = serde_json::Value::from_str(data)?;
+                json_data["event_index"] = serde_json::Value::from(event_index.to_string());
+                serde_json::from_value(json_data).map(|inner| Some(Self::MarketRegistration(inner)))
             },
             Some(EmojicoinTypeTag::Liquidity) => {
                 let mut json_data = serde_json::Value::from_str(data)?;
