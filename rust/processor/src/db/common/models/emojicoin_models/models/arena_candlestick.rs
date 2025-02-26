@@ -35,11 +35,7 @@ impl ArenaCandlestickDiffModelBuilder {
         for stick in sticks {
             let stick_clone = stick.clone();
             sticks_map
-                .entry((
-                    stick.melee_id.clone(),
-                    stick.period.clone(),
-                    stick.start_time.clone(),
-                ))
+                .entry((stick.melee_id.clone(), stick.period, stick.start_time))
                 .and_modify(|s| {
                     s.volume += stick.volume;
                     s.n_swaps += stick.n_swaps;
@@ -81,7 +77,7 @@ impl ArenaCandlestickDiffModelBuilder {
 
         for period in periods {
             let start_time = transaction_timestamp
-                .duration_round(period.clone().to_time_delta())
+                .duration_round(period.to_time_delta())
                 .unwrap();
             let price = price_0.clone() / price_1.clone();
             let x = Self {

@@ -72,7 +72,7 @@ impl EmojicoinProcessor {
                     .limit(1)
                     .get_results::<(BigDecimal, Option<BigDecimal>, Option<BigDecimal>)>(conn)
                     .await?;
-                melee.get(0).cloned()
+                melee.as_slice().first().cloned()
             };
             if melee.is_none() {
                 return Ok::<Option<MeleeData>, anyhow::Error>(None);
@@ -149,7 +149,7 @@ struct InsertEvents<'a> {
     arena_vault_balance_update_events: &'a [ArenaVaultBalanceUpdateEventModel],
     arena_position: &'a [ArenaPositionDiffModel],
     arena_info: &'a [ArenaInfoModel],
-    arena_leaderboard_history: &'a [ArenaLeaderboardHistoryModel],
+    arena_leaderboard_history: &'a [ArenaLeaderboardHistoryPartialModel],
     arena_info_update: &'a [ArenaInfoDiffUpdate],
     arena_candlesticks: &'a [ArenaCandlestickDiffModel],
 }
@@ -612,7 +612,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                                                     // corresponding State event.
                                                     // We call rev as is should be the latest swap.
                                                     state.clone(),
-                                                    txn_info.timestamp.clone(),
+                                                    txn_info.timestamp,
                                                     (txn_info.version, event_index as i64),
                                                     melee_data.price_0.clone(),
                                                     melee_data.price_1.clone(),
@@ -665,8 +665,9 @@ impl ProcessorTrait for EmojicoinProcessor {
                                     // Add to leaderboard history
                                     // This would be None only on the first MeleeEvent
                                     if let Some(melee_data) = melee_data.as_ref() {
-                                        arena_leaderboard_history_db
-                                            .push(ArenaLeaderboardHistoryModel::new(melee_data));
+                                        arena_leaderboard_history_db.push(
+                                            ArenaLeaderboardHistoryPartialModel::new(melee_data),
+                                        );
                                     }
 
                                     // Add to arena info
@@ -722,15 +723,15 @@ impl ProcessorTrait for EmojicoinProcessor {
                                     let (state_0, state_1) = (state_0.unwrap(), state_1.unwrap());
                                     arena_position_db.push(ArenaPositionDiffModel::from_swap(
                                         swap.clone(),
-                                        &state_0,
-                                        &state_1,
+                                        state_0,
+                                        state_1,
                                     ));
                                     let model = ArenaSwapEventModel::new(txn_info.clone(), swap);
                                     arena_info_update_db.push(
                                         ArenaInfoDiffUpdate::from_state_events(
                                             model.clone(),
-                                            &state_0,
-                                            &state_1,
+                                            state_0,
+                                            state_1,
                                         ),
                                     );
                                     arena_swap_events_db.push(model);

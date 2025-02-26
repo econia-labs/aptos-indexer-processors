@@ -318,17 +318,24 @@ pub fn update_arena_info_query(
 }
 
 pub fn insert_arena_leaderboard_history_query(
-    arena_leaderboard_history_model: ArenaLeaderboardHistoryModel,
+    arena_leaderboard_history_model: ArenaLeaderboardHistoryPartialModel,
 ) -> impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send {
     let mut query = include_str!("./leaderboard.sql").to_string();
 
+    // See header comment of leaderboard.sql for more information on query parameters.
+
+    // $1 is the melee_id
     query = query.replace("$1", &arena_leaderboard_history_model.melee_id.to_string());
+
+    // $2 is the curve price of emojicoin_0
     query = query.replace(
         "$2",
         &arena_leaderboard_history_model
             .emojicoin_0_price
             .to_string(),
     );
+
+    // $3 is the curve price of emojicoin_1
     query = query.replace(
         "$3",
         &arena_leaderboard_history_model
