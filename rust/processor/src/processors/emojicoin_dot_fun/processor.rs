@@ -25,7 +25,7 @@ use crate::{
     },
 };
 use ahash::AHashMap;
-use anyhow::bail;
+use anyhow::{bail, ensure, Context};
 use aptos_protos::transaction::v1::{transaction::TxnData, Transaction};
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
@@ -132,26 +132,26 @@ impl Debug for EmojicoinProcessor {
     }
 }
 
-struct InsertEvents<'a> {
-    market_registration_events: &'a [MarketRegistrationEventModel],
-    swap_events: &'a [SwapEventModel],
-    chat_events: &'a [ChatEventModel],
-    liquidity_events: &'a [LiquidityEventModel],
-    periodic_state_events: &'a [PeriodicStateEventModel],
-    global_state_events: &'a [GlobalStateEventModel],
-    market_latest_state_events: &'a [MarketLatestStateEventModel],
-    market_1m_periods: &'a [MarketOneMinutePeriodsInLastDayModel],
-    user_pools: &'a [UserLiquidityPoolsModel],
-    arena_melee_events: &'a [ArenaMeleeEventModel],
-    arena_enter_events: &'a [ArenaEnterEventModel],
-    arena_exit_events: &'a [ArenaExitEventModel],
-    arena_swap_events: &'a [ArenaSwapEventModel],
-    arena_vault_balance_update_events: &'a [ArenaVaultBalanceUpdateEventModel],
-    arena_position: &'a [ArenaPositionDiffModel],
-    arena_info: &'a [ArenaInfoModel],
-    arena_leaderboard_history: &'a [ArenaLeaderboardHistoryPartialModel],
-    arena_info_update: &'a [ArenaInfoDiffUpdate],
-    arena_candlesticks: &'a [ArenaCandlestickDiffModel],
+struct InsertEvents {
+    market_registration_events: Vec<MarketRegistrationEventModel>,
+    swap_events: Vec<SwapEventModel>,
+    chat_events: Vec<ChatEventModel>,
+    liquidity_events: Vec<LiquidityEventModel>,
+    periodic_state_events: Vec<PeriodicStateEventModel>,
+    global_state_events: Vec<GlobalStateEventModel>,
+    market_latest_state_events: Vec<MarketLatestStateEventModel>,
+    market_1m_periods: Vec<MarketOneMinutePeriodsInLastDayModel>,
+    user_pools: Vec<UserLiquidityPoolsModel>,
+    arena_melee_events: Vec<ArenaMeleeEventModel>,
+    arena_enter_events: Vec<ArenaEnterEventModel>,
+    arena_exit_events: Vec<ArenaExitEventModel>,
+    arena_swap_events: Vec<ArenaSwapEventModel>,
+    arena_vault_balance_update_events: Vec<ArenaVaultBalanceUpdateEventModel>,
+    arena_position: Vec<ArenaPositionDiffModel>,
+    arena_info: Vec<ArenaInfoModel>,
+    arena_leaderboard_history: Vec<ArenaLeaderboardHistoryPartialModel>,
+    arena_info_update: Vec<ArenaInfoDiffUpdate>,
+    arena_candlesticks: Vec<ArenaCandlestickDiffModel>,
 }
 
 async fn insert_to_db(
@@ -159,7 +159,7 @@ async fn insert_to_db(
     name: &'static str,
     start_version: u64,
     end_version: u64,
-    insert_events: InsertEvents<'_>,
+    insert_events: InsertEvents,
     per_table_chunk_sizes: &AHashMap<String, usize>,
 ) -> Result<(), diesel::result::Error> {
     tracing::trace!(
@@ -194,7 +194,7 @@ async fn insert_to_db(
         execute_in_chunks(
             conn.clone(),
             insert_market_registration_events_query,
-            market_registration_events,
+            &market_registration_events,
             get_config_table_chunk_size::<MarketRegistrationEventModel>(
                 "market_registration_events",
                 per_table_chunk_sizes,
@@ -204,7 +204,7 @@ async fn insert_to_db(
         execute_in_chunks(
             conn.clone(),
             delete_unregistered_markets_query,
-            market_registration_events,
+            &market_registration_events,
             get_config_table_chunk_size::<MarketRegistrationEventModel>(
                 "unregistered_markets",
                 per_table_chunk_sizes,
@@ -214,28 +214,28 @@ async fn insert_to_db(
         // Note that this is currently not chunked and could result in a query that deletes several
         // hundred rows at once.
         MarketOneMinutePeriodsInLastDayModel::insert_and_delete_periods(
-            market_1m_periods,
+            &market_1m_periods,
             conn.clone(),
         )
         .boxed(),
         execute_in_chunks(
             conn.clone(),
             insert_swap_events_query,
-            swap_events,
+            &swap_events,
             get_config_table_chunk_size::<SwapEventModel>("swap_events", per_table_chunk_sizes),
         )
         .boxed(),
         execute_in_chunks(
             conn.clone(),
             insert_chat_events_query,
-            chat_events,
+            &chat_events,
             get_config_table_chunk_size::<ChatEventModel>("chat_events", per_table_chunk_sizes),
         )
         .boxed(),
         execute_in_chunks(
             conn.clone(),
             insert_liquidity_events_query,
-            liquidity_events,
+            &liquidity_events,
             get_config_table_chunk_size::<LiquidityEventModel>(
                 "liquidity_events",
                 per_table_chunk_sizes,
@@ -245,7 +245,7 @@ async fn insert_to_db(
         execute_in_chunks(
             conn.clone(),
             insert_periodic_state_events_query,
-            periodic_state_events,
+            &periodic_state_events,
             get_config_table_chunk_size::<PeriodicStateEventModel>(
                 "periodic_state_events",
                 per_table_chunk_sizes,
@@ -255,7 +255,7 @@ async fn insert_to_db(
         execute_in_chunks(
             conn.clone(),
             insert_global_events,
-            global_state_events,
+            &global_state_events,
             get_config_table_chunk_size::<GlobalStateEventModel>(
                 "global_state_events",
                 per_table_chunk_sizes,
@@ -265,7 +265,7 @@ async fn insert_to_db(
         execute_in_chunks(
             conn.clone(),
             insert_user_liquidity_pools_query,
-            user_pools,
+            &user_pools,
             get_config_table_chunk_size::<UserLiquidityPoolsModel>(
                 "user_liquidity_pools",
                 per_table_chunk_sizes,
@@ -275,7 +275,7 @@ async fn insert_to_db(
         execute_in_chunks(
             conn.clone(),
             insert_market_latest_state_event_query,
-            market_latest_state_events,
+            &market_latest_state_events,
             get_config_table_chunk_size::<MarketLatestStateEventModel>(
                 "market_latest_state_events",
                 per_table_chunk_sizes,
@@ -285,7 +285,7 @@ async fn insert_to_db(
         execute_in_chunks(
             conn.clone(),
             insert_arena_position_query,
-            arena_position,
+            &arena_position,
             get_config_table_chunk_size::<ArenaPositionDiffModel>(
                 "arena_position",
                 per_table_chunk_sizes,
@@ -295,7 +295,7 @@ async fn insert_to_db(
         execute_in_chunks(
             conn.clone(),
             insert_arena_info_query,
-            arena_info,
+            &arena_info,
             get_config_table_chunk_size::<ArenaPositionDiffModel>(
                 "arena_info",
                 per_table_chunk_sizes,
@@ -305,7 +305,7 @@ async fn insert_to_db(
         execute_in_chunks(
             conn.clone(),
             update_arena_info_query,
-            arena_info_update,
+            &arena_info_update,
             get_config_table_chunk_size::<ArenaPositionDiffModel>(
                 "arena_info",
                 per_table_chunk_sizes,
@@ -315,7 +315,7 @@ async fn insert_to_db(
         execute_in_chunks(
             conn.clone(),
             insert_arena_enter_events_query,
-            arena_enter_events,
+            &arena_enter_events,
             get_config_table_chunk_size::<ArenaEnterEventModel>(
                 "arena_enter_events",
                 per_table_chunk_sizes,
@@ -325,7 +325,7 @@ async fn insert_to_db(
         execute_in_chunks(
             conn.clone(),
             insert_arena_exit_events_query,
-            arena_exit_events,
+            &arena_exit_events,
             get_config_table_chunk_size::<ArenaExitEventModel>(
                 "arena_exit_events",
                 per_table_chunk_sizes,
@@ -335,7 +335,7 @@ async fn insert_to_db(
         execute_in_chunks(
             conn.clone(),
             insert_arena_swap_events_query,
-            arena_swap_events,
+            &arena_swap_events,
             get_config_table_chunk_size::<ArenaSwapEventModel>(
                 "arena_swap_events",
                 per_table_chunk_sizes,
@@ -345,7 +345,7 @@ async fn insert_to_db(
         execute_in_chunks(
             conn.clone(),
             insert_arena_vault_balance_update_events_query,
-            arena_vault_balance_update_events,
+            &arena_vault_balance_update_events,
             get_config_table_chunk_size::<ArenaVaultBalanceUpdateEventModel>(
                 "arena_vault_balance_update_events",
                 per_table_chunk_sizes,
@@ -355,7 +355,7 @@ async fn insert_to_db(
         execute_in_chunks(
             conn.clone(),
             insert_arena_melee_events_query,
-            arena_melee_events,
+            &arena_melee_events,
             get_config_table_chunk_size::<ArenaMeleeEventModel>(
                 "arena_melee_events",
                 per_table_chunk_sizes,
@@ -365,7 +365,7 @@ async fn insert_to_db(
         execute_in_chunks(
             conn.clone(),
             insert_arena_candlesticks_query,
-            arena_candlesticks,
+            &arena_candlesticks,
             get_config_table_chunk_size::<ArenaCandlestickDiffModel>(
                 "arena_candlestick",
                 per_table_chunk_sizes,
@@ -375,7 +375,7 @@ async fn insert_to_db(
         execute_single(
             conn.clone(),
             update_arena_leaderboard_history_query,
-            arena_exit_events,
+            &arena_exit_events,
         )
         .boxed(),
     ];
@@ -388,7 +388,7 @@ async fn insert_to_db(
         execute_single(
             conn.clone(),
             insert_arena_leaderboard_history_query,
-            arena_leaderboard_history,
+            &arena_leaderboard_history,
         )
         .await?;
     }
@@ -490,6 +490,379 @@ async fn get_market_data(
     Ok(data)
 }
 
+impl EmojicoinProcessor {
+    async fn process_transaction(
+        &self,
+        txn: &Transaction,
+        user_pools_db: &mut AHashMap<(String, u64), UserLiquidityPoolsModel>,
+        market_registrations: &mut Vec<MarketRegistrationEvent>,
+        period_data: &mut Vec<RecentOneMinutePeriodicStateEvent>,
+        latest_market_resources: &mut AHashMap<
+            u64,
+            (TxnInfo, MarketResource, Trigger, InstantaneousStats),
+        >,
+        arena_candlestick_builders: &mut Vec<ArenaCandlestickDiffModelBuilder>,
+        states: &mut AHashMap<BigDecimal, StateEvent>,
+        insert_events: &mut InsertEvents,
+    ) -> anyhow::Result<()> {
+        let mut melee_data = self.melee_data.write().await;
+        let txn_version = txn.version as i64;
+        let block_number = txn.block_height as i64;
+        let txn_data = match txn.txn_data.as_ref() {
+            Some(data) => data,
+            None => {
+                tracing::warn!(
+                    transaction_version = txn_version,
+                    "Transaction data doesn't exist"
+                );
+                PROCESSOR_UNKNOWN_TYPE_COUNT
+                    .with_label_values(&["EmojicoinProcessor"])
+                    .inc();
+                return Ok(());
+            },
+        };
+
+        if let TxnData::User(user_txn) = txn_data {
+            let user_request = user_txn
+                .request
+                .as_ref()
+                .expect("User request info is not present in the user transaction.");
+            let entry_function = get_entry_function_from_user_request(user_request);
+            let txn_info = TxnInfo {
+                block_number,
+                version: txn_version,
+                sender: standardize_address(user_request.sender.as_ref()),
+                entry_function,
+                timestamp: parse_timestamp(txn.timestamp.as_ref().unwrap(), txn_version),
+            };
+
+            // Group the market events in this transaction.
+            let mut market_events = vec![];
+
+            for (event_index, event) in user_txn.events.iter().enumerate() {
+                let type_str = event.type_str.as_str();
+                let data = event.data.as_str();
+
+                // Only parse events that match an `EmojicoinTypeTag`. This protects against
+                // parsing invalid or unexpected JSON data.
+                if EmojicoinTypeTag::from_type_str(type_str).is_some() {
+                    // If it's an event with a market, parse it and add it to `market_events`
+                    // and possibly the one minute periodic state events.
+                    if let Some(evt) = EventWithMarket::from_event_type(
+                        type_str,
+                        data,
+                        txn_version,
+                        event_index as i64,
+                    )? {
+                        match &evt {
+                            EventWithMarket::State(state) => {
+                                states
+                                    .insert(state.market_metadata.market_id.clone(), state.clone());
+                                if let Some(melee_data) = melee_data.as_mut() {
+                                    if state.last_swap.nonce == state.state_metadata.market_nonce
+                                        && (state.market_metadata.market_id
+                                            == melee_data.market_id_0
+                                            || state.market_metadata.market_id
+                                                == melee_data.market_id_1)
+                                    {
+                                        if state.market_metadata.market_id == melee_data.market_id_0
+                                        {
+                                            melee_data.price_0 = state.curve_price();
+                                        } else {
+                                            melee_data.price_1 = state.curve_price();
+                                        };
+                                        let candlestick =
+                                            ArenaCandlestickDiffModelBuilder::from_state_event(
+                                                melee_data.melee_id.clone(),
+                                                // We know at this point that the swap is in swaps
+                                                // because the Swap event is emitted before its
+                                                // corresponding State event.
+                                                // We call rev as is should be the latest swap.
+                                                state.clone(),
+                                                txn_info.timestamp,
+                                                (txn_info.version, event_index as i64),
+                                                melee_data.price_0.clone(),
+                                                melee_data.price_1.clone(),
+                                            );
+                                        arena_candlestick_builders.extend(candlestick);
+                                    }
+                                }
+                            },
+                            EventWithMarket::MarketRegistration(mr) => {
+                                market_registrations.push(mr.clone());
+                            },
+                            _ => {},
+                        }
+                        market_events.push(evt.clone());
+                        if let Some(one_min_pse) =
+                            RecentOneMinutePeriodicStateEvent::try_from_event(evt, txn_version)
+                        {
+                            period_data.push(one_min_pse);
+                        }
+                        // If it's an arena event, parse it and add it to the proper arena events vector.
+                    } else if let Some(evt) = ArenaEvent::from_event_type(
+                        type_str,
+                        data,
+                        txn_version,
+                        event_index as i64,
+                    )? {
+                        match evt {
+                            ArenaEvent::Melee(melee) => {
+                                let pool = self.get_pool();
+                                let model =
+                                    ArenaMeleeEventModel::new(txn_info.clone(), melee.clone());
+                                let market_0 = get_market_data(
+                                    &melee.emojicoin_0_market_address,
+                                    market_registrations,
+                                    states,
+                                    &pool,
+                                )
+                                .await?;
+                                let market_1 = get_market_data(
+                                    &melee.emojicoin_1_market_address,
+                                    market_registrations,
+                                    states,
+                                    &pool,
+                                )
+                                .await?;
+
+                                // Add to melee events
+                                insert_events.arena_melee_events.push(model.clone());
+
+                                // Add to leaderboard history
+                                // This would be None only on the first MeleeEvent
+                                if let Some(melee_data) = melee_data.as_ref() {
+                                    insert_events
+                                        .arena_leaderboard_history
+                                        .push(ArenaLeaderboardHistoryPartialModel::new(melee_data));
+                                }
+
+                                // Add to arena info
+                                let arena_info_data = ArenaInfoData {
+                                    emojicoin_0_market_id: market_0.market_id.clone(),
+                                    emojicoin_1_market_id: market_1.market_id.clone(),
+                                    emojicoin_0_symbols: market_0.symbol_emojis,
+                                    emojicoin_1_symbols: market_1.symbol_emojis,
+                                };
+                                let arena_info = ArenaInfoModel::new(model, arena_info_data);
+                                insert_events.arena_info.push(arena_info);
+
+                                // Update state
+                                *melee_data = Some(MeleeData {
+                                    melee_id: melee.melee_id,
+                                    market_id_0: market_0.market_id,
+                                    market_id_1: market_1.market_id,
+                                    price_0: market_0.price,
+                                    price_1: market_1.price,
+                                });
+                            },
+                            ArenaEvent::Enter(enter) => {
+                                insert_events
+                                    .arena_position
+                                    .push(ArenaPositionDiffModel::from(enter.clone()));
+                                let model = ArenaEnterEventModel::new(txn_info.clone(), enter);
+                                insert_events
+                                    .arena_info_update
+                                    .push(ArenaInfoDiffUpdate::from(model.clone()));
+                                insert_events.arena_enter_events.push(model)
+                            },
+                            ArenaEvent::Exit(exit) => {
+                                insert_events
+                                    .arena_position
+                                    .push(ArenaPositionDiffModel::from(exit.clone()));
+                                let model = ArenaExitEventModel::new(
+                                    txn_info.clone(),
+                                    exit,
+                                    // This can never be None.
+                                    melee_data.as_ref().unwrap(),
+                                );
+                                insert_events
+                                    .arena_info_update
+                                    .push(ArenaInfoDiffUpdate::from(model.clone()));
+                                insert_events.arena_exit_events.push(model)
+                            },
+                            ArenaEvent::Swap(swap) => {
+                                // This can never be None.
+                                let melee_data = melee_data.as_ref().unwrap();
+                                let (state_0, state_1) = (
+                                    states.get(&melee_data.market_id_0),
+                                    states.get(&melee_data.market_id_1),
+                                );
+                                ensure!(state_0.is_some() && state_1.is_some(), "The two previous State events related to this ArenaSwap event were not found.");
+                                let (state_0, state_1) = (state_0.unwrap(), state_1.unwrap());
+                                insert_events.arena_position.push(
+                                    ArenaPositionDiffModel::from_swap(
+                                        swap.clone(),
+                                        state_0,
+                                        state_1,
+                                    ),
+                                );
+                                let model = ArenaSwapEventModel::new(txn_info.clone(), swap);
+                                insert_events.arena_info_update.push(
+                                    ArenaInfoDiffUpdate::from_state_events(
+                                        model.clone(),
+                                        state_0,
+                                        state_1,
+                                    ),
+                                );
+                                insert_events.arena_swap_events.push(model);
+                            },
+                            ArenaEvent::VaultBalanceUpdate(vault_balance_update) => insert_events
+                                .arena_vault_balance_update_events
+                                .push(ArenaVaultBalanceUpdateEventModel::new(
+                                    txn_info.clone(),
+                                    vault_balance_update,
+                                )),
+                        }
+                    // If it's a global state event, parse and add it to the global state events vector.
+                    } else if let Some(global_event) =
+                        GlobalStateEvent::from_event_type(type_str, data, txn_version)?
+                    {
+                        insert_events
+                            .global_state_events
+                            .push(GlobalStateEventModel::new(txn_info.clone(), global_event));
+                    }
+                }
+            }
+
+            // Keep in mind that these are collecting events and changes within the context of a single transaction,
+            // not all transactions.
+            let mut builders: AHashMap<(u64, u64), EventGroupBuilder> = AHashMap::new();
+            for evt in market_events.into_iter() {
+                let (market_id, market_nonce) = (evt.get_market_id(), evt.get_market_nonce());
+                match builders.get_mut(&(market_id, market_nonce)) {
+                    Some(group) => {
+                        group.add_event(evt);
+                    },
+                    None => {
+                        builders.insert(
+                            (market_id, market_nonce),
+                            EventGroupBuilder::new(evt, txn_info.clone()),
+                        );
+                    },
+                };
+            }
+
+            for builder in builders.into_values() {
+                let EventGroup {
+                    market_id,
+                    market_nonce,
+                    bump_event,
+                    state_event,
+                    periodic_state_events: periodic_events,
+                    txn_info,
+                } = builder.build();
+
+                insert_events.periodic_state_events.extend(
+                    PeriodicStateEventModel::from_periodic_events(
+                        txn_info.clone(),
+                        periodic_events,
+                        state_event.last_swap.clone(),
+                    ),
+                );
+
+                let market_addr = &state_event.market_metadata.market_address;
+
+                // A market resource in a transaction changeset will *always* contain the latest
+                // market state for that transaction by virtue of the writeset reflecting the
+                // final state of the market at the end of the transaction.
+                //
+                // Thus, the boolean condition to enter the `and_modify` code block below must
+                // use `<=` to ensure that in the case where the event with a lower nonce is
+                // inserted into the hashmap with `or_insert_with` first, the `latest_trigger`
+                // and `latest_instant_stats` are still properly updated.
+                //
+                // These comparisons remove the need to parse the writeset for every single
+                // event and instead only parse it for events that are newer than what's
+                // currently in the hashamp for that market.
+                latest_market_resources
+                    .entry(market_id)
+                    .and_modify(
+                        |(
+                            txn_info_for_latest,
+                            latest_resource,
+                            latest_trigger,
+                            latest_instant_stats,
+                        )| {
+                            if bigdecimal_to_u64(&latest_resource.sequence_info.nonce)
+                                <= market_nonce
+                            {
+                                // Writeset changes reflect the final state changes from the transaction; same version == same changes.
+                                if txn_info_for_latest.version != txn_version {
+                                    *latest_resource =
+                                        MarketResource::from_write_set_changes(txn, market_addr);
+                                    *txn_info_for_latest = txn_info.clone();
+                                }
+                                *latest_trigger = state_event.state_metadata.trigger;
+                                *latest_instant_stats = state_event.instantaneous_stats.clone();
+                            }
+                        },
+                    )
+                    .or_insert_with(|| {
+                        (
+                            txn_info.clone(),
+                            MarketResource::from_write_set_changes(txn, market_addr),
+                            state_event.state_metadata.trigger,
+                            state_event.instantaneous_stats.clone(),
+                        )
+                    });
+
+                match bump_event {
+                    BumpEvent::MarketRegistration(event) => {
+                        let mkt_registration_model =
+                            MarketRegistrationEventModel::new(txn_info.clone(), event, state_event);
+                        insert_events
+                            .market_registration_events
+                            .push(mkt_registration_model);
+                    },
+                    BumpEvent::Chat(chat) => {
+                        insert_events.chat_events.push(ChatEventModel::new(
+                            txn_info.clone(),
+                            chat,
+                            state_event,
+                        ));
+                    },
+                    BumpEvent::Swap(swap) => {
+                        let swap_model = SwapEventModel::new(txn_info.clone(), swap, state_event);
+                        insert_events.swap_events.push(swap_model);
+                    },
+                    BumpEvent::Liquidity(event) => {
+                        let market_addr = market_addr.clone();
+                        let evt_model =
+                            LiquidityEventModel::new(txn_info.clone(), event, state_event);
+                        insert_events.liquidity_events.push(evt_model.clone());
+
+                        // Only insert the latest pool activity for a user in this transaction.
+                        // That is, if a user interacts multiple times with one pool in one transaction,
+                        // only the latest interaction is used to insert/update the user's row for that pool.
+                        // Otherwise we'd needlessly overwrite the same row multiple times from one transaction.
+                        let key = (
+                            evt_model.provider.clone(),
+                            bigdecimal_to_u64(&evt_model.market_id),
+                        );
+                        let new_pool: UserLiquidityPoolsModel =
+                            UserLiquidityPoolsModel::from_event_and_writeset(
+                                txn,
+                                evt_model,
+                                &market_addr,
+                            );
+                        user_pools_db
+                            .entry(key)
+                            .and_modify(|pool| {
+                                if pool.market_nonce < new_pool.market_nonce {
+                                    *pool = new_pool.clone();
+                                }
+                            })
+                            .or_insert(new_pool);
+                    },
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
 #[async_trait]
 impl ProcessorTrait for EmojicoinProcessor {
     fn name(&self) -> &'static str {
@@ -503,28 +876,31 @@ impl ProcessorTrait for EmojicoinProcessor {
         end_version: u64,
         _: Option<u64>,
     ) -> anyhow::Result<ProcessingResult> {
-        let mut melee_data = self.melee_data.write().await;
-
         let processing_start = std::time::Instant::now();
         let last_transaction_timestamp = transactions.last().unwrap().timestamp.clone();
 
-        let mut register_events_db = vec![];
-        let mut swap_events_db = vec![];
-        let mut chat_events_db = vec![];
-        let mut liquidity_events_db = vec![];
-        let mut periodic_state_events_db = vec![];
-        let mut global_state_events_db = vec![];
-        let mut period_data = vec![];
-        let mut arena_melee_events_db = vec![];
-        let mut arena_enter_events_db = vec![];
-        let mut arena_exit_events_db = vec![];
-        let mut arena_swap_events_db = vec![];
-        let mut arena_vault_balance_update_events_db = vec![];
-        let mut arena_position_db = vec![];
-        let mut arena_info_db = vec![];
-        let mut arena_leaderboard_history_db = vec![];
-        let mut arena_info_update_db = vec![];
-        let mut arena_candlesticks = vec![];
+        let mut insert_events = InsertEvents {
+            market_registration_events: vec![],
+            swap_events: vec![],
+            chat_events: vec![],
+            liquidity_events: vec![],
+            periodic_state_events: vec![],
+            global_state_events: vec![],
+            market_latest_state_events: vec![],
+            market_1m_periods: vec![],
+            user_pools: vec![],
+            arena_melee_events: vec![],
+            arena_enter_events: vec![],
+            arena_exit_events: vec![],
+            arena_swap_events: vec![],
+            arena_vault_balance_update_events: vec![],
+            arena_position: vec![],
+            arena_info: vec![],
+            arena_leaderboard_history: vec![],
+            arena_info_update: vec![],
+            arena_candlesticks: vec![],
+        };
+
         // Store the writeset changes for each market in the transaction so we can lazily parse them later only for the
         // latest event for that market. We may get several writeset changes for the same market across all the transactions.
         let mut latest_market_resources: AHashMap<
@@ -532,369 +908,33 @@ impl ProcessorTrait for EmojicoinProcessor {
             (TxnInfo, MarketResource, Trigger, InstantaneousStats),
         > = AHashMap::new();
         let mut user_pools_db: AHashMap<(String, u64), UserLiquidityPoolsModel> = AHashMap::new();
+        let mut period_data = vec![];
+        let mut arena_candlestick_builders = vec![];
+
         let mut market_registrations = vec![];
         let mut states: AHashMap<BigDecimal, StateEvent> = AHashMap::new();
+
         for txn in &transactions {
-            let txn_version = txn.version as i64;
-            let block_number = txn.block_height as i64;
-            let txn_data = match txn.txn_data.as_ref() {
-                Some(data) => data,
-                None => {
-                    tracing::warn!(
-                        transaction_version = txn_version,
-                        "Transaction data doesn't exist"
-                    );
-                    PROCESSOR_UNKNOWN_TYPE_COUNT
-                        .with_label_values(&["EmojicoinProcessor"])
-                        .inc();
-                    continue;
-                },
-            };
-
-            if let TxnData::User(user_txn) = txn_data {
-                let user_request = user_txn
-                    .request
-                    .as_ref()
-                    .expect("User request info is not present in the user transaction.");
-                let entry_function = get_entry_function_from_user_request(user_request);
-                let txn_info = TxnInfo {
-                    block_number,
-                    version: txn_version,
-                    sender: standardize_address(user_request.sender.as_ref()),
-                    entry_function,
-                    timestamp: parse_timestamp(txn.timestamp.as_ref().unwrap(), txn_version),
-                };
-
-                // Group the market events in this transaction.
-                let mut market_events = vec![];
-
-                for (event_index, event) in user_txn.events.iter().enumerate() {
-                    let type_str = event.type_str.as_str();
-                    let data = event.data.as_str();
-
-                    // Only parse events that match an `EmojicoinTypeTag`. This protects against
-                    // parsing invalid or unexpected JSON data.
-                    if EmojicoinTypeTag::from_type_str(type_str).is_some() {
-                        // If it's an event with a market, parse it and add it to `market_events`
-                        // and possibly the one minute periodic state events.
-                        if let Some(evt) = EventWithMarket::from_event_type(
-                            type_str,
-                            data,
-                            txn_version,
-                            event_index as i64,
-                        )? {
-                            match &evt {
-                                EventWithMarket::State(state) => {
-                                    states.insert(
-                                        state.market_metadata.market_id.clone(),
-                                        state.clone(),
-                                    );
-                                    if let Some(melee_data) = melee_data.as_mut() {
-                                        if state.last_swap.nonce
-                                            == state.state_metadata.market_nonce
-                                            && (state.market_metadata.market_id
-                                                == melee_data.market_id_0
-                                                || state.market_metadata.market_id
-                                                    == melee_data.market_id_1)
-                                        {
-                                            if state.market_metadata.market_id
-                                                == melee_data.market_id_0
-                                            {
-                                                melee_data.price_0 = state.curve_price();
-                                            } else {
-                                                melee_data.price_1 = state.curve_price();
-                                            };
-                                            let candlestick =
-                                                ArenaCandlestickDiffModelBuilder::from_state_event(
-                                                    melee_data.melee_id.clone(),
-                                                    // We know at this point that the swap is in swaps
-                                                    // because the Swap event is emitted before its
-                                                    // corresponding State event.
-                                                    // We call rev as is should be the latest swap.
-                                                    state.clone(),
-                                                    txn_info.timestamp,
-                                                    (txn_info.version, event_index as i64),
-                                                    melee_data.price_0.clone(),
-                                                    melee_data.price_1.clone(),
-                                                );
-                                            arena_candlesticks.extend(candlestick);
-                                        }
-                                    }
-                                },
-                                EventWithMarket::MarketRegistration(mr) => {
-                                    market_registrations.push(mr.clone());
-                                },
-                                _ => {},
-                            }
-                            market_events.push(evt.clone());
-                            if let Some(one_min_pse) =
-                                RecentOneMinutePeriodicStateEvent::try_from_event(evt, txn_version)
-                            {
-                                period_data.push(one_min_pse);
-                            }
-                            // If it's an arena event, parse it and add it to the proper arena events vector.
-                        } else if let Some(evt) = ArenaEvent::from_event_type(
-                            type_str,
-                            data,
-                            txn_version,
-                            event_index as i64,
-                        )? {
-                            match evt {
-                                ArenaEvent::Melee(melee) => {
-                                    let pool = self.get_pool();
-                                    let model =
-                                        ArenaMeleeEventModel::new(txn_info.clone(), melee.clone());
-                                    let market_0 = get_market_data(
-                                        &melee.emojicoin_0_market_address,
-                                        &market_registrations,
-                                        &states,
-                                        &pool,
-                                    )
-                                    .await?;
-                                    let market_1 = get_market_data(
-                                        &melee.emojicoin_1_market_address,
-                                        &market_registrations,
-                                        &states,
-                                        &pool,
-                                    )
-                                    .await?;
-
-                                    // Add to melee events
-                                    arena_melee_events_db.push(model.clone());
-
-                                    // Add to leaderboard history
-                                    // This would be None only on the first MeleeEvent
-                                    if let Some(melee_data) = melee_data.as_ref() {
-                                        arena_leaderboard_history_db.push(
-                                            ArenaLeaderboardHistoryPartialModel::new(melee_data),
-                                        );
-                                    }
-
-                                    // Add to arena info
-                                    let arena_info_data = ArenaInfoData {
-                                        emojicoin_0_market_id: market_0.market_id.clone(),
-                                        emojicoin_1_market_id: market_1.market_id.clone(),
-                                        emojicoin_0_symbols: market_0.symbol_emojis,
-                                        emojicoin_1_symbols: market_1.symbol_emojis,
-                                    };
-                                    let arena_info = ArenaInfoModel::new(model, arena_info_data);
-                                    arena_info_db.push(arena_info);
-
-                                    // Update state
-                                    *melee_data = Some(MeleeData {
-                                        melee_id: melee.melee_id,
-                                        market_id_0: market_0.market_id,
-                                        market_id_1: market_1.market_id,
-                                        price_0: market_0.price,
-                                        price_1: market_1.price,
-                                    });
-                                },
-                                ArenaEvent::Enter(enter) => {
-                                    arena_position_db
-                                        .push(ArenaPositionDiffModel::from(enter.clone()));
-                                    let model = ArenaEnterEventModel::new(txn_info.clone(), enter);
-                                    arena_info_update_db
-                                        .push(ArenaInfoDiffUpdate::from(model.clone()));
-                                    arena_enter_events_db.push(model)
-                                },
-                                ArenaEvent::Exit(exit) => {
-                                    arena_position_db
-                                        .push(ArenaPositionDiffModel::from(exit.clone()));
-                                    let model = ArenaExitEventModel::new(
-                                        txn_info.clone(),
-                                        exit,
-                                        // This can never be None.
-                                        melee_data.as_ref().unwrap(),
-                                    );
-                                    arena_info_update_db
-                                        .push(ArenaInfoDiffUpdate::from(model.clone()));
-                                    arena_exit_events_db.push(model)
-                                },
-                                ArenaEvent::Swap(swap) => {
-                                    // This can never be None.
-                                    let melee_data = melee_data.as_ref().unwrap();
-                                    let (state_0, state_1) = (
-                                        states.get(&melee_data.market_id_0),
-                                        states.get(&melee_data.market_id_1),
-                                    );
-                                    if state_0.is_none() || state_0.is_none() {
-                                        bail!("The two previous State events related to this ArenaSwap event were not found.");
-                                    }
-                                    let (state_0, state_1) = (state_0.unwrap(), state_1.unwrap());
-                                    arena_position_db.push(ArenaPositionDiffModel::from_swap(
-                                        swap.clone(),
-                                        state_0,
-                                        state_1,
-                                    ));
-                                    let model = ArenaSwapEventModel::new(txn_info.clone(), swap);
-                                    arena_info_update_db.push(
-                                        ArenaInfoDiffUpdate::from_state_events(
-                                            model.clone(),
-                                            state_0,
-                                            state_1,
-                                        ),
-                                    );
-                                    arena_swap_events_db.push(model);
-                                },
-                                ArenaEvent::VaultBalanceUpdate(vault_balance_update) => {
-                                    arena_vault_balance_update_events_db.push(
-                                        ArenaVaultBalanceUpdateEventModel::new(
-                                            txn_info.clone(),
-                                            vault_balance_update,
-                                        ),
-                                    )
-                                },
-                            }
-                        // If it's a global state event, parse and add it to the global state events vector.
-                        } else if let Some(global_event) =
-                            GlobalStateEvent::from_event_type(type_str, data, txn_version)?
-                        {
-                            global_state_events_db
-                                .push(GlobalStateEventModel::new(txn_info.clone(), global_event));
-                        }
-                    }
-                }
-
-                // Keep in mind that these are collecting events and changes within the context of a single transaction,
-                // not all transactions.
-                let mut builders: AHashMap<(u64, u64), EventGroupBuilder> = AHashMap::new();
-                for evt in market_events.into_iter() {
-                    let (market_id, market_nonce) = (evt.get_market_id(), evt.get_market_nonce());
-                    match builders.get_mut(&(market_id, market_nonce)) {
-                        Some(group) => {
-                            group.add_event(evt);
-                        },
-                        None => {
-                            builders.insert(
-                                (market_id, market_nonce),
-                                EventGroupBuilder::new(evt, txn_info.clone()),
-                            );
-                        },
-                    };
-                }
-
-                for builder in builders.into_values() {
-                    let EventGroup {
-                        market_id,
-                        market_nonce,
-                        bump_event,
-                        state_event,
-                        periodic_state_events: periodic_events,
-                        txn_info,
-                    } = builder.build();
-
-                    periodic_state_events_db.extend(PeriodicStateEventModel::from_periodic_events(
-                        txn_info.clone(),
-                        periodic_events,
-                        state_event.last_swap.clone(),
-                    ));
-
-                    let market_addr = &state_event.market_metadata.market_address;
-
-                    // A market resource in a transaction changeset will *always* contain the latest
-                    // market state for that transaction by virtue of the writeset reflecting the
-                    // final state of the market at the end of the transaction.
-                    //
-                    // Thus, the boolean condition to enter the `and_modify` code block below must
-                    // use `<=` to ensure that in the case where the event with a lower nonce is
-                    // inserted into the hashmap with `or_insert_with` first, the `latest_trigger`
-                    // and `latest_instant_stats` are still properly updated.
-                    //
-                    // These comparisons remove the need to parse the writeset for every single
-                    // event and instead only parse it for events that are newer than what's
-                    // currently in the hashamp for that market.
-                    latest_market_resources
-                        .entry(market_id)
-                        .and_modify(
-                            |(
-                                txn_info_for_latest,
-                                latest_resource,
-                                latest_trigger,
-                                latest_instant_stats,
-                            )| {
-                                if bigdecimal_to_u64(&latest_resource.sequence_info.nonce)
-                                    <= market_nonce
-                                {
-                                    // Writeset changes reflect the final state changes from the transaction; same version == same changes.
-                                    if txn_info_for_latest.version != txn_version {
-                                        *latest_resource = MarketResource::from_write_set_changes(
-                                            txn,
-                                            market_addr,
-                                        );
-                                        *txn_info_for_latest = txn_info.clone();
-                                    }
-                                    *latest_trigger = state_event.state_metadata.trigger;
-                                    *latest_instant_stats = state_event.instantaneous_stats.clone();
-                                }
-                            },
-                        )
-                        .or_insert_with(|| {
-                            (
-                                txn_info.clone(),
-                                MarketResource::from_write_set_changes(txn, market_addr),
-                                state_event.state_metadata.trigger,
-                                state_event.instantaneous_stats.clone(),
-                            )
-                        });
-
-                    match bump_event {
-                        BumpEvent::MarketRegistration(event) => {
-                            let mkt_registration_model = MarketRegistrationEventModel::new(
-                                txn_info.clone(),
-                                event,
-                                state_event,
-                            );
-                            register_events_db.push(mkt_registration_model);
-                        },
-                        BumpEvent::Chat(chat) => {
-                            chat_events_db.push(ChatEventModel::new(
-                                txn_info.clone(),
-                                chat,
-                                state_event,
-                            ));
-                        },
-                        BumpEvent::Swap(swap) => {
-                            let swap_model =
-                                SwapEventModel::new(txn_info.clone(), swap, state_event);
-                            swap_events_db.push(swap_model);
-                        },
-                        BumpEvent::Liquidity(event) => {
-                            let market_addr = market_addr.clone();
-                            let evt_model =
-                                LiquidityEventModel::new(txn_info.clone(), event, state_event);
-                            liquidity_events_db.push(evt_model.clone());
-
-                            // Only insert the latest pool activity for a user in this transaction.
-                            // That is, if a user interacts multiple times with one pool in one transaction,
-                            // only the latest interaction is used to insert/update the user's row for that pool.
-                            // Otherwise we'd needlessly overwrite the same row multiple times from one transaction.
-                            let key = (
-                                evt_model.provider.clone(),
-                                bigdecimal_to_u64(&evt_model.market_id),
-                            );
-                            let new_pool: UserLiquidityPoolsModel =
-                                UserLiquidityPoolsModel::from_event_and_writeset(
-                                    txn,
-                                    evt_model,
-                                    &market_addr,
-                                );
-                            user_pools_db
-                                .entry(key)
-                                .and_modify(|pool| {
-                                    if pool.market_nonce < new_pool.market_nonce {
-                                        *pool = new_pool.clone();
-                                    }
-                                })
-                                .or_insert(new_pool);
-                        },
-                    }
-                }
-            }
+            let res = self
+                .process_transaction(
+                    txn,
+                    &mut user_pools_db,
+                    &mut market_registrations,
+                    &mut period_data,
+                    &mut latest_market_resources,
+                    &mut arena_candlestick_builders,
+                    &mut states,
+                    &mut insert_events,
+                )
+                .await;
+            res.with_context(|| format!("Could not process transaction {}.", txn.version))?;
         }
+
+        insert_events.user_pools = user_pools_db.into_values().collect_vec();
 
         let pool = self.get_pool();
 
-        let market_latest_state_events = latest_market_resources
+        insert_events.market_latest_state_events = latest_market_resources
             .into_values()
             .map(|(txn_info, market, trigger, instant_stats)| {
                 MarketLatestStateEventModel::from_txn_and_market_resource(
@@ -906,29 +946,44 @@ impl ProcessorTrait for EmojicoinProcessor {
             })
             .collect_vec();
 
-        let market_1m_periods: Vec<MarketOneMinutePeriodsInLastDayModel> = period_data
+        insert_events.market_1m_periods = period_data
             .clone()
             .into_iter()
             .map(|p| p.into())
             .collect_vec();
 
+        insert_events.arena_position = ArenaPositionDiffModel::merge(insert_events.arena_position);
+
+        insert_events.arena_info_update =
+            ArenaInfoDiffUpdate::merge(insert_events.arena_info_update);
+
+        insert_events.arena_candlesticks =
+            ArenaCandlestickDiffModelBuilder::merge(arena_candlestick_builders)
+                .into_iter()
+                .map(|a| a.into())
+                .collect();
+
         let processing_duration_in_secs = processing_start.elapsed().as_secs_f64();
         let db_insertion_start = std::time::Instant::now();
 
         let all_db_events = vec![
-            EmojicoinDbEvent::from_market_registration_events(&register_events_db),
-            EmojicoinDbEvent::from_swap_events(&swap_events_db),
-            EmojicoinDbEvent::from_chat_events(&chat_events_db),
-            EmojicoinDbEvent::from_liquidity_events(&liquidity_events_db),
-            EmojicoinDbEvent::from_periodic_state_events(&periodic_state_events_db),
-            EmojicoinDbEvent::from_global_state_events(&global_state_events_db),
-            EmojicoinDbEvent::from_market_latest_state_events(&market_latest_state_events),
-            EmojicoinDbEvent::from_arena_melee(&arena_melee_events_db),
-            EmojicoinDbEvent::from_arena_enter(&arena_enter_events_db),
-            EmojicoinDbEvent::from_arena_exit(&arena_exit_events_db),
-            EmojicoinDbEvent::from_arena_swap(&arena_swap_events_db),
+            EmojicoinDbEvent::from_market_registration_events(
+                &insert_events.market_registration_events,
+            ),
+            EmojicoinDbEvent::from_swap_events(&insert_events.swap_events),
+            EmojicoinDbEvent::from_chat_events(&insert_events.chat_events),
+            EmojicoinDbEvent::from_liquidity_events(&insert_events.liquidity_events),
+            EmojicoinDbEvent::from_periodic_state_events(&insert_events.periodic_state_events),
+            EmojicoinDbEvent::from_global_state_events(&insert_events.global_state_events),
+            EmojicoinDbEvent::from_market_latest_state_events(
+                &insert_events.market_latest_state_events,
+            ),
+            EmojicoinDbEvent::from_arena_melee(&insert_events.arena_melee_events),
+            EmojicoinDbEvent::from_arena_enter(&insert_events.arena_enter_events),
+            EmojicoinDbEvent::from_arena_exit(&insert_events.arena_exit_events),
+            EmojicoinDbEvent::from_arena_swap(&insert_events.arena_swap_events),
             EmojicoinDbEvent::from_arena_vault_balance_update(
-                &arena_vault_balance_update_events_db,
+                &insert_events.arena_vault_balance_update_events,
             ),
         ]
         .into_iter()
@@ -937,42 +992,12 @@ impl ProcessorTrait for EmojicoinProcessor {
 
         self.publish_events(all_db_events);
 
-        arena_position_db = ArenaPositionDiffModel::merge(arena_position_db);
-
-        arena_info_update_db = ArenaInfoDiffUpdate::merge(arena_info_update_db);
-
-        let arena_candlesticks_db: Vec<_> =
-            ArenaCandlestickDiffModelBuilder::merge(arena_candlesticks)
-                .into_iter()
-                .map(|a| a.into())
-                .collect();
-
         let tx_result = insert_to_db(
             pool,
             self.name(),
             start_version,
             end_version,
-            InsertEvents {
-                market_registration_events: &register_events_db,
-                swap_events: &swap_events_db,
-                chat_events: &chat_events_db,
-                liquidity_events: &liquidity_events_db,
-                periodic_state_events: &periodic_state_events_db,
-                global_state_events: &global_state_events_db,
-                market_latest_state_events: &market_latest_state_events,
-                market_1m_periods: &market_1m_periods,
-                user_pools: user_pools_db.into_values().collect_vec().as_slice(),
-                arena_melee_events: &arena_melee_events_db,
-                arena_enter_events: &arena_enter_events_db,
-                arena_exit_events: &arena_exit_events_db,
-                arena_swap_events: &arena_swap_events_db,
-                arena_vault_balance_update_events: &arena_vault_balance_update_events_db,
-                arena_position: &arena_position_db,
-                arena_info: &arena_info_db,
-                arena_leaderboard_history: &arena_leaderboard_history_db,
-                arena_info_update: &arena_info_update_db,
-                arena_candlesticks: &arena_candlesticks_db,
-            },
+            insert_events,
             &self.per_table_chunk_sizes,
         )
         .await;
