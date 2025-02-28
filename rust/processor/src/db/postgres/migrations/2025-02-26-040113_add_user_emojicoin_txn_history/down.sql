@@ -1,11 +1,10 @@
 -- This file should undo anything in `up.sql`
+
 DROP INDEX IF EXISTS sender_mkt_swap_hstry_idx;
 DROP INDEX IF EXISTS sender_all_swap_hstry_idx;
 DROP INDEX IF EXISTS sender_all_chat_hstry_idx;
 DROP INDEX IF EXISTS sender_all_pool_hstry_idx;
 DROP INDEX IF EXISTS sender_all_mkt_rgstr_hstry_idx;
-
-DROP FUNCTION user_emojicoin_txn_history(user text);
 
 ALTER TABLE chat_events
     DROP COLUMN event_index;

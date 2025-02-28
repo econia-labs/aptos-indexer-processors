@@ -29,41 +29,13 @@ ALTER TABLE market_registration_events
 --------------------------------------------------------------------------------
 
 -- For querying a user's chronologically descending trade history for a single
--- market. We can use the `market_nonce` here because they're inherently ordered
--- by time on a per-market basis.
-CREATE INDEX sender_mkt_swap_hstry_idx ON swap_events (sender, market_id, market_nonce);
+-- market. Event index is not included because the number of events per txn
+-- is generally less than 100. 
+CREATE INDEX sender_mkt_swap_hstry_idx ON swap_events (sender, market_id, transaction_version);
 
--- However, for querying a user's total transaction history across multiple
--- markets, the transaction version combined with the event index is the only
--- accurate representation of chronological ordering.
--- The event index is only used to sort events that have occurred within the
--- same transaction, i.e., it is a secondary key on the final chronological
--- sort; therefore, it does not need an index.
+-- For querying all of a user's activity of a certain type. Event index not
+-- included again for the same reason as mentioned above.
 CREATE INDEX sender_all_swap_hstry_idx ON swap_events (sender, transaction_version);
 CREATE INDEX sender_all_chat_hstry_idx ON chat_events (sender, transaction_version);
 CREATE INDEX sender_all_pool_hstry_idx ON liquidity_events (sender, transaction_version);
 CREATE INDEX sender_all_mkt_rgstr_hstry_idx ON market_registration_events (sender, transaction_version);
-
--- The only way to enforce that the subqueries filter by the sender/user's address
--- prior to the UNION ALLs is by making this a function.
-CREATE FUNCTION user_emojicoin_txn_history(user text) RETURNS TABLE(
-    event_data JSON
-)
-AS $$
-WITH
-    swaps AS (SELECT * FROM swap_events WHERE sender = $1),
-    chats AS (SELECT * FROM chat_events WHERE sender = $1),
-    liqs AS (SELECT * FROM liquidity_events WHERE sender = $1),
-    regs AS (SELECT * FROM market_registration_events WHERE sender = $1)
-SELECT row_to_json(events) AS event_data
-FROM (
-    SELECT transaction_version, event_index, swaps AS events FROM swaps
-    UNION ALL
-    SELECT transaction_version, event_index, chats AS events FROM chats
-    UNION ALL
-    SELECT transaction_version, event_index, liqs AS events FROM liqs
-    UNION ALL
-    SELECT transaction_version, event_index, regs AS events FROM regs
-) AS all_events
-ORDER BY transaction_version DESC, event_index DESC;
-$$ LANGUAGE SQL;
