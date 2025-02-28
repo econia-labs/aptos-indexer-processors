@@ -6,7 +6,7 @@ ALTER TABLE market_registration_events
     ADD COLUMN event_index BIGINT NOT NULL;
     
 --------------------------------------------------------------------------------
--- For these queries, "sender" is used as the representation of a user instead
+-- For these indexes, "sender" is used as the representation of a user instead
 -- of the emitted fields that represent the interacting account's address;
 -- i.e., the "swapper", "user", "provider", and "registrant". 
 --
@@ -28,13 +28,10 @@ ALTER TABLE market_registration_events
 -- with there, not here.
 --------------------------------------------------------------------------------
 
--- For querying a user's chronologically descending trade history for a single
--- market. Event index is not included because the number of events per txn
--- is generally less than 100. 
+-- For querying a user's trade history for a single market.
 CREATE INDEX sender_mkt_swap_hstry_idx ON swap_events (sender, market_id, transaction_version);
 
--- For querying all of a user's activity of a certain type. Event index not
--- included again for the same reason as mentioned above.
+-- For querying all of a user's activity of a certain type.
 CREATE INDEX sender_all_swap_hstry_idx ON swap_events (sender, transaction_version);
 CREATE INDEX sender_all_chat_hstry_idx ON chat_events (sender, transaction_version);
 CREATE INDEX sender_all_pool_hstry_idx ON liquidity_events (sender, transaction_version);
