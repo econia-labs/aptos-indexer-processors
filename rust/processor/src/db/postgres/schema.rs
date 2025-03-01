@@ -95,6 +95,23 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::PeriodType;
+
+    arena_candlestick (melee_id, period, start_time) {
+        melee_id -> Numeric,
+        period -> PeriodType,
+        start_time -> Timestamp,
+        open_price -> Nullable<Numeric>,
+        high_price -> Nullable<Numeric>,
+        low_price -> Nullable<Numeric>,
+        close_price -> Nullable<Numeric>,
+        volume -> Numeric,
+        n_swaps -> Numeric,
+    }
+}
+
+diesel::table! {
     arena_enter_events (transaction_version, event_index) {
         transaction_version -> Int8,
         event_index -> Int8,
@@ -139,6 +156,7 @@ diesel::table! {
         emojicoin_0_exchange_rate_quote -> Numeric,
         emojicoin_1_exchange_rate_base -> Numeric,
         emojicoin_1_exchange_rate_quote -> Numeric,
+        during_melee -> Bool,
     }
 }
 
@@ -231,6 +249,7 @@ diesel::table! {
         emojicoin_0_exchange_rate_quote -> Numeric,
         emojicoin_1_exchange_rate_base -> Numeric,
         emojicoin_1_exchange_rate_quote -> Numeric,
+        during_melee -> Bool,
     }
 }
 
@@ -1817,6 +1836,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     ans_lookup_v2,
     ans_primary_name,
     ans_primary_name_v2,
+    arena_candlestick,
     arena_enter_events,
     arena_exit_events,
     arena_info,

@@ -1,6 +1,6 @@
 use crate::{
     db::common::models::emojicoin_models::json_types::{
-        ArenaEnterEvent, ArenaExitEvent, ArenaSwapEvent, SwapEvent,
+        ArenaEnterEvent, ArenaExitEvent, ArenaSwapEvent, StateEvent,
     },
     schema::arena_position,
 };
@@ -73,14 +73,17 @@ impl From<ArenaEnterEvent> for ArenaPositionDiffModel {
 impl ArenaPositionDiffModel {
     pub fn from_swap(
         arena_swap_event: ArenaSwapEvent,
-        swaps: (SwapEvent, SwapEvent),
+        state_0: &StateEvent,
+        state_1: &StateEvent,
     ) -> ArenaPositionDiffModel {
         ArenaPositionDiffModel {
             user: arena_swap_event.user,
             melee_id: arena_swap_event.melee_id,
             open: true,
-            emojicoin_0_balance: swaps.0.base_volume * if swaps.0.is_sell { -1 } else { 1 },
-            emojicoin_1_balance: swaps.1.base_volume * if swaps.1.is_sell { -1 } else { 1 },
+            emojicoin_0_balance: state_0.last_swap.base_volume.clone()
+                * if state_0.last_swap.is_sell { -1 } else { 1 },
+            emojicoin_1_balance: state_1.last_swap.base_volume.clone()
+                * if state_1.last_swap.is_sell { -1 } else { 1 },
             withdrawals: BigDecimal::zero(),
             deposits: BigDecimal::zero(),
             match_amount: BigDecimal::zero(),

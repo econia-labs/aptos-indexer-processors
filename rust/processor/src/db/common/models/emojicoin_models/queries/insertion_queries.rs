@@ -1,5 +1,5 @@
 use crate::{db::common::models::emojicoin_models::models::prelude::*, schema};
-use bigdecimal::{BigDecimal, Zero};
+use bigdecimal::Zero;
 use diesel::{
     dsl::sql,
     pg::Pg,
@@ -318,11 +318,30 @@ pub fn update_arena_info_query(
 }
 
 pub fn insert_arena_leaderboard_history_query(
-    melee_id: BigDecimal,
+    arena_leaderboard_history_model: ArenaLeaderboardHistoryPartialModel,
 ) -> impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send {
     let mut query = include_str!("./leaderboard.sql").to_string();
 
-    query = query.replace("$1", &melee_id.to_string());
+    // See header comment of leaderboard.sql for more information on query parameters.
+
+    // $1 is the melee_id
+    query = query.replace("$1", &arena_leaderboard_history_model.melee_id.to_string());
+
+    // $2 is the curve price of emojicoin_0
+    query = query.replace(
+        "$2",
+        &arena_leaderboard_history_model
+            .emojicoin_0_price
+            .to_string(),
+    );
+
+    // $3 is the curve price of emojicoin_1
+    query = query.replace(
+        "$3",
+        &arena_leaderboard_history_model
+            .emojicoin_1_price
+            .to_string(),
+    );
 
     sql_query(query)
 }
@@ -400,6 +419,46 @@ pub fn insert_arena_vault_balance_update_events_query(
             .values(items_to_insert)
             .on_conflict((transaction_version, event_index))
             .do_nothing(),
+        None,
+    )
+}
+
+pub fn insert_arena_candlesticks_query(
+    items_to_insert: Vec<ArenaCandlestickDiffModel>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::arena_candlestick::dsl::*;
+    (
+        diesel::insert_into(schema::arena_candlestick::table)
+            .values(items_to_insert)
+            .on_conflict((melee_id, period, start_time))
+            .do_update()
+            .set((
+                open_price.eq(sql("COALESCE(")
+                    .bind(open_price)
+                    .sql(",")
+                    .bind(excluded(open_price))
+                    .sql(")")),
+                high_price.eq(sql("GREATEST(COALESCE(")
+                    .bind(high_price)
+                    .sql(",")
+                    .bind(excluded(high_price))
+                    .sql("),")
+                    .bind(excluded(high_price))
+                    .sql(")")),
+                low_price.eq(sql("LEAST(COALESCE(")
+                    .bind(low_price)
+                    .sql(",")
+                    .bind(excluded(low_price))
+                    .sql("),")
+                    .bind(excluded(low_price))
+                    .sql(")")),
+                close_price.eq(excluded(close_price)),
+                volume.eq(volume + excluded(volume)),
+                n_swaps.eq(n_swaps + excluded(n_swaps)),
+            )),
         None,
     )
 }

@@ -7,6 +7,7 @@ use super::{
     json_types::{ArenaEvent, EventWithMarket, GlobalStateEvent},
     models::prelude::*,
 };
+use chrono::TimeDelta;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(
@@ -79,6 +80,8 @@ where
 )]
 #[ExistingTypePath = "crate::schema::sql_types::PeriodType"]
 pub enum Period {
+    #[db_rename = "period_15s"]
+    FifteenSeconds,
     #[db_rename = "period_1m"]
     OneMinute,
     #[db_rename = "period_5m"]
@@ -100,6 +103,7 @@ where
     S: Serializer,
 {
     let r = match element {
+        Period::FifteenSeconds => "15000000",
         Period::OneMinute => "60000000",
         Period::FiveMinutes => "300000000",
         Period::FifteenMinutes => "900000000",
@@ -118,6 +122,7 @@ where
     use serde::de::Error;
     let period = <String>::deserialize(deserializer)?;
     match period.as_str() {
+        "15000000" => Ok(Period::FifteenSeconds),
         "60000000" => Ok(Period::OneMinute),
         "300000000" => Ok(Period::FiveMinutes),
         "900000000" => Ok(Period::FifteenMinutes),
@@ -129,6 +134,21 @@ where
             "Failed to deserialize PeriodType from string: {}",
             period
         ))),
+    }
+}
+
+impl Period {
+    pub fn to_time_delta(self) -> TimeDelta {
+        match self {
+            Period::FifteenSeconds => TimeDelta::try_seconds(15).unwrap(),
+            Period::OneMinute => TimeDelta::try_minutes(1).unwrap(),
+            Period::FiveMinutes => TimeDelta::try_minutes(5).unwrap(),
+            Period::FifteenMinutes => TimeDelta::try_minutes(15).unwrap(),
+            Period::ThirtyMinutes => TimeDelta::try_minutes(30).unwrap(),
+            Period::OneHour => TimeDelta::try_hours(1).unwrap(),
+            Period::FourHours => TimeDelta::try_hours(4).unwrap(),
+            Period::OneDay => TimeDelta::try_days(1).unwrap(),
+        }
     }
 }
 
