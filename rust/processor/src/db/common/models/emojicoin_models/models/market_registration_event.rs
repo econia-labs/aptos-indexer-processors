@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 pub struct MarketRegistrationEventModel {
     // Transaction metadata.
     pub transaction_version: i64,
+    pub event_index: i64,
     pub sender: String,
     pub entry_function: Option<String>,
     pub transaction_timestamp: chrono::NaiveDateTime,
@@ -48,12 +49,14 @@ impl MarketRegistrationEventModel {
             registrant,
             integrator,
             integrator_fee,
+            event_index,
             ..
         } = market_registration_event;
 
         MarketRegistrationEventModel {
             // Transaction metadata.
             transaction_version: txn_info.version,
+            event_index,
             sender: txn_info.sender.clone(),
             entry_function: txn_info.entry_function.clone(),
             transaction_timestamp: txn_info.timestamp,

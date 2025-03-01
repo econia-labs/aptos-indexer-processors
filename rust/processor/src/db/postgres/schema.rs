@@ -310,6 +310,7 @@ diesel::table! {
         last_swap_quote_volume -> Numeric,
         last_swap_nonce -> Numeric,
         last_swap_time -> Timestamp,
+        event_index -> Int8,
     }
 }
 
@@ -1244,6 +1245,7 @@ diesel::table! {
         #[max_length = 66]
         integrator -> Varchar,
         integrator_fee -> Numeric,
+        event_index -> Int8,
     }
 }
 
