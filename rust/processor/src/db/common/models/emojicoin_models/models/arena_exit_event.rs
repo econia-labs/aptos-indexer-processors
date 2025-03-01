@@ -30,7 +30,7 @@ pub struct ArenaExitEventModel {
     pub emojicoin_1_exchange_rate_base: BigDecimal,
     pub emojicoin_1_exchange_rate_quote: BigDecimal,
 
-    pub after_end: bool,
+    pub during_melee: bool,
 }
 
 impl ArenaExitEventModel {
@@ -48,7 +48,7 @@ impl ArenaExitEventModel {
             transaction_timestamp: txn_info.timestamp,
 
             user: arena_exit_event.user,
-            after_end: melee_data.melee_id != arena_exit_event.melee_id,
+            during_melee: melee_data.melee_id == arena_exit_event.melee_id,
             melee_id: arena_exit_event.melee_id,
             tap_out_fee: arena_exit_event.tap_out_fee,
 
