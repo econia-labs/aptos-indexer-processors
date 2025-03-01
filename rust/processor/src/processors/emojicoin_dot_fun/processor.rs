@@ -886,7 +886,7 @@ impl ProcessorTrait for EmojicoinProcessor {
         transactions: Vec<Transaction>,
         start_version: u64,
         end_version: u64,
-        _: Option<u64>,
+        _db_chain_id: Option<u64>,
     ) -> anyhow::Result<ProcessingResult> {
         let processing_start = std::time::Instant::now();
         let last_transaction_timestamp = transactions.last().unwrap().timestamp.clone();

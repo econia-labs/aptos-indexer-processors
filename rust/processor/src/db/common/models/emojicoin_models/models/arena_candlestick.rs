@@ -77,7 +77,7 @@ impl ArenaCandlestickDiffModelBuilder {
 
         for period in periods {
             let start_time = transaction_timestamp
-                .duration_round(period.to_time_delta())
+                .duration_trunc(period.to_time_delta())
                 .unwrap();
             let price = price_0.clone() / price_1.clone();
             let x = Self {
@@ -98,7 +98,6 @@ impl ArenaCandlestickDiffModelBuilder {
         candlesticks
     }
 }
-
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(melee_id, period, start_time))]
 #[diesel(table_name = arena_candlestick)]
