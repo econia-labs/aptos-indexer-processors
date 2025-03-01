@@ -1,9 +1,9 @@
 -- Insert a snapshot of the leaderboard in arena_leaderboard_history for the
 -- given melee ID.
 
--- The performance of this query has not been established, but should be
--- irrelevant, as arenas end once every 24 hours, and this script only runs
--- when an arena ends
+-- This query hasn't been optimized, but as long as it isn't egregiously
+-- inefficient it isn't a significant concern, since it's only used once
+-- every 24 hours when an arena ends.
 
 
 -- This query takes three parameters:
@@ -83,7 +83,7 @@ last_balances AS (
 SELECT
     position."user",
     $1 AS melee_id,
-    -- Proifts = Withdrawals in APT + current emojicoin balance converted to APT.
+    -- Profits = Withdrawals in APT + current emojicoin balance converted to APT.
     COALESCE(withdrawals, 0) +
         ROUND(
             emojicoin_0_balance * $2 +
@@ -92,9 +92,10 @@ SELECT
     deposits AS losses,
     emojicoin_0_balance,
     emojicoin_1_balance,
-    -- If user has no balance at the end of the melee, or he has, but there is
-    -- an exit event that happened after the end of the melee, then set exited
-    -- to true, otherwise to false.
+    -- Determine whether the user has exited or not by checking that:
+    --   1. The user has no balance at the end of the melee.
+    --                           OR
+    --   2. There is an exit event for the user *after* that melee ended.
     emojicoin_0_balance + emojicoin_1_balance = 0
     OR
     EXISTS(
