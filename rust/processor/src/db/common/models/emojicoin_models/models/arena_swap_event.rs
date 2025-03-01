@@ -1,5 +1,6 @@
 use crate::{
     db::common::models::emojicoin_models::json_types::{ArenaSwapEvent, TxnInfo},
+    processors::emojicoin_dot_fun::processor::MeleeData,
     schema::arena_swap_events,
 };
 use bigdecimal::BigDecimal;
@@ -28,10 +29,16 @@ pub struct ArenaSwapEventModel {
     pub emojicoin_0_exchange_rate_quote: BigDecimal,
     pub emojicoin_1_exchange_rate_base: BigDecimal,
     pub emojicoin_1_exchange_rate_quote: BigDecimal,
+
+    pub during_melee: bool,
 }
 
 impl ArenaSwapEventModel {
-    pub fn new(txn_info: TxnInfo, arena_swap_event: ArenaSwapEvent) -> ArenaSwapEventModel {
+    pub fn new(
+        txn_info: TxnInfo,
+        arena_swap_event: ArenaSwapEvent,
+        melee_data: &MeleeData,
+    ) -> ArenaSwapEventModel {
         ArenaSwapEventModel {
             // Transaction metadata.
             transaction_version: txn_info.version,
@@ -41,6 +48,7 @@ impl ArenaSwapEventModel {
             transaction_timestamp: txn_info.timestamp,
 
             user: arena_swap_event.user,
+            during_melee: melee_data.melee_id == arena_swap_event.melee_id,
             melee_id: arena_swap_event.melee_id,
             quote_volume: arena_swap_event.quote_volume,
             integrator_fee: arena_swap_event.integrator_fee,
