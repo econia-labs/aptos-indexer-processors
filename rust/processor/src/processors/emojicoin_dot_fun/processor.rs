@@ -25,7 +25,7 @@ use crate::{
     },
 };
 use ahash::AHashMap;
-use anyhow::{bail, ensure, Context};
+use anyhow::{bail, Context};
 use aptos_protos::transaction::v1::{transaction::TxnData, Transaction};
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
@@ -672,8 +672,7 @@ impl EmojicoinProcessor {
                                 let model = ArenaExitEventModel::new(
                                     txn_info.clone(),
                                     exit,
-                                    // This can never be None.
-                                    melee_data.as_ref().unwrap(),
+                                    melee_data.as_ref().expect("Exit event should always appear after melee data is loaded in state."),
                                 );
                                 insert_events
                                     .arena_info_update
@@ -681,18 +680,17 @@ impl EmojicoinProcessor {
                                 insert_events.arena_exit_events.push(model)
                             },
                             ArenaEvent::Swap(swap) => {
-                                ensure!(
-                                    last_two_states.0.is_some() && last_two_states.1.is_some(),
-                                    "The two previous State events related to this ArenaSwap event were not found."
-                                );
-                                let (mut state_0, mut state_1) = (None, None);
-                                std::mem::swap(&mut state_0, &mut last_two_states.0);
-                                std::mem::swap(&mut state_1, &mut last_two_states.1);
-                                let (state_0, state_1) = (state_0.unwrap(), state_1.unwrap());
+                                let state_a = last_two_states.0
+                                    .take()
+                                    .expect("The first state for this arena swap should be processed already.");
+                                let state_b = last_two_states.1
+                                    .take()
+                                    .expect("The second state for this arena swap should be processed already.");
+                                // Ensure the two state events are in the correct order.
                                 let (state_0, state_1) = if swap.emojicoin_0_proceeds.is_zero() {
-                                    (state_1, state_0)
+                                    (state_b, state_a)
                                 } else {
-                                    (state_0, state_1)
+                                    (state_a, state_b)
                                 };
                                 insert_events.arena_position.push(
                                     ArenaPositionDiffModel::from_swap(
