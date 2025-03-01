@@ -61,7 +61,7 @@ CREATE TABLE arena_exit_events (
     emojicoin_1_exchange_rate_base NUMERIC NOT NULL,
     emojicoin_1_exchange_rate_quote NUMERIC NOT NULL,
 
-    after_end BOOLEAN NOT NULL,
+    during_melee BOOLEAN NOT NULL,
 
     PRIMARY KEY (transaction_version, event_index)
 );
@@ -84,6 +84,8 @@ CREATE TABLE arena_swap_events (
     emojicoin_0_exchange_rate_quote NUMERIC NOT NULL,
     emojicoin_1_exchange_rate_base NUMERIC NOT NULL,
     emojicoin_1_exchange_rate_quote NUMERIC NOT NULL,
+
+    during_melee BOOLEAN NOT NULL,
 
     PRIMARY KEY (transaction_version, event_index)
 );
@@ -162,7 +164,6 @@ CREATE TABLE arena_candlestick (
     low_price NUMERIC,
     close_price NUMERIC,
     volume NUMERIC NOT NULL,
-    integrator_fees NUMERIC NOT NULL,
     n_swaps NUMERIC NOT NULL,
 
     PRIMARY KEY (melee_id, period, start_time)

@@ -107,7 +107,6 @@ diesel::table! {
         low_price -> Nullable<Numeric>,
         close_price -> Nullable<Numeric>,
         volume -> Numeric,
-        integrator_fees -> Numeric,
         n_swaps -> Numeric,
     }
 }
@@ -157,7 +156,7 @@ diesel::table! {
         emojicoin_0_exchange_rate_quote -> Numeric,
         emojicoin_1_exchange_rate_base -> Numeric,
         emojicoin_1_exchange_rate_quote -> Numeric,
-        after_end -> Bool,
+        during_melee -> Bool,
     }
 }
 
@@ -250,6 +249,7 @@ diesel::table! {
         emojicoin_0_exchange_rate_quote -> Numeric,
         emojicoin_1_exchange_rate_base -> Numeric,
         emojicoin_1_exchange_rate_quote -> Numeric,
+        during_melee -> Bool,
     }
 }
 

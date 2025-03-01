@@ -5,6 +5,13 @@
 -- irrelevant, as arenas end once every 24 hours, and this script only runs
 -- when an arena ends
 
+
+-- This query takes three parameters:
+--
+-- $1: the melee_id for which to calculate the leaderboard
+-- $2: the curve price of emojicoin_0 at the end of the melee
+-- $3: the curve price of emojicoin_1 at the end of the melee
+
 INSERT INTO arena_leaderboard_history (
     "user",
     melee_id,
@@ -32,7 +39,7 @@ withdrawals AS (
         SUM(apt_proceeds) as withdrawals
     FROM arena_exit_events
     WHERE melee_id = $1
-    AND NOT after_end
+    AND during_melee
     GROUP BY "user"
 ),
 -- Get the last balance the user had at the end of the melee.
@@ -59,6 +66,7 @@ last_balances AS (
             emojicoin_1_proceeds AS emojicoin_1_balance
         FROM arena_swap_events
         WHERE melee_id = $1
+        AND during_melee
         UNION ALL
         SELECT
             "user",
@@ -68,7 +76,7 @@ last_balances AS (
             0::numeric AS emojicoin_1_balance
         FROM arena_exit_events
         WHERE melee_id = $1
-        AND NOT after_end
+        AND during_melee
     ) AS a
     ORDER BY "user", transaction_version DESC, event_index DESC
 )
@@ -93,11 +101,13 @@ SELECT
         SELECT * FROM arena_exit_events AS aee
         WHERE aee."user" = position."user"
         AND melee_id = $1
-        AND after_end
+        AND NOT during_melee
     )
     AS exited,
     last_exit_0,
     COALESCE(withdrawals, 0) AS withdrawals
 FROM position
     NATURAL INNER JOIN last_balances
-    NATURAL LEFT JOIN withdrawals;
+    NATURAL LEFT JOIN withdrawals
+ON CONFLICT
+DO NOTHING;
