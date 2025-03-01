@@ -577,10 +577,6 @@ impl EmojicoinProcessor {
                                         let candlestick =
                                             ArenaCandlestickDiffModelBuilder::from_state_event(
                                                 melee_data.melee_id.clone(),
-                                                // We know at this point that the swap is in swaps
-                                                // because the Swap event is emitted before its
-                                                // corresponding State event.
-                                                // We call rev as is should be the latest swap.
                                                 state.clone(),
                                                 txn_info.timestamp,
                                                 (txn_info.version, event_index as i64),
