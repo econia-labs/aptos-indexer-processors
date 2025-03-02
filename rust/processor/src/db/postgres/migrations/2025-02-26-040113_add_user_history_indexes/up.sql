@@ -48,7 +48,7 @@ ON swap_events (
     base_volume,
     quote_volume,
     avg_execution_price_q64,
-    in_bonding_curve
+    lp_coin_supply -- To determine bonding curve status.
 );
 
 CREATE INDEX sender_mkt_swap_hstry_idx
@@ -64,7 +64,7 @@ ON swap_events (
     base_volume,
     quote_volume,
     avg_execution_price_q64,
-    in_bonding_curve 
+    lp_coin_supply -- To determine bonding curve status.
 );
 
 CREATE INDEX sender_all_chat_hstry_idx
@@ -79,7 +79,7 @@ ON chat_events (
     "message",
     user_emojicoin_balance,
     last_swap_avg_execution_price_q64,
-    in_bonding_curve
+    lp_coin_supply -- To determine bonding curve status.
 );
 
 CREATE INDEX sender_mkt_chat_hstry_idx
@@ -94,7 +94,7 @@ ON chat_events (
     "message",
     user_emojicoin_balance,
     last_swap_avg_execution_price_q64,
-    in_bonding_curve
+    lp_coin_supply -- To determine bonding curve status.
 );
 
 CREATE INDEX sender_all_pool_hstry_idx
@@ -138,6 +138,5 @@ ON market_registration_events (
 ) INCLUDE (
     transaction_timestamp,
     market_id, -- here.
-    symbol_emojis,
-    market_id
+    symbol_emojis
 );
