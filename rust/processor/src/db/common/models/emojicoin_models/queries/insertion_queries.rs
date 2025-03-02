@@ -250,7 +250,7 @@ pub fn insert_arena_position_query(
                     "COALESCE(EXCLUDED.last_exit_0, arena_position.last_exit_0)",
                 )),
             )),
-        None,
+        Some(" WHERE arena_position.last_transaction_version <= excluded.last_transaction_version"),
     )
 }
 
@@ -279,7 +279,7 @@ pub fn insert_arena_info_query(
                 max_match_percentage.eq(excluded(max_match_percentage)),
                 max_match_amount.eq(excluded(max_match_amount)),
             )),
-        None,
+        Some(" WHERE arena_info.last_transaction_version <= excluded.last_transaction_version"),
     )
 }
 
@@ -295,6 +295,7 @@ pub fn update_arena_info_query(
         .map(|i| {
             (
                 melee_id.eq(i.melee_id),
+                last_transaction_version.eq(i.last_transaction_version),
                 volume.eq(i.volume.clone()),
                 rewards_remaining.eq(i.rewards_remaining),
                 emojicoin_0_locked.eq(i.emojicoin_0_locked),
@@ -309,11 +310,12 @@ pub fn update_arena_info_query(
             .do_update()
             .set((
                 volume.eq(volume + excluded(volume)),
+                last_transaction_version.eq(excluded(last_transaction_version)),
                 rewards_remaining.eq(rewards_remaining + excluded(rewards_remaining)),
                 emojicoin_0_locked.eq(emojicoin_0_locked + excluded(emojicoin_0_locked)),
                 emojicoin_1_locked.eq(emojicoin_1_locked + excluded(emojicoin_1_locked)),
             )),
-        None,
+        Some(" WHERE arena_info.last_transaction_version <= excluded.last_transaction_version"),
     )
 }
 
@@ -353,6 +355,7 @@ pub fn update_arena_leaderboard_history_query(
     diesel::update(arena_leaderboard_history)
         .filter(melee_id.eq(exit.melee_id))
         .filter(user.eq(exit.user))
+        .filter(last_transaction_version.le(exit.transaction_version))
         .set((
             exited.eq(true),
             last_exit_0.eq(exit.emojicoin_1_proceeds.is_zero()),
@@ -436,6 +439,7 @@ pub fn insert_arena_candlesticks_query(
             .on_conflict((melee_id, period, start_time))
             .do_update()
             .set((
+                last_transaction_version.eq(excluded(last_transaction_version)),
                 open_price.eq(sql("COALESCE(")
                     .bind(open_price)
                     .sql(",")
@@ -459,6 +463,8 @@ pub fn insert_arena_candlesticks_query(
                 volume.eq(volume + excluded(volume)),
                 n_swaps.eq(n_swaps + excluded(n_swaps)),
             )),
-        None,
+        // Not less than or equal to, just less than, because this query aggregates, it shouldn't
+        // ever run twice. Ideally, candlesticks here would be filtered already.
+        Some(" WHERE arena_candlestick.last_transaction_version < excluded.last_transaction_version "),
     )
 }

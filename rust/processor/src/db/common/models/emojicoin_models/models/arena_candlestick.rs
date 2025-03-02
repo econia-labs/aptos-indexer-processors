@@ -1,5 +1,8 @@
 use crate::{
-    db::common::models::emojicoin_models::{enums::Period, json_types::StateEvent},
+    db::common::models::emojicoin_models::{
+        enums::Period,
+        json_types::{StateEvent, TxnInfo},
+    },
     schema::arena_candlestick,
 };
 use bigdecimal::BigDecimal;
@@ -12,6 +15,7 @@ use std::collections::HashMap;
 #[derive(Clone)]
 pub struct ArenaCandlestickDiffModelBuilder {
     pub melee_id: BigDecimal,
+    pub last_transaction_version: i64,
 
     pub period: Period,
     pub start_time: NaiveDateTime,
@@ -37,6 +41,8 @@ impl ArenaCandlestickDiffModelBuilder {
             sticks_map
                 .entry((stick.melee_id.clone(), stick.period, stick.start_time))
                 .and_modify(|s| {
+                    s.last_transaction_version =
+                        std::cmp::max(s.last_transaction_version, stick.last_transaction_version);
                     s.volume += stick.volume;
                     s.n_swaps += stick.n_swaps;
                     s.high_price = BigDecimal::max(s.high_price.clone(), stick.high_price);
@@ -57,9 +63,9 @@ impl ArenaCandlestickDiffModelBuilder {
     }
 
     pub fn from_state_event(
+        txn_info: &TxnInfo,
         melee_id: BigDecimal,
         state: StateEvent,
-        transaction_timestamp: NaiveDateTime,
         swap_timestamp: (i64, i64),
         price_0: BigDecimal,
         price_1: BigDecimal,
@@ -76,12 +82,14 @@ impl ArenaCandlestickDiffModelBuilder {
         let mut candlesticks: Vec<Self> = vec![];
 
         for period in periods {
-            let start_time = transaction_timestamp
+            let start_time = txn_info
+                .timestamp
                 .duration_trunc(period.to_time_delta())
                 .unwrap();
             let price = price_0.clone() / price_1.clone();
             let x = Self {
                 melee_id: melee_id.clone(),
+                last_transaction_version: txn_info.version,
                 period,
                 start_time,
                 open_price: price.clone(),
@@ -103,6 +111,7 @@ impl ArenaCandlestickDiffModelBuilder {
 #[diesel(table_name = arena_candlestick)]
 pub struct ArenaCandlestickDiffModel {
     pub melee_id: BigDecimal,
+    pub last_transaction_version: i64,
 
     pub period: Period,
     pub start_time: NaiveDateTime,
@@ -119,6 +128,7 @@ impl From<ArenaCandlestickDiffModelBuilder> for ArenaCandlestickDiffModel {
     fn from(value: ArenaCandlestickDiffModelBuilder) -> Self {
         Self {
             melee_id: value.melee_id,
+            last_transaction_version: value.last_transaction_version,
 
             period: value.period,
             start_time: value.start_time,

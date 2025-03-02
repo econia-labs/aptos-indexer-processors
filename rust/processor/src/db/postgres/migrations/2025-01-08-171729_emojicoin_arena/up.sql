@@ -107,6 +107,7 @@ CREATE TABLE arena_vault_balance_update_events (
 
 CREATE TABLE arena_position (
     "user" TEXT NOT NULL,
+    last_transaction_version BIGINT NOT NULL,
     melee_id NUMERIC NOT NULL,
     open BOOL NOT NULL,
     emojicoin_0_balance NUMERIC NOT NULL,
@@ -121,6 +122,7 @@ CREATE TABLE arena_position (
 
 CREATE TABLE arena_leaderboard_history (
     "user" TEXT NOT NULL,
+    last_transaction_version BIGINT NOT NULL,
     melee_id NUMERIC NOT NULL,
     profits NUMERIC NOT NULL,
     losses NUMERIC NOT NULL,
@@ -135,6 +137,7 @@ CREATE TABLE arena_leaderboard_history (
 
 CREATE TABLE arena_info (
     melee_id NUMERIC NOT NULL PRIMARY KEY,
+    last_transaction_version BIGINT NOT NULL,
     volume NUMERIC NOT NULL,
     rewards_remaining NUMERIC NOT NULL,
     emojicoin_0_locked NUMERIC NOT NULL,
@@ -155,6 +158,7 @@ CREATE TABLE arena_info (
 
 CREATE TABLE arena_candlestick (
     melee_id NUMERIC NOT NULL,
+    last_transaction_version BIGINT NOT NULL,
 
     period period_type NOT NULL,
     start_time TIMESTAMP NOT NULL,

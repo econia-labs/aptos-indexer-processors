@@ -581,9 +581,9 @@ impl EmojicoinProcessor {
                                         };
                                         let candlestick =
                                             ArenaCandlestickDiffModelBuilder::from_state_event(
+                                                &txn_info,
                                                 melee_data.melee_id.clone(),
                                                 state.clone(),
-                                                txn_info.timestamp,
                                                 (txn_info.version, event_index as i64),
                                                 melee_data.price_0.clone(),
                                                 melee_data.price_1.clone(),
@@ -648,7 +648,8 @@ impl EmojicoinProcessor {
                                     emojicoin_0_symbols: market_0.symbol_emojis,
                                     emojicoin_1_symbols: market_1.symbol_emojis,
                                 };
-                                let arena_info = ArenaInfoModel::new(model, arena_info_data);
+                                let arena_info =
+                                    ArenaInfoModel::new(&txn_info, model, arena_info_data);
                                 insert_events.arena_info.push(arena_info);
 
                                 // Update state
@@ -661,9 +662,9 @@ impl EmojicoinProcessor {
                                 });
                             },
                             ArenaEvent::Enter(enter) => {
-                                insert_events
-                                    .arena_position
-                                    .push(ArenaPositionDiffModel::from(enter.clone()));
+                                insert_events.arena_position.push(
+                                    ArenaPositionDiffModel::from_enter(&txn_info, enter.clone()),
+                                );
                                 let model = ArenaEnterEventModel::new(txn_info.clone(), enter);
                                 insert_events
                                     .arena_info_update
@@ -671,9 +672,9 @@ impl EmojicoinProcessor {
                                 insert_events.arena_enter_events.push(model)
                             },
                             ArenaEvent::Exit(exit) => {
-                                insert_events
-                                    .arena_position
-                                    .push(ArenaPositionDiffModel::from(exit.clone()));
+                                insert_events.arena_position.push(
+                                    ArenaPositionDiffModel::from_exit(&txn_info, exit.clone()),
+                                );
                                 let model = ArenaExitEventModel::new(
                                     txn_info.clone(),
                                     exit,
@@ -702,6 +703,7 @@ impl EmojicoinProcessor {
                                     };
                                 insert_events.arena_position.push(
                                     ArenaPositionDiffModel::from_swap(
+                                        &txn_info,
                                         swap.clone(),
                                         &emojicoin_0,
                                         &emojicoin_1,

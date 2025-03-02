@@ -100,6 +100,7 @@ diesel::table! {
 
     arena_candlestick (melee_id, period, start_time) {
         melee_id -> Numeric,
+        last_transaction_version -> Int8,
         period -> PeriodType,
         start_time -> Timestamp,
         open_price -> Nullable<Numeric>,
@@ -163,6 +164,7 @@ diesel::table! {
 diesel::table! {
     arena_info (melee_id) {
         melee_id -> Numeric,
+        last_transaction_version -> Int8,
         volume -> Numeric,
         rewards_remaining -> Numeric,
         emojicoin_0_locked -> Numeric,
@@ -183,6 +185,7 @@ diesel::table! {
 diesel::table! {
     arena_leaderboard_history (user, melee_id) {
         user -> Text,
+        last_transaction_version -> Int8,
         melee_id -> Numeric,
         profits -> Numeric,
         losses -> Numeric,
@@ -218,6 +221,7 @@ diesel::table! {
 diesel::table! {
     arena_position (user, melee_id) {
         user -> Text,
+        last_transaction_version -> Int8,
         melee_id -> Numeric,
         open -> Bool,
         emojicoin_0_balance -> Numeric,
