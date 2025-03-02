@@ -539,6 +539,7 @@ impl EmojicoinProcessor {
             // Group the market events in this transaction.
             let mut market_events = vec![];
 
+            // The two most recent state events as: (most_recent, 2nd_most_recent).
             let mut last_two_states: (Option<StateEvent>, Option<StateEvent>) = (None, None);
 
             for (event_index, event) in user_txn.events.iter().enumerate() {
@@ -560,6 +561,10 @@ impl EmojicoinProcessor {
                             EventWithMarket::State(state) => {
                                 states
                                     .insert(state.market_metadata.market_id.clone(), state.clone());
+                                // For arena swaps, we need to track two market states. The market swapped *out of*
+                                // and the market swapped *into*. These appear in ascending event index order, because
+                                // the market swapped out of is always sold first in `emojicoin_arena::swap`.
+                                // Stored in a FIFO queue as: (most_recent, 2nd_most_recent)
                                 last_two_states = (Some(state.clone()), last_two_states.0);
                                 if let Some(melee_data) = melee_data.as_mut() {
                                     if state.last_swap.nonce == state.state_metadata.market_nonce
@@ -680,23 +685,26 @@ impl EmojicoinProcessor {
                                 insert_events.arena_exit_events.push(model)
                             },
                             ArenaEvent::Swap(swap) => {
-                                let state_a = last_two_states.0
-                                    .take()
-                                    .expect("The first state for this arena swap should be processed already.");
-                                let state_b = last_two_states.1
-                                    .take()
-                                    .expect("The second state for this arena swap should be processed already.");
-                                // Ensure the two state events are in the correct order.
-                                let (state_0, state_1) = if swap.emojicoin_0_proceeds.is_zero() {
-                                    (state_b, state_a)
-                                } else {
-                                    (state_a, state_b)
-                                };
+                                // See the explanation for `last_two_states` above, where it's set.
+                                // last_two_states = (most_recent, 2nd_most_recent)
+                                // last_two_states = (swapped_into, swapped_out_of)
+                                let (swapped_into, swapped_out_of) = (
+                                    last_two_states.0.take().expect("The most recent arena state event should be processed already."),
+                                    last_two_states.1.take().expect("The less recent arena state event should be processed already."),
+                                );
+                                // If the balance of `swap.emojicoin_0_proceeds` is zero, it means
+                                // emojicoin_0 was swapped out of.
+                                let (emojicoin_0, emojicoin_1) =
+                                    if swap.emojicoin_0_proceeds.is_zero() {
+                                        (swapped_out_of, swapped_into)
+                                    } else {
+                                        (swapped_into, swapped_out_of)
+                                    };
                                 insert_events.arena_position.push(
                                     ArenaPositionDiffModel::from_swap(
                                         swap.clone(),
-                                        &state_0,
-                                        &state_1,
+                                        &emojicoin_0,
+                                        &emojicoin_1,
                                     ),
                                 );
                                 let model = ArenaSwapEventModel::new(
@@ -707,8 +715,8 @@ impl EmojicoinProcessor {
                                 insert_events.arena_info_update.push(
                                     ArenaInfoDiffUpdate::from_state_events(
                                         model.clone(),
-                                        &state_0,
-                                        &state_1,
+                                        &emojicoin_0,
+                                        &emojicoin_1,
                                     ),
                                 );
                                 insert_events.arena_swap_events.push(model);

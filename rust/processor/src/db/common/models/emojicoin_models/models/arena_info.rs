@@ -85,17 +85,17 @@ impl From<ArenaEnterEventModel> for ArenaInfoDiffUpdate {
 impl ArenaInfoDiffUpdate {
     pub fn from_state_events(
         value: ArenaSwapEventModel,
-        state_0: &StateEvent,
-        state_1: &StateEvent,
+        emojicoin_0: &StateEvent,
+        emojicoin_1: &StateEvent,
     ) -> Self {
         Self {
             melee_id: value.melee_id,
             volume: value.quote_volume,
             rewards_remaining: BigDecimal::zero(),
-            emojicoin_0_locked: state_0.last_swap.base_volume.clone()
-                * if state_0.last_swap.is_sell { -1 } else { 1 },
-            emojicoin_1_locked: state_1.last_swap.base_volume.clone()
-                * if state_1.last_swap.is_sell { -1 } else { 1 },
+            emojicoin_0_locked: emojicoin_0.last_swap.base_volume.clone()
+                * if emojicoin_0.last_swap.is_sell { -1 } else { 1 },
+            emojicoin_1_locked: emojicoin_1.last_swap.base_volume.clone()
+                * if emojicoin_1.last_swap.is_sell { -1 } else { 1 },
         }
     }
 }

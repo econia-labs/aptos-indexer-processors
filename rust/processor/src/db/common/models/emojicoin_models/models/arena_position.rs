@@ -73,17 +73,17 @@ impl From<ArenaEnterEvent> for ArenaPositionDiffModel {
 impl ArenaPositionDiffModel {
     pub fn from_swap(
         arena_swap_event: ArenaSwapEvent,
-        state_0: &StateEvent,
-        state_1: &StateEvent,
+        emojicoin_0: &StateEvent,
+        emojicoin_1: &StateEvent,
     ) -> ArenaPositionDiffModel {
         ArenaPositionDiffModel {
             user: arena_swap_event.user,
             melee_id: arena_swap_event.melee_id,
             open: true,
-            emojicoin_0_balance: state_0.last_swap.base_volume.clone()
-                * if state_0.last_swap.is_sell { -1 } else { 1 },
-            emojicoin_1_balance: state_1.last_swap.base_volume.clone()
-                * if state_1.last_swap.is_sell { -1 } else { 1 },
+            emojicoin_0_balance: emojicoin_0.last_swap.base_volume.clone()
+                * if emojicoin_0.last_swap.is_sell { -1 } else { 1 },
+            emojicoin_1_balance: emojicoin_1.last_swap.base_volume.clone()
+                * if emojicoin_1.last_swap.is_sell { -1 } else { 1 },
             withdrawals: BigDecimal::zero(),
             deposits: BigDecimal::zero(),
             match_amount: BigDecimal::zero(),
