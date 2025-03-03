@@ -15,6 +15,7 @@
 
 INSERT INTO arena_leaderboard_history (
     "user",
+    last_transaction_version,
     melee_id,
     profits,
     losses,
@@ -83,8 +84,8 @@ last_balances AS (
 )
 SELECT
     position."user",
-    $1 AS melee_id,
     $4 AS last_transaction_version,
+    $1 AS melee_id,
     -- Profits = Withdrawals in APT + current emojicoin balance converted to APT.
     COALESCE(withdrawals, 0) +
         ROUND(
