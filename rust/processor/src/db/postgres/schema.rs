@@ -185,7 +185,6 @@ diesel::table! {
 diesel::table! {
     arena_leaderboard_history (user, melee_id) {
         user -> Text,
-        last_transaction_version -> Int8,
         melee_id -> Numeric,
         profits -> Numeric,
         losses -> Numeric,
@@ -974,6 +973,13 @@ diesel::table! {
         #[max_length = 66]
         parent_table_handle -> Varchar,
         inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    emojicoin_last_processed_transaction (id) {
+        id -> Int8,
+        version -> Int8,
     }
 }
 
@@ -1883,6 +1889,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     delegated_staking_pool_balances,
     delegated_staking_pools,
     delegator_balances,
+    emojicoin_last_processed_transaction,
     emojis,
     event_size_info,
     events,

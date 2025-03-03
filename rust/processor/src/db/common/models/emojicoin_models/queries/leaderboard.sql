@@ -109,6 +109,4 @@ SELECT
     COALESCE(withdrawals, 0) AS withdrawals
 FROM position
     NATURAL INNER JOIN last_balances
-    NATURAL LEFT JOIN withdrawals
-ON CONFLICT
-DO NOTHING;
+    NATURAL LEFT JOIN withdrawals;

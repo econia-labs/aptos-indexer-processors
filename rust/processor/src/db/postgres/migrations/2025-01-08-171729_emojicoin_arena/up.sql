@@ -122,7 +122,6 @@ CREATE TABLE arena_position (
 
 CREATE TABLE arena_leaderboard_history (
     "user" TEXT NOT NULL,
-    last_transaction_version BIGINT NOT NULL,
     melee_id NUMERIC NOT NULL,
     profits NUMERIC NOT NULL,
     losses NUMERIC NOT NULL,
@@ -235,3 +234,8 @@ ON
     arena_info.melee_id = arena_leaderboard_history.melee_id;
 
 ALTER TYPE period_type ADD VALUE IF NOT EXISTS 'period_15s';
+
+CREATE TABLE emojicoin_last_processed_transaction (
+    id BIGINT NOT NULL PRIMARY KEY,
+    version BIGINT NOT NULL
+);
