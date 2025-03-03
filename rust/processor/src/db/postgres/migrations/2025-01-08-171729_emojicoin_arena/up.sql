@@ -122,6 +122,7 @@ CREATE TABLE arena_position (
 
 CREATE TABLE arena_leaderboard_history (
     "user" TEXT NOT NULL,
+    last_transaction_version BIGINT NOT NULL,
     melee_id NUMERIC NOT NULL,
     profits NUMERIC NOT NULL,
     losses NUMERIC NOT NULL,

@@ -213,6 +213,7 @@ pub fn insert_arena_position_query(
             .do_update()
             .set((
                 open.eq(excluded(open)),
+                last_transaction_version.eq(excluded(last_transaction_version)),
                 emojicoin_0_balance.eq(emojicoin_0_balance + excluded(emojicoin_0_balance)),
                 emojicoin_1_balance.eq(emojicoin_1_balance + excluded(emojicoin_1_balance)),
                 deposits.eq(deposits + excluded(deposits)),
@@ -239,6 +240,7 @@ pub fn insert_arena_info_query(
             .on_conflict(melee_id)
             .do_update()
             .set((
+                last_transaction_version.eq(excluded(last_transaction_version)),
                 rewards_remaining.eq(rewards_remaining + excluded(rewards_remaining)),
                 emojicoin_0_market_address.eq(excluded(emojicoin_0_market_address)),
                 emojicoin_1_market_address.eq(excluded(emojicoin_1_market_address)),
@@ -298,10 +300,10 @@ pub fn insert_arena_leaderboard_history_query(
 
     // See header comment of leaderboard.sql for more information on query parameters.
 
-    // $1 is the melee_id
+    // $1 is the melee_id.
     query = query.replace("$1", &arena_leaderboard_history_model.melee_id.to_string());
 
-    // $2 is the curve price of emojicoin_0
+    // $2 is the curve price of emojicoin_0.
     query = query.replace(
         "$2",
         &arena_leaderboard_history_model
@@ -309,11 +311,19 @@ pub fn insert_arena_leaderboard_history_query(
             .to_string(),
     );
 
-    // $3 is the curve price of emojicoin_1
+    // $3 is the curve price of emojicoin_1.
     query = query.replace(
         "$3",
         &arena_leaderboard_history_model
             .emojicoin_1_price
+            .to_string(),
+    );
+
+    // $4 is the transaction version of this snapshot; i.e., when this melee ended.
+    query = query.replace(
+        "$4",
+        &arena_leaderboard_history_model
+            .last_transaction_version
             .to_string(),
     );
 
@@ -329,6 +339,7 @@ pub fn update_arena_leaderboard_history_query(
         .filter(user.eq(exit.user))
         .set((
             exited.eq(true),
+            last_transaction_version.eq(exit.transaction_version),
             last_exit_0.eq(exit.emojicoin_1_proceeds.is_zero()),
         ))
 }

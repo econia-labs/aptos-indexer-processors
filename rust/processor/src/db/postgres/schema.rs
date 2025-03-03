@@ -185,6 +185,7 @@ diesel::table! {
 diesel::table! {
     arena_leaderboard_history (user, melee_id) {
         user -> Text,
+        last_transaction_version -> Int8,
         melee_id -> Numeric,
         profits -> Numeric,
         losses -> Numeric,

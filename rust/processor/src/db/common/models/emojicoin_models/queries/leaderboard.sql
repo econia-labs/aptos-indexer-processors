@@ -11,6 +11,7 @@
 -- $1: the melee_id for which to calculate the leaderboard
 -- $2: the curve price of emojicoin_0 at the end of the melee
 -- $3: the curve price of emojicoin_1 at the end of the melee
+-- $4: the transaction version of the snapshot; i.e., when this melee ended
 
 INSERT INTO arena_leaderboard_history (
     "user",
@@ -83,6 +84,7 @@ last_balances AS (
 SELECT
     position."user",
     $1 AS melee_id,
+    $4 AS last_transaction_version,
     -- Profits = Withdrawals in APT + current emojicoin balance converted to APT.
     COALESCE(withdrawals, 0) +
         ROUND(

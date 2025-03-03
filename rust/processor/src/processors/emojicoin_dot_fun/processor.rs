@@ -682,9 +682,12 @@ impl EmojicoinProcessor {
                                 // Add to leaderboard history
                                 // This would be None only on the first MeleeEvent
                                 if let Some(melee_data) = melee_data.as_ref() {
-                                    insert_events
-                                        .arena_leaderboard_history
-                                        .push(ArenaLeaderboardHistoryPartialModel::new(melee_data));
+                                    insert_events.arena_leaderboard_history.push(
+                                        ArenaLeaderboardHistoryPartialModel::new(
+                                            melee_data,
+                                            txn_info.version,
+                                        ),
+                                    );
                                 }
 
                                 // Add to arena info
