@@ -1,11 +1,12 @@
 use crate::{
     db::common::models::emojicoin_models::{
+        constants::CANDLESTICK_DECIMALS,
         enums::Period,
         json_types::{StateEvent, TxnInfo},
     },
     schema::arena_candlestick,
 };
-use bigdecimal::BigDecimal;
+use bigdecimal::{BigDecimal, RoundingMode};
 use chrono::{DurationRound, NaiveDateTime};
 use field_count::FieldCount;
 use num::FromPrimitive;
@@ -124,6 +125,12 @@ pub struct ArenaCandlestickModel {
     pub n_swaps: BigDecimal,
 }
 
+impl ArenaCandlestickModel {
+    fn truncate(value: BigDecimal) -> BigDecimal {
+        value.with_precision_round(CANDLESTICK_DECIMALS, RoundingMode::HalfEven)
+    }
+}
+
 impl From<ArenaCandlestickDiffModelBuilder> for ArenaCandlestickModel {
     fn from(value: ArenaCandlestickDiffModelBuilder) -> Self {
         Self {
@@ -133,10 +140,10 @@ impl From<ArenaCandlestickDiffModelBuilder> for ArenaCandlestickModel {
             period: value.period,
             start_time: value.start_time,
 
-            open_price: value.open_price,
-            high_price: value.high_price,
-            low_price: value.low_price,
-            close_price: value.close_price,
+            open_price: Self::truncate(value.open_price),
+            high_price: Self::truncate(value.high_price),
+            low_price: Self::truncate(value.low_price),
+            close_price: Self::truncate(value.close_price),
 
             volume: value.volume,
             n_swaps: value.n_swaps,
