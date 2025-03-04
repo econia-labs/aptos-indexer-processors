@@ -98,7 +98,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::PeriodType;
 
-    arena_candlestick (melee_id, period, start_time) {
+    arena_candlesticks (melee_id, period, start_time) {
         melee_id -> Numeric,
         last_transaction_version -> Int8,
         period -> PeriodType,
@@ -185,6 +185,7 @@ diesel::table! {
 diesel::table! {
     arena_leaderboard_history (user, melee_id) {
         user -> Text,
+        last_transaction_version -> Int8,
         melee_id -> Numeric,
         profits -> Numeric,
         losses -> Numeric,
@@ -1846,7 +1847,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     ans_lookup_v2,
     ans_primary_name,
     ans_primary_name_v2,
-    arena_candlestick,
+    arena_candlesticks,
     arena_enter_events,
     arena_exit_events,
     arena_info,

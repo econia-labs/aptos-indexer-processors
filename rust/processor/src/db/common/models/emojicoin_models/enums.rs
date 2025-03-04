@@ -189,6 +189,8 @@ pub enum EmojicoinDbEvent {
     ArenaExit(ArenaExitEventModel),
     ArenaSwap(ArenaSwapEventModel),
     ArenaVaultBalanceUpdate(ArenaVaultBalanceUpdateEventModel),
+    // Not an actual event in the contract- but is sent to the broker.
+    ArenaCandlestick(ArenaCandlestickModel),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -221,6 +223,8 @@ pub enum EmojicoinDbEventType {
     ArenaExit,
     ArenaSwap,
     ArenaVaultBalanceUpdate,
+    // Not an actual event in the contract- but is sent to the broker.
+    ArenaCandlestick,
 }
 
 impl From<&EmojicoinEvent> for EmojicoinEventType {
@@ -261,6 +265,7 @@ impl From<&EmojicoinDbEvent> for EmojicoinDbEventType {
             EmojicoinDbEvent::ArenaExit(_) => Self::ArenaExit,
             EmojicoinDbEvent::ArenaSwap(_) => Self::ArenaSwap,
             EmojicoinDbEvent::ArenaVaultBalanceUpdate(_) => Self::ArenaVaultBalanceUpdate,
+            EmojicoinDbEvent::ArenaCandlestick(_) => Self::ArenaCandlestick,
         }
     }
 }
@@ -351,6 +356,14 @@ impl EmojicoinDbEvent {
             .iter()
             .cloned()
             .map(Self::ArenaVaultBalanceUpdate)
+            .collect()
+    }
+
+    pub fn from_arena_candlesticks(candlesticks: &[ArenaCandlestickModel]) -> Vec<Self> {
+        candlesticks
+            .iter()
+            .cloned()
+            .map(Self::ArenaCandlestick)
             .collect()
     }
 }

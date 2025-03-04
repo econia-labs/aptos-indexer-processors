@@ -1,8 +1,5 @@
 use super::market_24h_rolling_volume::RecentOneMinutePeriodicStateEvent;
-use crate::{
-    schema::{self, market_1m_periods_in_last_day},
-    utils::database::ArcDbPool,
-};
+use crate::schema::{self, market_1m_periods_in_last_day};
 use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use diesel::{

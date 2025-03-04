@@ -122,6 +122,7 @@ CREATE TABLE arena_position (
 
 CREATE TABLE arena_leaderboard_history (
     "user" TEXT NOT NULL,
+    last_transaction_version BIGINT NOT NULL,
     melee_id NUMERIC NOT NULL,
     profits NUMERIC NOT NULL,
     losses NUMERIC NOT NULL,
@@ -155,7 +156,7 @@ CREATE TABLE arena_info (
     max_match_amount NUMERIC
 );
 
-CREATE TABLE arena_candlestick (
+CREATE TABLE arena_candlesticks (
     melee_id NUMERIC NOT NULL,
     last_transaction_version BIGINT NOT NULL,
 
