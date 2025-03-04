@@ -1080,7 +1080,7 @@ impl ProcessorTrait for EmojicoinProcessor {
         let db_insertion_duration_in_secs = db_insertion_start.elapsed().as_secs_f64();
         match tx_result {
             Ok(_) => {
-                *self.version.write().await = end_version;
+                *self.version.write().await = max_transaction_version;
                 let res = ProcessingResult::DefaultProcessingResult(DefaultProcessingResult {
                     start_version,
                     end_version,
