@@ -944,7 +944,7 @@ impl ProcessorTrait for EmojicoinProcessor {
         let processing_start = std::time::Instant::now();
         let last_transaction_timestamp = transactions.last().unwrap().timestamp.clone();
 
-        let prev_last_success_version = self.version.read().await.clone();
+        let prev_last_success_version = *self.version.read().await;
 
         let mut insert_events = InsertEvents {
             market_registration_events: vec![],
