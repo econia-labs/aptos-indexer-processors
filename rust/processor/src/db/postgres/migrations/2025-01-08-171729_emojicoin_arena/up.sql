@@ -163,10 +163,10 @@ CREATE TABLE arena_candlesticks (
     period period_type NOT NULL,
     start_time TIMESTAMP NOT NULL,
 
-    open_price NUMERIC,
-    high_price NUMERIC,
-    low_price NUMERIC,
-    close_price NUMERIC,
+    open_price NUMERIC NOT NULL,
+    high_price NUMERIC NOT NULL,
+    low_price NUMERIC NOT NULL,
+    close_price NUMERIC NOT NULL,
     volume NUMERIC NOT NULL,
     n_swaps NUMERIC NOT NULL,
 
