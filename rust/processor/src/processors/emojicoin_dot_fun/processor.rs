@@ -679,8 +679,8 @@ impl EmojicoinProcessor {
                                 // Add to melee events
                                 insert_events.arena_melee_events.push(model.clone());
 
-                                // Add to leaderboard history
-                                // This would be None only on the first MeleeEvent
+                                // Add to leaderboard history. On the first melee, this is None,
+                                // because there is no previous leaderboard to snapshot.
                                 if let Some(melee_data) = melee_data.as_ref() {
                                     insert_events.arena_leaderboard_history.push(
                                         ArenaLeaderboardHistoryPartialModel::new(
@@ -690,7 +690,7 @@ impl EmojicoinProcessor {
                                     );
                                 }
 
-                                // Add to arena info
+                                // Add to arena info.
                                 let arena_info_data = ArenaInfoData {
                                     emojicoin_0_market_id: market_0.market_id.clone(),
                                     emojicoin_1_market_id: market_1.market_id.clone(),
@@ -701,7 +701,7 @@ impl EmojicoinProcessor {
                                     ArenaInfoModel::new(&txn_info, model, arena_info_data);
                                 insert_events.arena_info.push(arena_info);
 
-                                // Update state
+                                // Update the melee state.
                                 *melee_data = Some(MeleeData {
                                     melee_id: melee.melee_id,
                                     market_id_0: market_0.market_id,
