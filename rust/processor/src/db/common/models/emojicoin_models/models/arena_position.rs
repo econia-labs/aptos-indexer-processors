@@ -1,6 +1,6 @@
 use crate::{
     db::common::models::emojicoin_models::json_types::{
-        ArenaEnterEvent, ArenaExitEvent, ArenaSwapEvent, StateEvent,
+        ArenaEnterEvent, ArenaExitEvent, ArenaSwapEvent, StateEvent, TxnInfo,
     },
     schema::arena_position,
 };
@@ -44,6 +44,7 @@ use std::collections::HashMap;
 /// outdated data.
 pub struct ArenaPositionDiffModel {
     pub user: String,
+    pub last_transaction_version: i64,
     pub melee_id: BigDecimal,
     pub open: bool,
     pub emojicoin_0_balance: BigDecimal,
@@ -54,10 +55,14 @@ pub struct ArenaPositionDiffModel {
     pub last_exit_0: Option<bool>,
 }
 
-impl From<ArenaEnterEvent> for ArenaPositionDiffModel {
-    fn from(arena_enter_event: ArenaEnterEvent) -> ArenaPositionDiffModel {
+impl ArenaPositionDiffModel {
+    pub fn from_enter(
+        txn_info: &TxnInfo,
+        arena_enter_event: ArenaEnterEvent,
+    ) -> ArenaPositionDiffModel {
         ArenaPositionDiffModel {
             user: arena_enter_event.user,
+            last_transaction_version: txn_info.version,
             melee_id: arena_enter_event.melee_id,
             open: true,
             emojicoin_0_balance: arena_enter_event.emojicoin_0_proceeds,
@@ -68,53 +73,14 @@ impl From<ArenaEnterEvent> for ArenaPositionDiffModel {
             last_exit_0: None,
         }
     }
-}
 
-impl ArenaPositionDiffModel {
-    pub fn from_swap(
-        arena_swap_event: ArenaSwapEvent,
-        state_0: &StateEvent,
-        state_1: &StateEvent,
+    pub fn from_exit(
+        txn_info: &TxnInfo,
+        arena_exit_event: ArenaExitEvent,
     ) -> ArenaPositionDiffModel {
         ArenaPositionDiffModel {
-            user: arena_swap_event.user,
-            melee_id: arena_swap_event.melee_id,
-            open: true,
-            emojicoin_0_balance: state_0.last_swap.base_volume.clone()
-                * if state_0.last_swap.is_sell { -1 } else { 1 },
-            emojicoin_1_balance: state_1.last_swap.base_volume.clone()
-                * if state_1.last_swap.is_sell { -1 } else { 1 },
-            withdrawals: BigDecimal::zero(),
-            deposits: BigDecimal::zero(),
-            match_amount: BigDecimal::zero(),
-            last_exit_0: None,
-        }
-    }
-
-    pub fn merge(arena_positions: Vec<Self>) -> Vec<Self> {
-        let mut map: HashMap<(BigDecimal, String), Self> = HashMap::new();
-        for position in arena_positions {
-            let position_clone = position.clone();
-            map.entry((position.melee_id, position.user))
-                .and_modify(|p| {
-                    p.open = position.open;
-                    p.emojicoin_0_balance += position.emojicoin_0_balance;
-                    p.emojicoin_1_balance += position.emojicoin_1_balance;
-                    p.withdrawals += position.withdrawals;
-                    p.deposits += position.deposits;
-                    p.match_amount += position.match_amount;
-                    p.last_exit_0 = position.last_exit_0;
-                })
-                .or_insert(position_clone);
-        }
-        map.into_values().collect()
-    }
-}
-
-impl From<ArenaExitEvent> for ArenaPositionDiffModel {
-    fn from(arena_exit_event: ArenaExitEvent) -> ArenaPositionDiffModel {
-        ArenaPositionDiffModel {
             user: arena_exit_event.user,
+            last_transaction_version: txn_info.version,
             melee_id: arena_exit_event.melee_id,
             open: false,
             emojicoin_0_balance: -arena_exit_event.emojicoin_0_proceeds.clone(),
@@ -130,5 +96,50 @@ impl From<ArenaExitEvent> for ArenaPositionDiffModel {
             match_amount: -arena_exit_event.tap_out_fee,
             last_exit_0: Some(arena_exit_event.emojicoin_1_proceeds.is_zero()),
         }
+    }
+
+    pub fn from_swap(
+        txn_info: &TxnInfo,
+        arena_swap_event: ArenaSwapEvent,
+        emojicoin_0: &StateEvent,
+        emojicoin_1: &StateEvent,
+    ) -> ArenaPositionDiffModel {
+        ArenaPositionDiffModel {
+            user: arena_swap_event.user,
+            last_transaction_version: txn_info.version,
+            melee_id: arena_swap_event.melee_id,
+            open: true,
+            emojicoin_0_balance: emojicoin_0.last_swap.base_volume.clone()
+                * if emojicoin_0.last_swap.is_sell { -1 } else { 1 },
+            emojicoin_1_balance: emojicoin_1.last_swap.base_volume.clone()
+                * if emojicoin_1.last_swap.is_sell { -1 } else { 1 },
+            withdrawals: BigDecimal::zero(),
+            deposits: BigDecimal::zero(),
+            match_amount: BigDecimal::zero(),
+            last_exit_0: None,
+        }
+    }
+
+    pub fn merge(arena_positions: Vec<Self>) -> Vec<Self> {
+        let mut map: HashMap<(BigDecimal, String), Self> = HashMap::new();
+        for position in arena_positions {
+            let position_clone = position.clone();
+            map.entry((position.melee_id, position.user))
+                .and_modify(|p| {
+                    p.last_transaction_version = std::cmp::max(
+                        p.last_transaction_version,
+                        position.last_transaction_version,
+                    );
+                    p.open = position.open;
+                    p.emojicoin_0_balance += position.emojicoin_0_balance;
+                    p.emojicoin_1_balance += position.emojicoin_1_balance;
+                    p.withdrawals += position.withdrawals;
+                    p.deposits += position.deposits;
+                    p.match_amount += position.match_amount;
+                    p.last_exit_0 = position.last_exit_0;
+                })
+                .or_insert(position_clone);
+        }
+        map.into_values().collect()
     }
 }

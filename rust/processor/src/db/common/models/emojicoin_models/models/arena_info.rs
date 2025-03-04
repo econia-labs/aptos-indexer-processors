@@ -2,7 +2,10 @@ use super::{
     arena_enter_event::ArenaEnterEventModel, arena_exit_event::ArenaExitEventModel,
     arena_melee_event::ArenaMeleeEventModel, arena_swap_event::ArenaSwapEventModel,
 };
-use crate::{db::common::models::emojicoin_models::json_types::StateEvent, schema::arena_info};
+use crate::{
+    db::common::models::emojicoin_models::json_types::{StateEvent, TxnInfo},
+    schema::arena_info,
+};
 use bigdecimal::BigDecimal;
 use field_count::FieldCount;
 use num::Zero;
@@ -14,6 +17,7 @@ use std::collections::HashMap;
 #[diesel(table_name = arena_info)]
 pub struct ArenaInfoModel {
     pub melee_id: BigDecimal,
+    pub last_transaction_version: i64,
     pub volume: BigDecimal,
     pub rewards_remaining: BigDecimal,
     pub emojicoin_0_locked: BigDecimal,
@@ -41,6 +45,7 @@ pub struct ArenaInfoData {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ArenaInfoDiffUpdate {
     pub melee_id: BigDecimal,
+    pub last_transaction_version: i64,
     pub volume: BigDecimal,
     pub rewards_remaining: BigDecimal,
     pub emojicoin_0_locked: BigDecimal,
@@ -48,9 +53,14 @@ pub struct ArenaInfoDiffUpdate {
 }
 
 impl ArenaInfoModel {
-    pub fn new(arena_melee_event: ArenaMeleeEventModel, data: ArenaInfoData) -> ArenaInfoModel {
+    pub fn new(
+        txn_info: &TxnInfo,
+        arena_melee_event: ArenaMeleeEventModel,
+        data: ArenaInfoData,
+    ) -> ArenaInfoModel {
         ArenaInfoModel {
             melee_id: arena_melee_event.melee_id,
+            last_transaction_version: txn_info.version,
             volume: BigDecimal::zero(),
             rewards_remaining: arena_melee_event.available_rewards,
             emojicoin_0_locked: BigDecimal::zero(),
@@ -74,6 +84,7 @@ impl From<ArenaEnterEventModel> for ArenaInfoDiffUpdate {
     fn from(value: ArenaEnterEventModel) -> Self {
         Self {
             melee_id: value.melee_id,
+            last_transaction_version: value.transaction_version,
             volume: value.quote_volume.clone(),
             rewards_remaining: -value.match_amount,
             emojicoin_0_locked: value.emojicoin_0_proceeds,
@@ -85,17 +96,18 @@ impl From<ArenaEnterEventModel> for ArenaInfoDiffUpdate {
 impl ArenaInfoDiffUpdate {
     pub fn from_state_events(
         value: ArenaSwapEventModel,
-        state_0: &StateEvent,
-        state_1: &StateEvent,
+        emojicoin_0: &StateEvent,
+        emojicoin_1: &StateEvent,
     ) -> Self {
         Self {
             melee_id: value.melee_id,
+            last_transaction_version: value.transaction_version,
             volume: value.quote_volume,
             rewards_remaining: BigDecimal::zero(),
-            emojicoin_0_locked: state_0.last_swap.base_volume.clone()
-                * if state_0.last_swap.is_sell { -1 } else { 1 },
-            emojicoin_1_locked: state_1.last_swap.base_volume.clone()
-                * if state_1.last_swap.is_sell { -1 } else { 1 },
+            emojicoin_0_locked: emojicoin_0.last_swap.base_volume.clone()
+                * if emojicoin_0.last_swap.is_sell { -1 } else { 1 },
+            emojicoin_1_locked: emojicoin_1.last_swap.base_volume.clone()
+                * if emojicoin_1.last_swap.is_sell { -1 } else { 1 },
         }
     }
 }
@@ -103,6 +115,7 @@ impl From<ArenaExitEventModel> for ArenaInfoDiffUpdate {
     fn from(value: ArenaExitEventModel) -> Self {
         Self {
             melee_id: value.melee_id,
+            last_transaction_version: value.transaction_version,
             volume: BigDecimal::zero(),
             rewards_remaining: -value.tap_out_fee,
             emojicoin_0_locked: -value.emojicoin_0_proceeds,
@@ -117,6 +130,8 @@ impl ArenaInfoDiffUpdate {
         for value in values {
             map.entry(value.melee_id.clone())
                 .and_modify(|a| {
+                    a.last_transaction_version =
+                        std::cmp::max(a.last_transaction_version, value.last_transaction_version);
                     a.volume += value.volume.clone();
                     a.rewards_remaining += value.rewards_remaining.clone();
                     a.emojicoin_0_locked += value.emojicoin_0_locked.clone();
