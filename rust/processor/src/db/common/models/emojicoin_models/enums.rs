@@ -223,7 +223,8 @@ pub enum EmojicoinDbEventType {
     ArenaExit,
     ArenaSwap,
     ArenaVaultBalanceUpdate,
-    ArenaCandlestickDiffModel,
+    // Not an actual event in the contract- but is sent to the broker.
+    ArenaCandlestick,
 }
 
 impl From<&EmojicoinEvent> for EmojicoinEventType {
@@ -264,7 +265,7 @@ impl From<&EmojicoinDbEvent> for EmojicoinDbEventType {
             EmojicoinDbEvent::ArenaExit(_) => Self::ArenaExit,
             EmojicoinDbEvent::ArenaSwap(_) => Self::ArenaSwap,
             EmojicoinDbEvent::ArenaVaultBalanceUpdate(_) => Self::ArenaVaultBalanceUpdate,
-            EmojicoinDbEvent::ArenaCandlestick(_) => Self::ArenaCandlestickDiffModel,
+            EmojicoinDbEvent::ArenaCandlestick(_) => Self::ArenaCandlestick,
         }
     }
 }
