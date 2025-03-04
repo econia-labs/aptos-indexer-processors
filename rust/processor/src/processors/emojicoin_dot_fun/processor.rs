@@ -399,7 +399,7 @@ async fn insert_to_db(
                 insert_arena_candlesticks_query,
                 &arena_candlesticks,
                 get_config_table_chunk_size::<ArenaCandlestickModel>(
-                    "arena_candlestick",
+                    "arena_candlesticks",
                     per_table_chunk_sizes,
                 ),
             )
@@ -547,7 +547,7 @@ impl EmojicoinProcessor {
             u64,
             (TxnInfo, MarketResource, Trigger, InstantaneousStats),
         >,
-        arena_candlestick_builders: &mut Vec<ArenaCandlestickDiffModelBuilder>,
+        arena_candlesticks_builders: &mut Vec<ArenaCandlestickDiffModelBuilder>,
         states: &mut AHashMap<BigDecimal, StateEvent>,
         insert_events: &mut InsertEvents,
     ) -> anyhow::Result<()> {
@@ -634,7 +634,7 @@ impl EmojicoinProcessor {
                                                 melee_data.price_0.clone(),
                                                 melee_data.price_1.clone(),
                                             );
-                                        arena_candlestick_builders.extend(candlestick);
+                                        arena_candlesticks_builders.extend(candlestick);
                                     }
                                 }
                             },
@@ -976,7 +976,7 @@ impl ProcessorTrait for EmojicoinProcessor {
         > = AHashMap::new();
         let mut user_pools_db: AHashMap<(String, u64), UserLiquidityPoolsModel> = AHashMap::new();
         let mut period_data = vec![];
-        let mut arena_candlestick_builders = vec![];
+        let mut arena_candlesticks_builders = vec![];
 
         let mut market_registrations = vec![];
         let mut states: AHashMap<BigDecimal, StateEvent> = AHashMap::new();
@@ -995,7 +995,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                     &mut market_registrations,
                     &mut period_data,
                     &mut latest_market_resources,
-                    &mut arena_candlestick_builders,
+                    &mut arena_candlesticks_builders,
                     &mut states,
                     &mut insert_events,
                 )
@@ -1031,7 +1031,7 @@ impl ProcessorTrait for EmojicoinProcessor {
             ArenaInfoDiffUpdate::merge(insert_events.arena_info_update);
 
         insert_events.arena_candlesticks =
-            ArenaCandlestickDiffModelBuilder::merge(arena_candlestick_builders)
+            ArenaCandlestickDiffModelBuilder::merge(arena_candlesticks_builders)
                 .into_iter()
                 .map(|a| a.into())
                 .collect();

@@ -399,9 +399,9 @@ pub fn insert_arena_candlesticks_query(
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::arena_candlestick::dsl::*;
+    use schema::arena_candlesticks::dsl::*;
     (
-        diesel::insert_into(schema::arena_candlestick::table)
+        diesel::insert_into(schema::arena_candlesticks::table)
             .values(items_to_insert)
             .on_conflict((melee_id, period, start_time))
             .do_update()

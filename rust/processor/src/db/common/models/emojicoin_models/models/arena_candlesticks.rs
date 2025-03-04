@@ -4,7 +4,7 @@ use crate::{
         enums::Period,
         json_types::{StateEvent, TxnInfo},
     },
-    schema::arena_candlestick,
+    schema::arena_candlesticks,
 };
 use bigdecimal::{BigDecimal, RoundingMode};
 use chrono::{DurationRound, NaiveDateTime};
@@ -109,7 +109,7 @@ impl ArenaCandlestickDiffModelBuilder {
 }
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(melee_id, period, start_time))]
-#[diesel(table_name = arena_candlestick)]
+#[diesel(table_name = arena_candlesticks)]
 pub struct ArenaCandlestickModel {
     pub melee_id: BigDecimal,
     pub last_transaction_version: i64,

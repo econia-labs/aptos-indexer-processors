@@ -156,7 +156,7 @@ CREATE TABLE arena_info (
     max_match_amount NUMERIC
 );
 
-CREATE TABLE arena_candlestick (
+CREATE TABLE arena_candlesticks (
     melee_id NUMERIC NOT NULL,
     last_transaction_version BIGINT NOT NULL,
 

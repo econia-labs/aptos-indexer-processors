@@ -9,6 +9,6 @@ DROP TABLE arena_vault_balance_update_events ;
 DROP TABLE arena_position ;
 DROP TABLE arena_leaderboard_history ;
 DROP TABLE arena_info ;
-DROP TABLE arena_candlestick ;
+DROP TABLE arena_candlesticks ;
 
 DROP TABLE emojicoin_last_processed_transaction ;
