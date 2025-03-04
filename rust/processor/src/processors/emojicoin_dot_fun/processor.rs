@@ -17,7 +17,10 @@ use crate::{
     schema,
     utils::{
         counters::PROCESSOR_UNKNOWN_TYPE_COUNT,
-        database::{execute_in_chunks, execute_single, get_config_table_chunk_size, ArcDbPool},
+        database::{
+            execute_in_transaction, execute_single_transaction, get_config_table_chunk_size,
+            ArcDbPool,
+        },
         util::{
             bigdecimal_to_u64, get_entry_function_from_user_request, parse_timestamp,
             standardize_address,
@@ -29,9 +32,8 @@ use anyhow::{bail, Context};
 use aptos_protos::transaction::v1::{transaction::TxnData, Transaction};
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
-use diesel::{ExpressionMethods as _, QueryDsl as _};
-use diesel_async::RunQueryDsl;
-use futures::{future::try_join_all, FutureExt};
+use diesel::{upsert::excluded, ExpressionMethods as _, QueryDsl as _};
+use diesel_async::{scoped_futures::ScopedFutureExt, AsyncConnection, RunQueryDsl};
 use itertools::Itertools;
 use num::Zero;
 use std::{fmt::Debug, sync::Arc};
@@ -51,6 +53,69 @@ pub struct EmojicoinProcessor {
     per_table_chunk_sizes: AHashMap<String, usize>,
     notif_sender: UnboundedSender<EmojicoinDbEvent>,
     melee_data: Arc<RwLock<Option<MeleeData>>>,
+    version: Arc<RwLock<u64>>,
+}
+
+/// Gets MeleeData from the database.
+async fn get_melee_data_from_db(connection_pool: ArcDbPool) -> anyhow::Result<Option<MeleeData>> {
+    if ARENA_MODULE_ADDRESS.is_none() {
+        return Ok::<Option<MeleeData>, anyhow::Error>(None);
+    }
+    let conn = &mut connection_pool.get().await?;
+    let melee = {
+        use schema::arena_info::dsl::*;
+        let melee = arena_info
+            .select((melee_id, emojicoin_0_market_id, emojicoin_1_market_id))
+            .order(melee_id.desc())
+            .limit(1)
+            .get_results::<(BigDecimal, Option<BigDecimal>, Option<BigDecimal>)>(conn)
+            .await?;
+        melee.as_slice().first().cloned()
+    };
+    if melee.is_none() {
+        return Ok::<Option<MeleeData>, anyhow::Error>(None);
+    }
+    let (melee_id, market_id_0, market_id_1) = melee.unwrap();
+    let (market_id_0, market_id_1) = (market_id_0.unwrap(), market_id_1.unwrap());
+    let (price_0, price_1) = {
+        use schema::market_latest_state_event::dsl::*;
+        let price_0 = market_latest_state_event
+            .filter(market_id.eq(market_id_0.clone()))
+            .select(last_swap_avg_execution_price_q64)
+            .first::<BigDecimal>(conn)
+            .await?;
+        let price_1 = market_latest_state_event
+            .filter(market_id.eq(market_id_1.clone()))
+            .select(last_swap_avg_execution_price_q64)
+            .first::<BigDecimal>(conn)
+            .await?;
+        (price_0, price_1)
+    };
+    Ok(Some(MeleeData {
+        melee_id,
+        market_id_0,
+        market_id_1,
+        price_0,
+        price_1,
+    }))
+}
+
+/// Gets the latest processed version from the database.
+async fn get_version_from_db(connection_pool: ArcDbPool) -> anyhow::Result<u64> {
+    let conn = &mut connection_pool.get().await?;
+    let version = {
+        use schema::emojicoin_last_processed_transaction::dsl::*;
+        let v = emojicoin_last_processed_transaction
+            .select(version)
+            .get_results::<i64>(conn)
+            .await?;
+        v.as_slice().first().cloned()
+    };
+    if let Some(version) = version {
+        Ok(version.try_into().expect("Last version is negative"))
+    } else {
+        Ok::<u64, anyhow::Error>(0)
+    }
 }
 
 impl EmojicoinProcessor {
@@ -59,56 +124,19 @@ impl EmojicoinProcessor {
         per_table_chunk_sizes: AHashMap<String, usize>,
         notif_sender: UnboundedSender<EmojicoinDbEvent>,
     ) -> Self {
-        let task = async {
-            if ARENA_MODULE_ADDRESS.is_none() {
-                return Ok::<Option<MeleeData>, anyhow::Error>(None);
-            }
-            let conn = &mut connection_pool.get().await?;
-            let melee = {
-                use schema::arena_info::dsl::*;
-                let melee = arena_info
-                    .select((melee_id, emojicoin_0_market_id, emojicoin_1_market_id))
-                    .order(melee_id.desc())
-                    .limit(1)
-                    .get_results::<(BigDecimal, Option<BigDecimal>, Option<BigDecimal>)>(conn)
-                    .await?;
-                melee.as_slice().first().cloned()
-            };
-            if melee.is_none() {
-                return Ok::<Option<MeleeData>, anyhow::Error>(None);
-            }
-            let (melee_id, market_id_0, market_id_1) = melee.unwrap();
-            let (market_id_0, market_id_1) = (market_id_0.unwrap(), market_id_1.unwrap());
-            let (price_0, price_1) = {
-                use schema::market_latest_state_event::dsl::*;
-                let price_0 = market_latest_state_event
-                    .filter(market_id.eq(market_id_0.clone()))
-                    .select(last_swap_avg_execution_price_q64)
-                    .first::<BigDecimal>(conn)
-                    .await?;
-                let price_1 = market_latest_state_event
-                    .filter(market_id.eq(market_id_1.clone()))
-                    .select(last_swap_avg_execution_price_q64)
-                    .first::<BigDecimal>(conn)
-                    .await?;
-                (price_0, price_1)
-            };
-            Ok(Some(MeleeData {
-                melee_id,
-                market_id_0,
-                market_id_1,
-                price_0,
-                price_1,
-            }))
-        };
+        let melee_data_task = async { get_melee_data_from_db(connection_pool.clone()).await };
 
-        let melee_data = futures::executor::block_on(task).unwrap();
+        let version_task = async { get_version_from_db(connection_pool.clone()).await };
+
+        let melee_data = futures::executor::block_on(melee_data_task).unwrap();
+        let version = futures::executor::block_on(version_task).unwrap();
 
         Self {
             connection_pool,
             per_table_chunk_sizes,
             notif_sender,
             melee_data: Arc::new(RwLock::new(melee_data)),
+            version: Arc::new(RwLock::new(version)),
         }
     }
 
@@ -151,16 +179,17 @@ struct InsertEvents {
     arena_info: Vec<ArenaInfoModel>,
     arena_leaderboard_history: Vec<ArenaLeaderboardHistoryPartialModel>,
     arena_info_update: Vec<ArenaInfoDiffUpdate>,
-    arena_candlesticks: Vec<ArenaCandlestickDiffModel>,
+    arena_candlesticks: Vec<ArenaCandlestickModel>,
 }
 
 async fn insert_to_db(
-    conn: ArcDbPool,
+    pool: ArcDbPool,
     name: &'static str,
     start_version: u64,
     end_version: u64,
     insert_events: InsertEvents,
     per_table_chunk_sizes: &AHashMap<String, usize>,
+    max_transaction_version: u64,
 ) -> Result<(), diesel::result::Error> {
     tracing::trace!(
         name = name,
@@ -190,208 +219,225 @@ async fn insert_to_db(
         arena_candlesticks,
     } = insert_events;
 
-    let futures = vec![
-        execute_in_chunks(
-            conn.clone(),
-            insert_market_registration_events_query,
-            &market_registration_events,
-            get_config_table_chunk_size::<MarketRegistrationEventModel>(
-                "market_registration_events",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            delete_unregistered_markets_query,
-            &market_registration_events,
-            get_config_table_chunk_size::<MarketRegistrationEventModel>(
-                "unregistered_markets",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        // Note that this is currently not chunked and could result in a query that deletes several
-        // hundred rows at once.
-        MarketOneMinutePeriodsInLastDayModel::insert_and_delete_periods(
-            &market_1m_periods,
-            conn.clone(),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            insert_swap_events_query,
-            &swap_events,
-            get_config_table_chunk_size::<SwapEventModel>("swap_events", per_table_chunk_sizes),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            insert_chat_events_query,
-            &chat_events,
-            get_config_table_chunk_size::<ChatEventModel>("chat_events", per_table_chunk_sizes),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            insert_liquidity_events_query,
-            &liquidity_events,
-            get_config_table_chunk_size::<LiquidityEventModel>(
-                "liquidity_events",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            insert_periodic_state_events_query,
-            &periodic_state_events,
-            get_config_table_chunk_size::<PeriodicStateEventModel>(
-                "periodic_state_events",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            insert_global_events,
-            &global_state_events,
-            get_config_table_chunk_size::<GlobalStateEventModel>(
-                "global_state_events",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            insert_user_liquidity_pools_query,
-            &user_pools,
-            get_config_table_chunk_size::<UserLiquidityPoolsModel>(
-                "user_liquidity_pools",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            insert_market_latest_state_event_query,
-            &market_latest_state_events,
-            get_config_table_chunk_size::<MarketLatestStateEventModel>(
-                "market_latest_state_events",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            insert_arena_position_query,
-            &arena_position,
-            get_config_table_chunk_size::<ArenaPositionDiffModel>(
-                "arena_position",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            insert_arena_info_query,
-            &arena_info,
-            get_config_table_chunk_size::<ArenaPositionDiffModel>(
-                "arena_info",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            update_arena_info_query,
-            &arena_info_update,
-            get_config_table_chunk_size::<ArenaPositionDiffModel>(
-                "arena_info",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            insert_arena_enter_events_query,
-            &arena_enter_events,
-            get_config_table_chunk_size::<ArenaEnterEventModel>(
-                "arena_enter_events",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            insert_arena_exit_events_query,
-            &arena_exit_events,
-            get_config_table_chunk_size::<ArenaExitEventModel>(
-                "arena_exit_events",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            insert_arena_swap_events_query,
-            &arena_swap_events,
-            get_config_table_chunk_size::<ArenaSwapEventModel>(
-                "arena_swap_events",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            insert_arena_vault_balance_update_events_query,
-            &arena_vault_balance_update_events,
-            get_config_table_chunk_size::<ArenaVaultBalanceUpdateEventModel>(
-                "arena_vault_balance_update_events",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            insert_arena_melee_events_query,
-            &arena_melee_events,
-            get_config_table_chunk_size::<ArenaMeleeEventModel>(
-                "arena_melee_events",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        execute_in_chunks(
-            conn.clone(),
-            insert_arena_candlesticks_query,
-            &arena_candlesticks,
-            get_config_table_chunk_size::<ArenaCandlestickDiffModel>(
-                "arena_candlestick",
-                per_table_chunk_sizes,
-            ),
-        )
-        .boxed(),
-        execute_single(
-            conn.clone(),
-            update_arena_leaderboard_history_query,
-            &arena_exit_events,
-        )
-        .boxed(),
-    ];
+    let mut conn = pool.get().await.unwrap();
 
-    try_join_all(futures).await?;
+    conn.transaction(|conn| {
+        async move {
+            execute_in_transaction(
+                conn,
+                insert_market_registration_events_query,
+                &market_registration_events,
+                get_config_table_chunk_size::<MarketRegistrationEventModel>(
+                    "market_registration_events",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                delete_unregistered_markets_query,
+                &market_registration_events,
+                get_config_table_chunk_size::<MarketRegistrationEventModel>(
+                    "unregistered_markets",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            // Note that this is currently not chunked and could result in a query that deletes several
+            // hundred rows at once.
+            MarketOneMinutePeriodsInLastDayModel::insert_and_delete_periods(
+                market_1m_periods,
+                conn,
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                insert_swap_events_query,
+                &swap_events,
+                get_config_table_chunk_size::<SwapEventModel>("swap_events", per_table_chunk_sizes),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                insert_chat_events_query,
+                &chat_events,
+                get_config_table_chunk_size::<ChatEventModel>("chat_events", per_table_chunk_sizes),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                insert_liquidity_events_query,
+                &liquidity_events,
+                get_config_table_chunk_size::<LiquidityEventModel>(
+                    "liquidity_events",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                insert_periodic_state_events_query,
+                &periodic_state_events,
+                get_config_table_chunk_size::<PeriodicStateEventModel>(
+                    "periodic_state_events",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                insert_global_events,
+                &global_state_events,
+                get_config_table_chunk_size::<GlobalStateEventModel>(
+                    "global_state_events",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                insert_user_liquidity_pools_query,
+                &user_pools,
+                get_config_table_chunk_size::<UserLiquidityPoolsModel>(
+                    "user_liquidity_pools",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                insert_market_latest_state_event_query,
+                &market_latest_state_events,
+                get_config_table_chunk_size::<MarketLatestStateEventModel>(
+                    "market_latest_state_events",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                insert_arena_position_query,
+                &arena_position,
+                get_config_table_chunk_size::<ArenaPositionDiffModel>(
+                    "arena_position",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                insert_arena_info_query,
+                &arena_info,
+                get_config_table_chunk_size::<ArenaPositionDiffModel>(
+                    "arena_info",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                update_arena_info_query,
+                &arena_info_update,
+                get_config_table_chunk_size::<ArenaPositionDiffModel>(
+                    "arena_info",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                insert_arena_enter_events_query,
+                &arena_enter_events,
+                get_config_table_chunk_size::<ArenaEnterEventModel>(
+                    "arena_enter_events",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                insert_arena_exit_events_query,
+                &arena_exit_events,
+                get_config_table_chunk_size::<ArenaExitEventModel>(
+                    "arena_exit_events",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                insert_arena_swap_events_query,
+                &arena_swap_events,
+                get_config_table_chunk_size::<ArenaSwapEventModel>(
+                    "arena_swap_events",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                insert_arena_vault_balance_update_events_query,
+                &arena_vault_balance_update_events,
+                get_config_table_chunk_size::<ArenaVaultBalanceUpdateEventModel>(
+                    "arena_vault_balance_update_events",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                insert_arena_melee_events_query,
+                &arena_melee_events,
+                get_config_table_chunk_size::<ArenaMeleeEventModel>(
+                    "arena_melee_events",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            execute_in_transaction(
+                conn,
+                insert_arena_candlesticks_query,
+                &arena_candlesticks,
+                get_config_table_chunk_size::<ArenaCandlestickModel>(
+                    "arena_candlesticks",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
+            execute_single_transaction(
+                conn,
+                update_arena_leaderboard_history_query,
+                &arena_exit_events,
+            )
+            .await?;
 
-    if ARENA_MODULE_ADDRESS.is_some() {
-        // Run this after everything else to make sure necessary events for the generation of the
-        // leaderboard history are already inserted.
-        execute_single(
-            conn.clone(),
-            insert_arena_leaderboard_history_query,
-            &arena_leaderboard_history,
-        )
-        .await?;
-    }
+            if ARENA_MODULE_ADDRESS.is_some() {
+                // Run this after everything else to make sure necessary events for the generation of the
+                // leaderboard history are already inserted.
+                execute_single_transaction(
+                    conn,
+                    insert_arena_leaderboard_history_query,
+                    &arena_leaderboard_history,
+                )
+                .await?;
+            }
+
+            {
+                use schema::emojicoin_last_processed_transaction::dsl::*;
+                diesel::insert_into(emojicoin_last_processed_transaction)
+                    .values((id.eq(1), version.eq(max_transaction_version as i64)))
+                    .on_conflict(id)
+                    .do_update()
+                    .set(version.eq(excluded(version)))
+                    .execute(conn)
+                    .await?;
+            }
+
+            Ok::<(), diesel::result::Error>(())
+        }
+        .scope_boxed()
+    })
+    .await?;
 
     Ok(())
 }
@@ -501,7 +547,7 @@ impl EmojicoinProcessor {
             u64,
             (TxnInfo, MarketResource, Trigger, InstantaneousStats),
         >,
-        arena_candlestick_builders: &mut Vec<ArenaCandlestickDiffModelBuilder>,
+        arena_candlesticks_builders: &mut Vec<ArenaCandlestickDiffModelBuilder>,
         states: &mut AHashMap<BigDecimal, StateEvent>,
         insert_events: &mut InsertEvents,
     ) -> anyhow::Result<()> {
@@ -588,7 +634,7 @@ impl EmojicoinProcessor {
                                                 melee_data.price_0.clone(),
                                                 melee_data.price_1.clone(),
                                             );
-                                        arena_candlestick_builders.extend(candlestick);
+                                        arena_candlesticks_builders.extend(candlestick);
                                     }
                                 }
                             },
@@ -636,9 +682,12 @@ impl EmojicoinProcessor {
                                 // Add to leaderboard history
                                 // This would be None only on the first MeleeEvent
                                 if let Some(melee_data) = melee_data.as_ref() {
-                                    insert_events
-                                        .arena_leaderboard_history
-                                        .push(ArenaLeaderboardHistoryPartialModel::new(melee_data));
+                                    insert_events.arena_leaderboard_history.push(
+                                        ArenaLeaderboardHistoryPartialModel::new(
+                                            melee_data,
+                                            txn_info.version,
+                                        ),
+                                    );
                                 }
 
                                 // Add to arena info
@@ -895,6 +944,8 @@ impl ProcessorTrait for EmojicoinProcessor {
         let processing_start = std::time::Instant::now();
         let last_transaction_timestamp = transactions.last().unwrap().timestamp.clone();
 
+        let prev_last_success_version = *self.version.read().await;
+
         let mut insert_events = InsertEvents {
             market_registration_events: vec![],
             swap_events: vec![],
@@ -925,12 +976,18 @@ impl ProcessorTrait for EmojicoinProcessor {
         > = AHashMap::new();
         let mut user_pools_db: AHashMap<(String, u64), UserLiquidityPoolsModel> = AHashMap::new();
         let mut period_data = vec![];
-        let mut arena_candlestick_builders = vec![];
+        let mut arena_candlesticks_builders = vec![];
 
         let mut market_registrations = vec![];
         let mut states: AHashMap<BigDecimal, StateEvent> = AHashMap::new();
 
+        let mut max_transaction_version = 0;
+
         for txn in &transactions {
+            max_transaction_version = std::cmp::max(max_transaction_version, txn.version);
+            if txn.version <= prev_last_success_version {
+                continue;
+            }
             let res = self
                 .process_transaction(
                     txn,
@@ -938,7 +995,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                     &mut market_registrations,
                     &mut period_data,
                     &mut latest_market_resources,
-                    &mut arena_candlestick_builders,
+                    &mut arena_candlesticks_builders,
                     &mut states,
                     &mut insert_events,
                 )
@@ -974,7 +1031,7 @@ impl ProcessorTrait for EmojicoinProcessor {
             ArenaInfoDiffUpdate::merge(insert_events.arena_info_update);
 
         insert_events.arena_candlesticks =
-            ArenaCandlestickDiffModelBuilder::merge(arena_candlestick_builders)
+            ArenaCandlestickDiffModelBuilder::merge(arena_candlesticks_builders)
                 .into_iter()
                 .map(|a| a.into())
                 .collect();
@@ -1001,6 +1058,7 @@ impl ProcessorTrait for EmojicoinProcessor {
             EmojicoinDbEvent::from_arena_vault_balance_update(
                 &insert_events.arena_vault_balance_update_events,
             ),
+            EmojicoinDbEvent::from_arena_candlesticks(&insert_events.arena_candlesticks),
         ]
         .into_iter()
         .flatten()
@@ -1015,12 +1073,14 @@ impl ProcessorTrait for EmojicoinProcessor {
             end_version,
             insert_events,
             &self.per_table_chunk_sizes,
+            max_transaction_version,
         )
         .await;
 
         let db_insertion_duration_in_secs = db_insertion_start.elapsed().as_secs_f64();
         match tx_result {
             Ok(_) => {
+                *self.version.write().await = end_version;
                 let res = ProcessingResult::DefaultProcessingResult(DefaultProcessingResult {
                     start_version,
                     end_version,

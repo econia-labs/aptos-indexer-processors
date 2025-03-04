@@ -156,7 +156,7 @@ CREATE TABLE arena_info (
     max_match_amount NUMERIC
 );
 
-CREATE TABLE arena_candlestick (
+CREATE TABLE arena_candlesticks (
     melee_id NUMERIC NOT NULL,
     last_transaction_version BIGINT NOT NULL,
 
@@ -235,3 +235,8 @@ ON
     arena_info.melee_id = arena_leaderboard_history.melee_id;
 
 ALTER TYPE period_type ADD VALUE IF NOT EXISTS 'period_15s';
+
+CREATE TABLE emojicoin_last_processed_transaction (
+    id BIGINT NOT NULL PRIMARY KEY,
+    version BIGINT NOT NULL
+);

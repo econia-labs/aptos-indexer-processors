@@ -126,6 +126,32 @@ pub async fn new_db_pool(
     Ok(Arc::new(pool))
 }
 
+pub async fn execute_in_transaction<U, T>(
+    conn: &mut PooledConnection<'_, AsyncPgConnection>,
+    build_query: fn(Vec<T>) -> (U, Option<&'static str>),
+    items_to_insert: &[T],
+    chunk_size: usize,
+) -> Result<(), diesel::result::Error>
+where
+    U: QueryFragment<Backend> + diesel::query_builder::QueryId + Send + 'static,
+    T: serde::Serialize + for<'de> serde::Deserialize<'de> + Clone + Send + 'static,
+{
+    for chunk in items_to_insert.chunks(chunk_size) {
+        let items = chunk.to_vec();
+        let (query, additional_where_clause) = build_query(items.clone());
+        execute_or_retry_cleaned_transaction(
+            conn,
+            build_query,
+            items,
+            query,
+            additional_where_clause,
+        )
+        .await?;
+    }
+
+    Ok(())
+}
+
 pub async fn execute_in_chunks<U, T>(
     conn: ArcDbPool,
     build_query: fn(Vec<T>) -> (U, Option<&'static str>),
@@ -183,6 +209,22 @@ where
     Ok(())
 }
 
+pub async fn execute_single_transaction<U, T>(
+    conn: &mut PooledConnection<'_, AsyncPgConnection>,
+    build_query: fn(T) -> U,
+    items_to_insert: &[T],
+) -> Result<(), diesel::result::Error>
+where
+    U: QueryFragment<Backend> + diesel::query_builder::QueryId + Send + 'static,
+    T: serde::Serialize + for<'de> serde::Deserialize<'de> + Clone + Send + 'static,
+{
+    for item in items_to_insert {
+        let query = build_query(item.clone());
+        execute_with_better_error_transaction(conn, query, None).await?;
+    }
+    Ok(())
+}
+
 pub async fn execute_with_better_error<U>(
     pool: ArcDbPool,
     query: U,
@@ -210,6 +252,33 @@ where
             Box::new(e.to_string()),
         )
     })?;
+    let res = final_query.execute(conn).await;
+    if let Err(ref e) = res {
+        tracing::warn!("Error running query: {:?}\n{:?}", e, debug_string);
+    }
+    res
+}
+
+pub async fn execute_with_better_error_transaction<U>(
+    conn: &mut PooledConnection<'_, AsyncPgConnection>,
+    query: U,
+    mut additional_where_clause: Option<&'static str>,
+) -> QueryResult<usize>
+where
+    U: QueryFragment<Backend> + diesel::query_builder::QueryId + Send,
+{
+    let original_query = diesel::debug_query::<Backend, _>(&query).to_string();
+    // This is needed because if we don't insert any row, then diesel makes a call like this
+    // SELECT 1 FROM TABLE WHERE 1=0
+    if original_query.to_lowercase().contains("where") {
+        additional_where_clause = None;
+    }
+    let final_query = UpsertFilterLatestTransactionQuery {
+        query,
+        where_clause: additional_where_clause,
+    };
+    let debug_string = diesel::debug_query::<Backend, _>(&final_query).to_string();
+    tracing::debug!("Executing query: {:?}", debug_string);
     let res = final_query.execute(conn).await;
     if let Err(ref e) = res {
         tracing::warn!("Error running query: {:?}\n{:?}", e, debug_string);
@@ -276,6 +345,39 @@ where
             let (cleaned_query, additional_where_clause) = build_query(cleaned_items);
             match execute_with_better_error(conn.clone(), cleaned_query, additional_where_clause)
                 .await
+            {
+                Ok(_) => {},
+                Err(e) => {
+                    return Err(e);
+                },
+            }
+        },
+    }
+    Ok(())
+}
+
+pub async fn execute_or_retry_cleaned_transaction<U, T>(
+    conn: &mut PooledConnection<'_, AsyncPgConnection>,
+    build_query: fn(Vec<T>) -> (U, Option<&'static str>),
+    items: Vec<T>,
+    query: U,
+    additional_where_clause: Option<&'static str>,
+) -> Result<(), diesel::result::Error>
+where
+    U: QueryFragment<Backend> + diesel::query_builder::QueryId + Send,
+    T: serde::Serialize + for<'de> serde::Deserialize<'de> + Clone,
+{
+    match execute_with_better_error_transaction(conn, query, additional_where_clause).await {
+        Ok(_) => {},
+        Err(_) => {
+            let cleaned_items = clean_data_for_db(items, true);
+            let (cleaned_query, additional_where_clause) = build_query(cleaned_items);
+            match execute_with_better_error_transaction(
+                conn,
+                cleaned_query,
+                additional_where_clause,
+            )
+            .await
             {
                 Ok(_) => {},
                 Err(e) => {

@@ -98,7 +98,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::PeriodType;
 
-    arena_candlestick (melee_id, period, start_time) {
+    arena_candlesticks (melee_id, period, start_time) {
         melee_id -> Numeric,
         last_transaction_version -> Int8,
         period -> PeriodType,
@@ -978,6 +978,13 @@ diesel::table! {
 }
 
 diesel::table! {
+    emojicoin_last_processed_transaction (id) {
+        id -> Int8,
+        version -> Int8,
+    }
+}
+
+diesel::table! {
     emojis (emoji) {
         emoji -> Bytea,
     }
@@ -1840,7 +1847,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     ans_lookup_v2,
     ans_primary_name,
     ans_primary_name_v2,
-    arena_candlestick,
+    arena_candlesticks,
     arena_enter_events,
     arena_exit_events,
     arena_info,
@@ -1883,6 +1890,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     delegated_staking_pool_balances,
     delegated_staking_pools,
     delegator_balances,
+    emojicoin_last_processed_transaction,
     emojis,
     event_size_info,
     events,
