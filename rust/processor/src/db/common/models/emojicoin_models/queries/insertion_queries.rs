@@ -394,7 +394,7 @@ pub fn insert_arena_vault_balance_update_events_query(
 }
 
 pub fn insert_arena_candlesticks_query(
-    items_to_insert: Vec<ArenaCandlestickDiffModel>,
+    items_to_insert: Vec<ArenaCandlestickModel>,
 ) -> (
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,

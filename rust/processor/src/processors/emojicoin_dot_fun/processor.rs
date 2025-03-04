@@ -179,7 +179,7 @@ struct InsertEvents {
     arena_info: Vec<ArenaInfoModel>,
     arena_leaderboard_history: Vec<ArenaLeaderboardHistoryPartialModel>,
     arena_info_update: Vec<ArenaInfoDiffUpdate>,
-    arena_candlesticks: Vec<ArenaCandlestickDiffModel>,
+    arena_candlesticks: Vec<ArenaCandlestickModel>,
 }
 
 async fn insert_to_db(
@@ -398,7 +398,7 @@ async fn insert_to_db(
                 conn,
                 insert_arena_candlesticks_query,
                 &arena_candlesticks,
-                get_config_table_chunk_size::<ArenaCandlestickDiffModel>(
+                get_config_table_chunk_size::<ArenaCandlestickModel>(
                     "arena_candlestick",
                     per_table_chunk_sizes,
                 ),
@@ -1058,6 +1058,7 @@ impl ProcessorTrait for EmojicoinProcessor {
             EmojicoinDbEvent::from_arena_vault_balance_update(
                 &insert_events.arena_vault_balance_update_events,
             ),
+            EmojicoinDbEvent::from_arena_candlesticks(&insert_events.arena_candlesticks),
         ]
         .into_iter()
         .flatten()

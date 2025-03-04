@@ -109,7 +109,7 @@ impl ArenaCandlestickDiffModelBuilder {
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(melee_id, period, start_time))]
 #[diesel(table_name = arena_candlestick)]
-pub struct ArenaCandlestickDiffModel {
+pub struct ArenaCandlestickModel {
     pub melee_id: BigDecimal,
     pub last_transaction_version: i64,
 
@@ -124,7 +124,7 @@ pub struct ArenaCandlestickDiffModel {
     pub n_swaps: BigDecimal,
 }
 
-impl From<ArenaCandlestickDiffModelBuilder> for ArenaCandlestickDiffModel {
+impl From<ArenaCandlestickDiffModelBuilder> for ArenaCandlestickModel {
     fn from(value: ArenaCandlestickDiffModelBuilder) -> Self {
         Self {
             melee_id: value.melee_id,
