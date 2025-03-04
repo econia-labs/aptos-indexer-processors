@@ -95,6 +95,24 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::PeriodType;
+
+    arena_candlesticks (melee_id, period, start_time) {
+        melee_id -> Numeric,
+        last_transaction_version -> Int8,
+        period -> PeriodType,
+        start_time -> Timestamp,
+        open_price -> Numeric,
+        high_price -> Numeric,
+        low_price -> Numeric,
+        close_price -> Numeric,
+        volume -> Numeric,
+        n_swaps -> Numeric,
+    }
+}
+
+diesel::table! {
     arena_enter_events (transaction_version, event_index) {
         transaction_version -> Int8,
         event_index -> Int8,
@@ -134,42 +152,48 @@ diesel::table! {
         tap_out_fee -> Numeric,
         emojicoin_0_proceeds -> Numeric,
         emojicoin_1_proceeds -> Numeric,
+        apt_proceeds -> Numeric,
         emojicoin_0_exchange_rate_base -> Numeric,
         emojicoin_0_exchange_rate_quote -> Numeric,
         emojicoin_1_exchange_rate_base -> Numeric,
         emojicoin_1_exchange_rate_quote -> Numeric,
+        during_melee -> Bool,
     }
 }
 
 diesel::table! {
     arena_info (melee_id) {
         melee_id -> Numeric,
+        last_transaction_version -> Int8,
         volume -> Numeric,
         rewards_remaining -> Numeric,
-        apt_locked -> Numeric,
+        emojicoin_0_locked -> Numeric,
+        emojicoin_1_locked -> Numeric,
         emojicoin_0_market_address -> Nullable<Text>,
         emojicoin_1_market_address -> Nullable<Text>,
-        start_time -> Nullable<Timestamp>,
-        duration -> Nullable<Numeric>,
-        max_match_percentage -> Nullable<Numeric>,
-        max_match_amount -> Nullable<Numeric>,
         emojicoin_0_symbols -> Nullable<Array<Nullable<Text>>>,
         emojicoin_1_symbols -> Nullable<Array<Nullable<Text>>>,
         emojicoin_0_market_id -> Nullable<Numeric>,
         emojicoin_1_market_id -> Nullable<Numeric>,
+        start_time -> Nullable<Timestamp>,
+        duration -> Nullable<Numeric>,
+        max_match_percentage -> Nullable<Numeric>,
+        max_match_amount -> Nullable<Numeric>,
     }
 }
 
 diesel::table! {
     arena_leaderboard_history (user, melee_id) {
         user -> Text,
+        last_transaction_version -> Int8,
         melee_id -> Numeric,
         profits -> Numeric,
         losses -> Numeric,
-        last_exit -> Nullable<Text>,
         emojicoin_0_balance -> Numeric,
         emojicoin_1_balance -> Numeric,
         exited -> Bool,
+        last_exit_0 -> Nullable<Bool>,
+        withdrawals -> Numeric,
     }
 }
 
@@ -195,16 +219,17 @@ diesel::table! {
 }
 
 diesel::table! {
-    arena_positions (user, melee_id) {
+    arena_position (user, melee_id) {
         user -> Text,
+        last_transaction_version -> Int8,
         melee_id -> Numeric,
         open -> Bool,
         emojicoin_0_balance -> Numeric,
         emojicoin_1_balance -> Numeric,
         withdrawals -> Numeric,
         deposits -> Numeric,
-        last_exit -> Nullable<Text>,
         match_amount -> Numeric,
+        last_exit_0 -> Nullable<Bool>,
     }
 }
 
@@ -228,6 +253,7 @@ diesel::table! {
         emojicoin_0_exchange_rate_quote -> Numeric,
         emojicoin_1_exchange_rate_base -> Numeric,
         emojicoin_1_exchange_rate_quote -> Numeric,
+        during_melee -> Bool,
     }
 }
 
@@ -948,6 +974,13 @@ diesel::table! {
         #[max_length = 66]
         parent_table_handle -> Varchar,
         inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    emojicoin_last_processed_transaction (id) {
+        id -> Int8,
+        version -> Int8,
     }
 }
 
@@ -1814,12 +1847,13 @@ diesel::allow_tables_to_appear_in_same_query!(
     ans_lookup_v2,
     ans_primary_name,
     ans_primary_name_v2,
+    arena_candlesticks,
     arena_enter_events,
     arena_exit_events,
     arena_info,
     arena_leaderboard_history,
     arena_melee_events,
-    arena_positions,
+    arena_position,
     arena_swap_events,
     arena_vault_balance_update_events,
     block_metadata_transactions,
@@ -1856,6 +1890,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     delegated_staking_pool_balances,
     delegated_staking_pools,
     delegator_balances,
+    emojicoin_last_processed_transaction,
     emojis,
     event_size_info,
     events,

@@ -5,17 +5,9 @@ use super::{
         MARKET_REGISTRATION_EVENT, MARKET_RESOURCE, PERIODIC_STATE_EVENT, STATE_EVENT, SWAP_EVENT,
     },
     json_types::{ArenaEvent, EventWithMarket, GlobalStateEvent},
-    models::{
-        arena_enter_event::ArenaEnterEventModel, arena_exit_event::ArenaExitEventModel,
-        arena_melee_event::ArenaMeleeEventModel, arena_swap_event::ArenaSwapEventModel,
-        arena_vault_balance_update_event::ArenaVaultBalanceUpdateEventModel,
-        chat_event::ChatEventModel, global_state_event::GlobalStateEventModel,
-        liquidity_event::LiquidityEventModel,
-        market_latest_state_event::MarketLatestStateEventModel,
-        market_registration_event::MarketRegistrationEventModel,
-        periodic_state_event::PeriodicStateEventModel, swap_event::SwapEventModel,
-    },
+    models::prelude::*,
 };
+use chrono::TimeDelta;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(
@@ -88,6 +80,8 @@ where
 )]
 #[ExistingTypePath = "crate::schema::sql_types::PeriodType"]
 pub enum Period {
+    #[db_rename = "period_15s"]
+    FifteenSeconds,
     #[db_rename = "period_1m"]
     OneMinute,
     #[db_rename = "period_5m"]
@@ -109,6 +103,7 @@ where
     S: Serializer,
 {
     let r = match element {
+        Period::FifteenSeconds => "15000000",
         Period::OneMinute => "60000000",
         Period::FiveMinutes => "300000000",
         Period::FifteenMinutes => "900000000",
@@ -127,6 +122,7 @@ where
     use serde::de::Error;
     let period = <String>::deserialize(deserializer)?;
     match period.as_str() {
+        "15000000" => Ok(Period::FifteenSeconds),
         "60000000" => Ok(Period::OneMinute),
         "300000000" => Ok(Period::FiveMinutes),
         "900000000" => Ok(Period::FifteenMinutes),
@@ -138,6 +134,21 @@ where
             "Failed to deserialize PeriodType from string: {}",
             period
         ))),
+    }
+}
+
+impl Period {
+    pub fn to_time_delta(self) -> TimeDelta {
+        match self {
+            Period::FifteenSeconds => TimeDelta::try_seconds(15).unwrap(),
+            Period::OneMinute => TimeDelta::try_minutes(1).unwrap(),
+            Period::FiveMinutes => TimeDelta::try_minutes(5).unwrap(),
+            Period::FifteenMinutes => TimeDelta::try_minutes(15).unwrap(),
+            Period::ThirtyMinutes => TimeDelta::try_minutes(30).unwrap(),
+            Period::OneHour => TimeDelta::try_hours(1).unwrap(),
+            Period::FourHours => TimeDelta::try_hours(4).unwrap(),
+            Period::OneDay => TimeDelta::try_days(1).unwrap(),
+        }
     }
 }
 
@@ -178,6 +189,8 @@ pub enum EmojicoinDbEvent {
     ArenaExit(ArenaExitEventModel),
     ArenaSwap(ArenaSwapEventModel),
     ArenaVaultBalanceUpdate(ArenaVaultBalanceUpdateEventModel),
+    // Not an actual event in the contract- but is sent to the broker.
+    ArenaCandlestick(ArenaCandlestickModel),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -210,6 +223,8 @@ pub enum EmojicoinDbEventType {
     ArenaExit,
     ArenaSwap,
     ArenaVaultBalanceUpdate,
+    // Not an actual event in the contract- but is sent to the broker.
+    ArenaCandlestick,
 }
 
 impl From<&EmojicoinEvent> for EmojicoinEventType {
@@ -250,6 +265,7 @@ impl From<&EmojicoinDbEvent> for EmojicoinDbEventType {
             EmojicoinDbEvent::ArenaExit(_) => Self::ArenaExit,
             EmojicoinDbEvent::ArenaSwap(_) => Self::ArenaSwap,
             EmojicoinDbEvent::ArenaVaultBalanceUpdate(_) => Self::ArenaVaultBalanceUpdate,
+            EmojicoinDbEvent::ArenaCandlestick(_) => Self::ArenaCandlestick,
         }
     }
 }
@@ -265,11 +281,14 @@ impl EmojicoinTypeTag {
             str if str == GLOBAL_STATE_EVENT.as_str() => Some(Self::GlobalState),
             str if str == LIQUIDITY_EVENT.as_str() => Some(Self::Liquidity),
             str if str == MARKET_RESOURCE.as_str() => Some(Self::Market),
-            str if str == ARENA_MELEE_EVENT.as_str() => Some(Self::ArenaMelee),
-            str if str == ARENA_ENTER_EVENT.as_str() => Some(Self::ArenaEnter),
-            str if str == ARENA_EXIT_EVENT.as_str() => Some(Self::ArenaExit),
-            str if str == ARENA_SWAP_EVENT.as_str() => Some(Self::ArenaSwap),
-            str if str == ARENA_VAULT_BALANCE_UPDATE_EVENT.as_str() => {
+            str if ARENA_MELEE_EVENT.as_ref().is_some_and(|s| s == str) => Some(Self::ArenaMelee),
+            str if ARENA_ENTER_EVENT.as_ref().is_some_and(|s| s == str) => Some(Self::ArenaEnter),
+            str if ARENA_EXIT_EVENT.as_ref().is_some_and(|s| s == str) => Some(Self::ArenaExit),
+            str if ARENA_SWAP_EVENT.as_ref().is_some_and(|s| s == str) => Some(Self::ArenaSwap),
+            str if ARENA_VAULT_BALANCE_UPDATE_EVENT
+                .as_ref()
+                .is_some_and(|s| s == str) =>
+            {
                 Some(Self::ArenaVaultBalanceUpdate)
             },
             _ => None,
@@ -337,6 +356,14 @@ impl EmojicoinDbEvent {
             .iter()
             .cloned()
             .map(Self::ArenaVaultBalanceUpdate)
+            .collect()
+    }
+
+    pub fn from_arena_candlesticks(candlesticks: &[ArenaCandlestickModel]) -> Vec<Self> {
+        candlesticks
+            .iter()
+            .cloned()
+            .map(Self::ArenaCandlestick)
             .collect()
     }
 }

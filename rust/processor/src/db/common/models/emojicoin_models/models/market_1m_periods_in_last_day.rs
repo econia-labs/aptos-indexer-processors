@@ -1,16 +1,15 @@
 use super::market_24h_rolling_volume::RecentOneMinutePeriodicStateEvent;
-use crate::{
-    schema::{self, market_1m_periods_in_last_day},
-    utils::database::ArcDbPool,
-};
+use crate::schema::{self, market_1m_periods_in_last_day};
 use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use diesel::{
     dsl::{now, IntervalDsl},
     result::Error,
-    QueryResult,
 };
-use diesel_async::{scoped_futures::ScopedFutureExt, AsyncConnection};
+use diesel_async::{
+    pooled_connection::bb8::PooledConnection, scoped_futures::ScopedFutureExt, AsyncConnection,
+    AsyncPgConnection,
+};
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
@@ -41,25 +40,17 @@ impl From<RecentOneMinutePeriodicStateEvent> for MarketOneMinutePeriodsInLastDay
 
 impl MarketOneMinutePeriodsInLastDayModel {
     pub async fn insert_and_delete_periods(
-        items: &[MarketOneMinutePeriodsInLastDayModel],
-        pool: ArcDbPool,
-    ) -> QueryResult<(usize, usize)> {
+        items: Vec<MarketOneMinutePeriodsInLastDayModel>,
+        conn: &mut PooledConnection<'_, AsyncPgConnection>,
+    ) -> Result<(), diesel::result::Error> {
         use diesel::prelude::*;
         use schema::market_1m_periods_in_last_day::dsl::*;
-
-        let conn = &mut pool.get().await.map_err(|e| {
-            tracing::warn!("Error getting connection from pool: {:?}", e);
-            diesel::result::Error::DatabaseError(
-                diesel::result::DatabaseErrorKind::UnableToSendCommand,
-                Box::new(e.to_string()),
-            )
-        })?;
 
         conn.transaction::<_, Error, _>(|conn| {
             async move {
                 let inserted = diesel_async::RunQueryDsl::execute(
                     diesel::insert_into(schema::market_1m_periods_in_last_day::table)
-                        .values(items)
+                        .values(&items)
                         .on_conflict((market_id, nonce))
                         .do_nothing(),
                     conn,
@@ -77,6 +68,8 @@ impl MarketOneMinutePeriodsInLastDayModel {
             }
             .scope_boxed()
         })
-        .await
+        .await?;
+
+        Ok(())
     }
 }

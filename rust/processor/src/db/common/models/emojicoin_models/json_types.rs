@@ -11,7 +11,7 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use aptos_protos::transaction::v1::WriteResource;
-use bigdecimal::BigDecimal;
+use bigdecimal::{BigDecimal, Zero};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
 
@@ -335,6 +335,20 @@ pub struct StateEvent {
     pub cumulative_stats: CumulativeStats,
     pub instantaneous_stats: InstantaneousStats,
     pub last_swap: LastSwap,
+}
+
+impl StateEvent {
+    pub fn in_bonding_curve(&self) -> bool {
+        self.lp_coin_supply.is_zero()
+    }
+
+    pub fn curve_price(&self) -> BigDecimal {
+        if self.in_bonding_curve() {
+            self.clamm_virtual_reserves.quote.clone() / self.clamm_virtual_reserves.base.clone()
+        } else {
+            self.cpamm_real_reserves.quote.clone() / self.cpamm_real_reserves.base.clone()
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
