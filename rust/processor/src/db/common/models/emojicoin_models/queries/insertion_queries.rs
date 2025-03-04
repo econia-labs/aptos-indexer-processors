@@ -17,12 +17,8 @@ pub fn insert_chat_events_query(
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::chat_events::dsl::*;
     (
-        diesel::insert_into(schema::chat_events::table)
-            .values(items_to_insert)
-            .on_conflict((market_id, market_nonce))
-            .do_nothing(),
+        diesel::insert_into(schema::chat_events::table).values(items_to_insert),
         None,
     )
 }
@@ -33,12 +29,8 @@ pub fn insert_liquidity_events_query(
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::liquidity_events::dsl::*;
     (
-        diesel::insert_into(schema::liquidity_events::table)
-            .values(items_to_insert)
-            .on_conflict((market_id, market_nonce))
-            .do_nothing(),
+        diesel::insert_into(schema::liquidity_events::table).values(items_to_insert),
         None,
     )
 }
@@ -49,12 +41,8 @@ pub fn insert_swap_events_query(
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::swap_events::dsl::*;
     (
-        diesel::insert_into(schema::swap_events::table)
-            .values(items_to_insert)
-            .on_conflict((market_id, market_nonce))
-            .do_nothing(),
+        diesel::insert_into(schema::swap_events::table).values(items_to_insert),
         None,
     )
 }
@@ -65,12 +53,8 @@ pub fn insert_market_registration_events_query(
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::market_registration_events::dsl::*;
     (
-        diesel::insert_into(schema::market_registration_events::table)
-            .values(items_to_insert)
-            .on_conflict(market_id)
-            .do_nothing(),
+        diesel::insert_into(schema::market_registration_events::table).values(items_to_insert),
         None,
     )
 }
@@ -98,12 +82,8 @@ pub fn insert_periodic_state_events_query(
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::periodic_state_events::dsl::*;
     (
-        diesel::insert_into(schema::periodic_state_events::table)
-            .values(items_to_insert)
-            .on_conflict((market_id, period, market_nonce))
-            .do_nothing(),
+        diesel::insert_into(schema::periodic_state_events::table).values(items_to_insert),
         None,
     )
 }
@@ -114,12 +94,8 @@ pub fn insert_global_events(
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::global_state_events::dsl::*;
     (
-        diesel::insert_into(schema::global_state_events::table)
-            .values(items_to_insert)
-            .on_conflict(registry_nonce)
-            .do_nothing(),
+        diesel::insert_into(schema::global_state_events::table).values(items_to_insert),
         None,
     )
 }
@@ -217,12 +193,8 @@ pub fn insert_arena_melee_events_query(
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::arena_melee_events::dsl::*;
     (
-        diesel::insert_into(schema::arena_melee_events::table)
-            .values(items_to_insert)
-            .on_conflict(melee_id)
-            .do_nothing(),
+        diesel::insert_into(schema::arena_melee_events::table).values(items_to_insert),
         None,
     )
 }
@@ -241,6 +213,7 @@ pub fn insert_arena_position_query(
             .do_update()
             .set((
                 open.eq(excluded(open)),
+                last_transaction_version.eq(excluded(last_transaction_version)),
                 emojicoin_0_balance.eq(emojicoin_0_balance + excluded(emojicoin_0_balance)),
                 emojicoin_1_balance.eq(emojicoin_1_balance + excluded(emojicoin_1_balance)),
                 deposits.eq(deposits + excluded(deposits)),
@@ -267,6 +240,7 @@ pub fn insert_arena_info_query(
             .on_conflict(melee_id)
             .do_update()
             .set((
+                last_transaction_version.eq(excluded(last_transaction_version)),
                 rewards_remaining.eq(rewards_remaining + excluded(rewards_remaining)),
                 emojicoin_0_market_address.eq(excluded(emojicoin_0_market_address)),
                 emojicoin_1_market_address.eq(excluded(emojicoin_1_market_address)),
@@ -295,6 +269,7 @@ pub fn update_arena_info_query(
         .map(|i| {
             (
                 melee_id.eq(i.melee_id),
+                last_transaction_version.eq(i.last_transaction_version),
                 volume.eq(i.volume.clone()),
                 rewards_remaining.eq(i.rewards_remaining),
                 emojicoin_0_locked.eq(i.emojicoin_0_locked),
@@ -309,6 +284,7 @@ pub fn update_arena_info_query(
             .do_update()
             .set((
                 volume.eq(volume + excluded(volume)),
+                last_transaction_version.eq(excluded(last_transaction_version)),
                 rewards_remaining.eq(rewards_remaining + excluded(rewards_remaining)),
                 emojicoin_0_locked.eq(emojicoin_0_locked + excluded(emojicoin_0_locked)),
                 emojicoin_1_locked.eq(emojicoin_1_locked + excluded(emojicoin_1_locked)),
@@ -324,10 +300,10 @@ pub fn insert_arena_leaderboard_history_query(
 
     // See header comment of leaderboard.sql for more information on query parameters.
 
-    // $1 is the melee_id
+    // $1 is the melee_id.
     query = query.replace("$1", &arena_leaderboard_history_model.melee_id.to_string());
 
-    // $2 is the curve price of emojicoin_0
+    // $2 is the curve price of emojicoin_0.
     query = query.replace(
         "$2",
         &arena_leaderboard_history_model
@@ -335,11 +311,19 @@ pub fn insert_arena_leaderboard_history_query(
             .to_string(),
     );
 
-    // $3 is the curve price of emojicoin_1
+    // $3 is the curve price of emojicoin_1.
     query = query.replace(
         "$3",
         &arena_leaderboard_history_model
             .emojicoin_1_price
+            .to_string(),
+    );
+
+    // $4 is the transaction version of this snapshot; i.e., when this melee ended.
+    query = query.replace(
+        "$4",
+        &arena_leaderboard_history_model
+            .last_transaction_version
             .to_string(),
     );
 
@@ -355,6 +339,7 @@ pub fn update_arena_leaderboard_history_query(
         .filter(user.eq(exit.user))
         .set((
             exited.eq(true),
+            last_transaction_version.eq(exit.transaction_version),
             last_exit_0.eq(exit.emojicoin_1_proceeds.is_zero()),
         ))
 }
@@ -365,12 +350,8 @@ pub fn insert_arena_enter_events_query(
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::arena_enter_events::dsl::*;
     (
-        diesel::insert_into(schema::arena_enter_events::table)
-            .values(items_to_insert)
-            .on_conflict((transaction_version, event_index))
-            .do_nothing(),
+        diesel::insert_into(schema::arena_enter_events::table).values(items_to_insert),
         None,
     )
 }
@@ -381,12 +362,8 @@ pub fn insert_arena_exit_events_query(
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::arena_exit_events::dsl::*;
     (
-        diesel::insert_into(schema::arena_exit_events::table)
-            .values(items_to_insert)
-            .on_conflict((transaction_version, event_index))
-            .do_nothing(),
+        diesel::insert_into(schema::arena_exit_events::table).values(items_to_insert),
         None,
     )
 }
@@ -397,12 +374,8 @@ pub fn insert_arena_swap_events_query(
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::arena_swap_events::dsl::*;
     (
-        diesel::insert_into(schema::arena_swap_events::table)
-            .values(items_to_insert)
-            .on_conflict((transaction_version, event_index))
-            .do_nothing(),
+        diesel::insert_into(schema::arena_swap_events::table).values(items_to_insert),
         None,
     )
 }
@@ -413,29 +386,27 @@ pub fn insert_arena_vault_balance_update_events_query(
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::arena_vault_balance_update_events::dsl::*;
     (
         diesel::insert_into(schema::arena_vault_balance_update_events::table)
-            .values(items_to_insert)
-            .on_conflict((transaction_version, event_index))
-            .do_nothing(),
+            .values(items_to_insert),
         None,
     )
 }
 
 pub fn insert_arena_candlesticks_query(
-    items_to_insert: Vec<ArenaCandlestickDiffModel>,
+    items_to_insert: Vec<ArenaCandlestickModel>,
 ) -> (
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::arena_candlestick::dsl::*;
+    use schema::arena_candlesticks::dsl::*;
     (
-        diesel::insert_into(schema::arena_candlestick::table)
+        diesel::insert_into(schema::arena_candlesticks::table)
             .values(items_to_insert)
             .on_conflict((melee_id, period, start_time))
             .do_update()
             .set((
+                last_transaction_version.eq(excluded(last_transaction_version)),
                 open_price.eq(sql("COALESCE(")
                     .bind(open_price)
                     .sql(",")
@@ -459,6 +430,8 @@ pub fn insert_arena_candlesticks_query(
                 volume.eq(volume + excluded(volume)),
                 n_swaps.eq(n_swaps + excluded(n_swaps)),
             )),
+        // Not less than or equal to, just less than, because this query aggregates, it shouldn't
+        // ever run twice. Ideally, candlesticks here would be filtered already.
         None,
     )
 }

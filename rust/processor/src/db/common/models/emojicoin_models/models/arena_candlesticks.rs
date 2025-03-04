@@ -1,8 +1,12 @@
 use crate::{
-    db::common::models::emojicoin_models::{enums::Period, json_types::StateEvent},
-    schema::arena_candlestick,
+    db::common::models::emojicoin_models::{
+        constants::CANDLESTICK_DECIMALS,
+        enums::Period,
+        json_types::{StateEvent, TxnInfo},
+    },
+    schema::arena_candlesticks,
 };
-use bigdecimal::BigDecimal;
+use bigdecimal::{BigDecimal, RoundingMode};
 use chrono::{DurationRound, NaiveDateTime};
 use field_count::FieldCount;
 use num::FromPrimitive;
@@ -12,6 +16,7 @@ use std::collections::HashMap;
 #[derive(Clone)]
 pub struct ArenaCandlestickDiffModelBuilder {
     pub melee_id: BigDecimal,
+    pub last_transaction_version: i64,
 
     pub period: Period,
     pub start_time: NaiveDateTime,
@@ -37,6 +42,8 @@ impl ArenaCandlestickDiffModelBuilder {
             sticks_map
                 .entry((stick.melee_id.clone(), stick.period, stick.start_time))
                 .and_modify(|s| {
+                    s.last_transaction_version =
+                        std::cmp::max(s.last_transaction_version, stick.last_transaction_version);
                     s.volume += stick.volume;
                     s.n_swaps += stick.n_swaps;
                     s.high_price = BigDecimal::max(s.high_price.clone(), stick.high_price);
@@ -57,9 +64,9 @@ impl ArenaCandlestickDiffModelBuilder {
     }
 
     pub fn from_state_event(
+        txn_info: &TxnInfo,
         melee_id: BigDecimal,
         state: StateEvent,
-        transaction_timestamp: NaiveDateTime,
         swap_timestamp: (i64, i64),
         price_0: BigDecimal,
         price_1: BigDecimal,
@@ -76,12 +83,14 @@ impl ArenaCandlestickDiffModelBuilder {
         let mut candlesticks: Vec<Self> = vec![];
 
         for period in periods {
-            let start_time = transaction_timestamp
+            let start_time = txn_info
+                .timestamp
                 .duration_trunc(period.to_time_delta())
                 .unwrap();
             let price = price_0.clone() / price_1.clone();
             let x = Self {
                 melee_id: melee_id.clone(),
+                last_transaction_version: txn_info.version,
                 period,
                 start_time,
                 open_price: price.clone(),
@@ -100,9 +109,10 @@ impl ArenaCandlestickDiffModelBuilder {
 }
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(melee_id, period, start_time))]
-#[diesel(table_name = arena_candlestick)]
-pub struct ArenaCandlestickDiffModel {
+#[diesel(table_name = arena_candlesticks)]
+pub struct ArenaCandlestickModel {
     pub melee_id: BigDecimal,
+    pub last_transaction_version: i64,
 
     pub period: Period,
     pub start_time: NaiveDateTime,
@@ -115,18 +125,25 @@ pub struct ArenaCandlestickDiffModel {
     pub n_swaps: BigDecimal,
 }
 
-impl From<ArenaCandlestickDiffModelBuilder> for ArenaCandlestickDiffModel {
+impl ArenaCandlestickModel {
+    fn truncate(value: BigDecimal) -> BigDecimal {
+        value.with_precision_round(CANDLESTICK_DECIMALS, RoundingMode::HalfEven)
+    }
+}
+
+impl From<ArenaCandlestickDiffModelBuilder> for ArenaCandlestickModel {
     fn from(value: ArenaCandlestickDiffModelBuilder) -> Self {
         Self {
             melee_id: value.melee_id,
+            last_transaction_version: value.last_transaction_version,
 
             period: value.period,
             start_time: value.start_time,
 
-            open_price: value.open_price,
-            high_price: value.high_price,
-            low_price: value.low_price,
-            close_price: value.close_price,
+            open_price: Self::truncate(value.open_price),
+            high_price: Self::truncate(value.high_price),
+            low_price: Self::truncate(value.low_price),
+            close_price: Self::truncate(value.close_price),
 
             volume: value.volume,
             n_swaps: value.n_swaps,
