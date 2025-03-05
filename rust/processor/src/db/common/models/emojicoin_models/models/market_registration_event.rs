@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 pub struct MarketRegistrationEventModel {
     // Transaction metadata.
     pub transaction_version: i64,
+    pub block_number: i64,
     pub event_index: i64,
     pub sender: String,
     pub entry_function: Option<String>,
@@ -56,6 +57,7 @@ impl MarketRegistrationEventModel {
         MarketRegistrationEventModel {
             // Transaction metadata.
             transaction_version: txn_info.version,
+            block_number: txn_info.block_number,
             event_index,
             sender: txn_info.sender.clone(),
             entry_function: txn_info.entry_function.clone(),

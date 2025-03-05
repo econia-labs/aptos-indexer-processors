@@ -1279,6 +1279,7 @@ diesel::table! {
         integrator -> Varchar,
         integrator_fee -> Numeric,
         event_index -> Int8,
+        block_number -> Int8,
     }
 }
 
