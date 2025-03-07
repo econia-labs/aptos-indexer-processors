@@ -243,8 +243,6 @@ async fn insert_to_db(
                 ),
             )
             .await?;
-            // Note that this is currently not chunked and could result in a query that deletes several
-            // hundred rows at once.
             MarketOneMinutePeriodsInLastDayModel::insert_and_delete_periods(
                 market_1m_periods,
                 conn,

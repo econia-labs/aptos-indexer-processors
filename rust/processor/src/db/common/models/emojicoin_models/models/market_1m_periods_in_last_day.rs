@@ -1,5 +1,8 @@
 use super::market_24h_rolling_volume::RecentOneMinutePeriodicStateEvent;
-use crate::schema::{self, market_1m_periods_in_last_day};
+use crate::{
+    schema::{self, market_1m_periods_in_last_day},
+    utils::database::MAX_DIESEL_PARAM_SIZE,
+};
 use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use diesel::{
@@ -48,14 +51,17 @@ impl MarketOneMinutePeriodsInLastDayModel {
 
         conn.transaction::<_, Error, _>(|conn| {
             async move {
-                let inserted = diesel_async::RunQueryDsl::execute(
-                    diesel::insert_into(schema::market_1m_periods_in_last_day::table)
-                        .values(&items)
-                        .on_conflict((market_id, nonce))
-                        .do_nothing(),
-                    conn,
-                )
-                .await?;
+                let mut inserted = 0;
+                for items in items.chunks(MAX_DIESEL_PARAM_SIZE) {
+                    inserted += diesel_async::RunQueryDsl::execute(
+                        diesel::insert_into(schema::market_1m_periods_in_last_day::table)
+                            .values(items)
+                            .on_conflict((market_id, nonce))
+                            .do_nothing(),
+                        conn,
+                    )
+                    .await?;
+                }
 
                 let deleted = diesel_async::RunQueryDsl::execute(
                     diesel::delete(schema::market_1m_periods_in_last_day::table)
