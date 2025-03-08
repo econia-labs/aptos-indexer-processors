@@ -1,9 +1,9 @@
 .github/                                         @alnoki
-.vscode                                          @alnoki
 .gitignore                                       @alnoki
 .gitmodules                                      @alnoki
 .node-version                                    @alnoki
 .python-version                                  @alnoki
+.vscode                                          @alnoki
 README.md                                        @alnoki
 cfg/                                             @alnoki
 hasura-api/                                      @alnoki
