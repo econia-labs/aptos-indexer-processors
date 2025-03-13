@@ -153,3 +153,222 @@ impl From<CandlestickDiffModelBuilder> for CandlestickModel {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeDelta;
+    use num::Zero;
+
+    fn bd() {}
+
+    #[test]
+    fn merge() {
+        let start_time =
+            NaiveDateTime::parse_from_str("2025-01-01 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        let symbol_emojis = vec!["test".to_string()];
+        let c1 = CandlestickDiffModelBuilder {
+            market_id: BigDecimal::zero(),
+            last_transaction_version: 12,
+
+            period: Period::OneMinute,
+            start_time: start_time.clone(),
+
+            open_price: BigDecimal::from(50),
+            high_price: BigDecimal::from(50),
+            low_price: BigDecimal::from(50),
+            close_price: BigDecimal::from(50),
+
+            open_timestamp: (12, 0),
+            close_timestamp: (12, 0),
+
+            symbol_emojis: symbol_emojis.clone(),
+
+            volume: BigDecimal::from(100),
+        };
+        let c2 = CandlestickDiffModelBuilder {
+            market_id: BigDecimal::zero(),
+            last_transaction_version: 15,
+
+            period: Period::OneMinute,
+            start_time: start_time.clone(),
+
+            open_price: BigDecimal::from(40),
+            high_price: BigDecimal::from(40),
+            low_price: BigDecimal::from(40),
+            close_price: BigDecimal::from(40),
+
+            open_timestamp: (15, 0),
+            close_timestamp: (15, 0),
+
+            symbol_emojis: symbol_emojis.clone(),
+
+            volume: BigDecimal::from(80),
+        };
+        // This one should not merge with the first two as it does not have the same period.
+        let c3 = CandlestickDiffModelBuilder {
+            market_id: BigDecimal::zero(),
+            last_transaction_version: 15,
+
+            period: Period::OneHour,
+            start_time: start_time.clone(),
+
+            open_price: BigDecimal::from(40),
+            high_price: BigDecimal::from(40),
+            low_price: BigDecimal::from(40),
+            close_price: BigDecimal::from(40),
+
+            open_timestamp: (15, 0),
+            close_timestamp: (15, 0),
+
+            symbol_emojis: symbol_emojis.clone(),
+
+            volume: BigDecimal::from(80),
+        };
+        // This one should not merge with the first two as it does not have the same start time.
+        let c4 = CandlestickDiffModelBuilder {
+            market_id: BigDecimal::zero(),
+            last_transaction_version: 15,
+
+            period: Period::OneMinute,
+            start_time: start_time
+                .clone()
+                .checked_add_signed(TimeDelta::minutes(1))
+                .unwrap(),
+
+            open_price: BigDecimal::from(40),
+            high_price: BigDecimal::from(40),
+            low_price: BigDecimal::from(40),
+            close_price: BigDecimal::from(40),
+
+            open_timestamp: (15, 0),
+            close_timestamp: (15, 0),
+
+            symbol_emojis: symbol_emojis.clone(),
+
+            volume: BigDecimal::from(80),
+        };
+        // This one should not merge with the first two as it does not have the same market id.
+        let c5 = CandlestickDiffModelBuilder {
+            market_id: BigDecimal::from(1),
+            last_transaction_version: 15,
+
+            period: Period::OneMinute,
+            start_time: start_time.clone(),
+
+            open_price: BigDecimal::from(40),
+            high_price: BigDecimal::from(40),
+            low_price: BigDecimal::from(40),
+            close_price: BigDecimal::from(40),
+
+            open_timestamp: (15, 0),
+            close_timestamp: (15, 0),
+
+            symbol_emojis: symbol_emojis.clone(),
+
+            volume: BigDecimal::from(80),
+        };
+
+        let c = CandlestickDiffModelBuilder::merge(vec![
+            c1.clone(),
+            c2.clone(),
+            c3.clone(),
+            c4.clone(),
+            c5.clone(),
+        ]);
+        assert_eq!(c.len(), 4);
+
+        // This should be the result of the first two merged candlesticks.
+        let merged = c
+            .iter()
+            .find(|e| {
+                e.market_id == c1.market_id
+                    && e.period == c1.period
+                    && e.start_time == c1.start_time
+            })
+            .unwrap();
+
+        assert_eq!(merged.last_transaction_version, c2.last_transaction_version);
+        assert_eq!(merged.open_price, c1.open_price);
+        assert_eq!(merged.high_price, c1.high_price);
+        assert_eq!(merged.low_price, c2.low_price);
+        assert_eq!(merged.close_price, c2.close_price);
+        assert_eq!(merged.symbol_emojis, c1.symbol_emojis);
+        assert_eq!(merged.volume, c1.volume + c2.volume);
+
+        // These should not have changed at all.
+        let new_c3 = c.iter().find(|e| e.period == c3.period).unwrap();
+        let new_c4 = c.iter().find(|e| e.start_time == c4.start_time).unwrap();
+        let new_c5 = c.iter().find(|e| e.market_id == c5.market_id).unwrap();
+
+        assert_eq!(new_c3.market_id, c3.market_id);
+        assert_eq!(new_c3.last_transaction_version, c3.last_transaction_version);
+        assert_eq!(new_c3.start_time, c3.start_time);
+        assert_eq!(new_c3.open_price, c3.open_price);
+        assert_eq!(new_c3.high_price, c3.high_price);
+        assert_eq!(new_c3.low_price, c3.low_price);
+        assert_eq!(new_c3.close_price, c3.close_price);
+        assert_eq!(new_c3.symbol_emojis, c3.symbol_emojis);
+        assert_eq!(new_c3.volume, c3.volume);
+        assert_eq!(new_c4.market_id, c4.market_id);
+        assert_eq!(new_c4.last_transaction_version, c4.last_transaction_version);
+        assert_eq!(new_c4.period, c4.period);
+        assert_eq!(new_c4.open_price, c4.open_price);
+        assert_eq!(new_c4.high_price, c4.high_price);
+        assert_eq!(new_c4.low_price, c4.low_price);
+        assert_eq!(new_c4.close_price, c4.close_price);
+        assert_eq!(new_c4.symbol_emojis, c4.symbol_emojis);
+        assert_eq!(new_c4.volume, c4.volume);
+        assert_eq!(new_c5.last_transaction_version, c5.last_transaction_version);
+        assert_eq!(new_c5.period, c5.period);
+        assert_eq!(new_c5.start_time, c5.start_time);
+        assert_eq!(new_c5.open_price, c5.open_price);
+        assert_eq!(new_c5.high_price, c5.high_price);
+        assert_eq!(new_c5.low_price, c5.low_price);
+        assert_eq!(new_c5.close_price, c5.close_price);
+        assert_eq!(new_c5.symbol_emojis, c5.symbol_emojis);
+        assert_eq!(new_c5.volume, c5.volume);
+    }
+
+    #[test]
+    fn build() {
+        let start_time =
+            NaiveDateTime::parse_from_str("2025-01-01 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        let symbol_emojis = vec!["test".to_string()];
+        let builder = CandlestickDiffModelBuilder {
+            market_id: BigDecimal::zero(),
+            last_transaction_version: 12,
+
+            period: Period::OneMinute,
+            start_time: start_time.clone(),
+
+            open_price: BigDecimal::from(50),
+            high_price: BigDecimal::from(50),
+            low_price: BigDecimal::from(50),
+            close_price: BigDecimal::from(50),
+
+            open_timestamp: (12, 0),
+            close_timestamp: (12, 0),
+
+            symbol_emojis: symbol_emojis.clone(),
+
+            volume: BigDecimal::from(100),
+        };
+
+        let candlestick: CandlestickModel = builder.clone().into();
+
+        assert_eq!(candlestick.market_id, builder.market_id);
+        assert_eq!(
+            candlestick.last_transaction_version,
+            builder.last_transaction_version
+        );
+        assert_eq!(candlestick.period, builder.period);
+        assert_eq!(candlestick.start_time, builder.start_time);
+        assert_eq!(candlestick.open_price, builder.open_price);
+        assert_eq!(candlestick.high_price, builder.high_price);
+        assert_eq!(candlestick.low_price, builder.low_price);
+        assert_eq!(candlestick.close_price, builder.close_price);
+        assert_eq!(candlestick.symbol_emojis, builder.symbol_emojis);
+        assert_eq!(candlestick.volume, builder.volume);
+    }
+}
