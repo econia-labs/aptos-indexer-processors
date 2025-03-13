@@ -209,7 +209,7 @@ pub enum EmojicoinEventType {
     ArenaVaultBalanceUpdate,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EmojicoinDbEventType {
     Swap,
     Chat,
