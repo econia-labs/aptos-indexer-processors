@@ -150,3 +150,33 @@ impl From<ArenaCandlestickDiffModelBuilder> for ArenaCandlestickModel {
         }
     }
 }
+
+pub type AllArenaCandlestickColumns = (
+    BigDecimal,
+    i64,
+    crate::db::common::models::emojicoin_models::enums::Period,
+    chrono::NaiveDateTime,
+    BigDecimal,
+    BigDecimal,
+    BigDecimal,
+    BigDecimal,
+    BigDecimal,
+    BigDecimal,
+);
+
+impl From<AllArenaCandlestickColumns> for ArenaCandlestickModel {
+    fn from(value: AllArenaCandlestickColumns) -> Self {
+        Self {
+            melee_id: value.0,
+            last_transaction_version: value.1,
+            period: value.2,
+            start_time: value.3,
+            open_price: value.4,
+            high_price: value.5,
+            low_price: value.6,
+            close_price: value.7,
+            volume: value.8,
+            n_swaps: value.9,
+        }
+    }
+}

@@ -191,7 +191,7 @@ async fn insert_to_db(
     insert_events: InsertEvents,
     per_table_chunk_sizes: &AHashMap<String, usize>,
     max_transaction_version: u64,
-) -> Result<(), diesel::result::Error> {
+) -> Result<(Vec<CandlestickModel>, Vec<ArenaCandlestickModel>), diesel::result::Error> {
     tracing::trace!(
         name = name,
         start_version = start_version,
@@ -394,20 +394,18 @@ async fn insert_to_db(
                 ),
             )
             .await?;
-            execute_in_transaction(
+            let arena_candlesticks = run_queries::insert_arena_candlesticks_query(
                 conn,
-                insert_arena_candlesticks_query,
-                &arena_candlesticks,
+                arena_candlesticks,
                 get_config_table_chunk_size::<ArenaCandlestickModel>(
                     "arena_candlesticks",
                     per_table_chunk_sizes,
                 ),
             )
             .await?;
-            execute_in_transaction(
+            let candlesticks = run_queries::insert_candlesticks_query(
                 conn,
-                insert_candlesticks_query,
-                &candlesticks,
+                candlesticks,
                 get_config_table_chunk_size::<CandlestickModel>(
                     "candlesticks",
                     per_table_chunk_sizes,
@@ -443,13 +441,14 @@ async fn insert_to_db(
                     .await?;
             }
 
-            Ok::<(), diesel::result::Error>(())
+            Ok::<(Vec<CandlestickModel>, Vec<ArenaCandlestickModel>), diesel::result::Error>((
+                candlesticks,
+                arena_candlesticks,
+            ))
         }
         .scope_boxed()
     })
-    .await?;
-
-    Ok(())
+    .await
 }
 
 struct MarketData {
@@ -1065,7 +1064,7 @@ impl ProcessorTrait for EmojicoinProcessor {
         let processing_duration_in_secs = processing_start.elapsed().as_secs_f64();
         let db_insertion_start = std::time::Instant::now();
 
-        let all_db_events = vec![
+        let mut all_db_events = vec![
             EmojicoinDbEvent::from_market_registration_events(
                 &insert_events.market_registration_events,
             ),
@@ -1084,14 +1083,10 @@ impl ProcessorTrait for EmojicoinProcessor {
             EmojicoinDbEvent::from_arena_vault_balance_update(
                 &insert_events.arena_vault_balance_update_events,
             ),
-            EmojicoinDbEvent::from_arena_candlesticks(&insert_events.arena_candlesticks),
-            EmojicoinDbEvent::from_candlesticks(&insert_events.candlesticks),
         ]
         .into_iter()
         .flatten()
         .collect_vec();
-
-        self.publish_events(all_db_events);
 
         let tx_result = insert_to_db(
             pool,
@@ -1106,7 +1101,12 @@ impl ProcessorTrait for EmojicoinProcessor {
 
         let db_insertion_duration_in_secs = db_insertion_start.elapsed().as_secs_f64();
         match tx_result {
-            Ok(_) => {
+            Ok((candlesticks, arena_candlesticks)) => {
+                all_db_events.extend(EmojicoinDbEvent::from_arena_candlesticks(
+                    &arena_candlesticks,
+                ));
+                all_db_events.extend(EmojicoinDbEvent::from_candlesticks(&candlesticks));
+                self.publish_events(all_db_events);
                 *self.version.write().await = max_transaction_version;
                 let res = ProcessingResult::DefaultProcessingResult(DefaultProcessingResult {
                     start_version,
