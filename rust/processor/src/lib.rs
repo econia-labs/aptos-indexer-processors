@@ -33,6 +33,6 @@ pub mod ws_server;
 
 pub mod emojicoin_dot_fun {
     pub use crate::db::common::models::emojicoin_models::enums::{
-        EmojicoinDbEvent, EmojicoinDbEventType, EmojicoinEvent, EmojicoinEventType,
+        EmojicoinDbEvent, EmojicoinDbEventType, EmojicoinEvent, EmojicoinEventType, Period,
     };
 }
