@@ -372,3 +372,33 @@ mod tests {
         assert_eq!(candlestick.volume, builder.volume);
     }
 }
+
+pub type AllCandlestickColumns = (
+    BigDecimal,
+    i64,
+    crate::db::common::models::emojicoin_models::enums::Period,
+    chrono::NaiveDateTime,
+    BigDecimal,
+    BigDecimal,
+    BigDecimal,
+    BigDecimal,
+    Vec<Option<String>>,
+    BigDecimal,
+);
+
+impl From<AllCandlestickColumns> for CandlestickModel {
+    fn from(value: AllCandlestickColumns) -> Self {
+        Self {
+            market_id: value.0,
+            last_transaction_version: value.1,
+            period: value.2,
+            start_time: value.3,
+            open_price: value.4,
+            high_price: value.5,
+            low_price: value.6,
+            close_price: value.7,
+            symbol_emojis: value.8.into_iter().map(Option::unwrap).collect(),
+            volume: value.9,
+        }
+    }
+}
