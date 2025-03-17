@@ -399,6 +399,29 @@ pub mod run_queries {
     //! declared in the [`crate::utils::database`] module. For that reason, those queries are
     //! isolated in this [`run_queries`] module.
 
+    macro_rules! coalesce {
+        // coalesce!(open) -> COALESCE(open, excluded(open))
+        ($column:expr) => {
+            sql("COALESCE(")
+                .bind($column)
+                .sql(",")
+                .bind(excluded($column))
+                .sql(")")
+        };
+
+        // coalesce!("GREATEST", high) -> GREATEST(COALESCE(high, excluded(high)))
+        // coalesce!("LEAST", low)     -> LEAST(COALESCE(low, excluded(low)))
+        ($operation:expr, $column:expr) => {
+            sql(concat!($operation, "(COALESCE("))
+                .bind($column)
+                .sql(",")
+                .bind(excluded($column))
+                .sql("),")
+                .bind(excluded($column))
+                .sql(")")
+        };
+    }
+
     use crate::{db::common::models::emojicoin_models::models::prelude::*, schema};
     use diesel::{dsl::sql, upsert::excluded, ExpressionMethods};
     use diesel_async::{pooled_connection::bb8::PooledConnection, AsyncPgConnection, RunQueryDsl};
@@ -417,25 +440,9 @@ pub mod run_queries {
                 .do_update()
                 .set((
                     last_transaction_version.eq(excluded(last_transaction_version)),
-                    open_price.eq(sql("COALESCE(")
-                        .bind(open_price)
-                        .sql(",")
-                        .bind(excluded(open_price))
-                        .sql(")")),
-                    high_price.eq(sql("GREATEST(COALESCE(")
-                        .bind(high_price)
-                        .sql(",")
-                        .bind(excluded(high_price))
-                        .sql("),")
-                        .bind(excluded(high_price))
-                        .sql(")")),
-                    low_price.eq(sql("LEAST(COALESCE(")
-                        .bind(low_price)
-                        .sql(",")
-                        .bind(excluded(low_price))
-                        .sql("),")
-                        .bind(excluded(low_price))
-                        .sql(")")),
+                    open_price.eq(coalesce!(open_price)),
+                    high_price.eq(coalesce!("GREATEST", high_price)),
+                    low_price.eq(coalesce!("LEAST", low_price)),
                     close_price.eq(excluded(close_price)),
                     volume.eq(volume + excluded(volume)),
                     n_swaps.eq(n_swaps + excluded(n_swaps)),
@@ -462,25 +469,9 @@ pub mod run_queries {
                 .do_update()
                 .set((
                     last_transaction_version.eq(excluded(last_transaction_version)),
-                    open_price.eq(sql("COALESCE(")
-                        .bind(open_price)
-                        .sql(",")
-                        .bind(excluded(open_price))
-                        .sql(")")),
-                    high_price.eq(sql("GREATEST(COALESCE(")
-                        .bind(high_price)
-                        .sql(",")
-                        .bind(excluded(high_price))
-                        .sql("),")
-                        .bind(excluded(high_price))
-                        .sql(")")),
-                    low_price.eq(sql("LEAST(COALESCE(")
-                        .bind(low_price)
-                        .sql(",")
-                        .bind(excluded(low_price))
-                        .sql("),")
-                        .bind(excluded(low_price))
-                        .sql(")")),
+                    open_price.eq(coalesce!(open_price)),
+                    high_price.eq(coalesce!("GREATEST", high_price)),
+                    low_price.eq(coalesce!("LEAST", low_price)),
                     close_price.eq(excluded(close_price)),
                     volume.eq(volume + excluded(volume)),
                 ))
