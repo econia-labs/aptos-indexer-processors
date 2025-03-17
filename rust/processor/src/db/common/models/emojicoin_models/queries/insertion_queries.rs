@@ -394,7 +394,7 @@ pub fn insert_arena_vault_balance_update_events_query(
 }
 
 pub mod run_queries {
-    //! Due to the way diesel types queries, it is not possilbe to use an insert query that has a
+    //! Due to the way diesel types queries, it's not possible to use an insert query that has a
     //! [`diesel::query_builder::InsertStatement::returning`] clause with the helper functions
     //! declared in the [`crate::utils::database`] module. For that reason, those queries are
     //! isolated in this [`run_queries`] module.
