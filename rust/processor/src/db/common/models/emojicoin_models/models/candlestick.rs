@@ -161,8 +161,6 @@ mod tests {
     use chrono::TimeDelta;
     use num::Zero;
 
-    fn bd() {}
-
     #[test]
     fn merge() {
         let start_time =
@@ -269,6 +267,14 @@ mod tests {
 
             volume: BigDecimal::from(80),
         };
+
+        // candlestick|start time         |period|ohlc       |version|open/close|volume|mkt id
+        // -----------|-------------------|------|-----------|-------|----------|------|------
+        // c1         |2025-01-01 00:00:00|1m    |50,50,50,50|12     |12/12     |100   |0
+        // c2         |2025-01-01 00:00:00|1m    |40,40,40,40|15     |15/15     |80    |0
+        // c3         |2025-01-01 00:00:00|1h    |40,40,40,40|15     |15/15     |80    |0
+        // c4         |2025-01-01 00:01:00|1m    |40,40,40,40|15     |15/15     |80    |0
+        // c5         |2025-01-01 00:00:00|1m    |40,40,40,40|15     |15/15     |80    |1
 
         let c = CandlestickDiffModelBuilder::merge(vec![
             c1.clone(),
