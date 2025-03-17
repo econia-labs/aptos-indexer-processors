@@ -1,6 +1,6 @@
 use crate::{
     db::common::models::emojicoin_models::{
-        constants::CANDLESTICK_DECIMALS,
+        constants::{CANDLESTICK_DECIMALS, NORMAL_CANDLESTICK_PERIODS},
         enums::Period,
         json_types::{StateEvent, TxnInfo},
         parsers::emojis::parser::symbol_bytes_to_emojis,
@@ -69,20 +69,9 @@ impl CandlestickDiffModelBuilder {
         state: &StateEvent,
         swap_timestamp: (i64, i64),
     ) -> Vec<Self> {
-        let periods = vec![
-            Period::FifteenSeconds,
-            Period::OneMinute,
-            Period::FiveMinutes,
-            Period::FifteenMinutes,
-            Period::ThirtyMinutes,
-            Period::OneHour,
-            Period::FourHours,
-            Period::OneDay,
-        ];
-
         let mut candlesticks: Vec<Self> = vec![];
 
-        for period in periods {
+        for &period in NORMAL_CANDLESTICK_PERIODS.iter() {
             let start_time = txn_info
                 .timestamp
                 .duration_trunc(period.to_time_delta())
