@@ -8,8 +8,7 @@ README.md                                        @alnoki
 cfg/                                             @alnoki
 hasura-api/                                      @alnoki
 python/                                          @alnoki
-rust/                                            @alnoki
-rust/processor/src/processors/emojicoin_dot_fun/ @CRBl69
+rust/                                            @CRBl69
 scripts/                                         @alnoki
 test_move_script/                                @alnoki
 typescript/                                      @alnoki
