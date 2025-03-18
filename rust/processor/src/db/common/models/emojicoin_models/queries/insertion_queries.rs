@@ -430,8 +430,46 @@ pub fn insert_arena_candlesticks_query(
                 volume.eq(volume + excluded(volume)),
                 n_swaps.eq(n_swaps + excluded(n_swaps)),
             )),
-        // Not less than or equal to, just less than, because this query aggregates, it shouldn't
-        // ever run twice. Ideally, candlesticks here would be filtered already.
+        None,
+    )
+}
+
+pub fn insert_candlesticks_query(
+    items_to_insert: Vec<CandlestickModel>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::candlesticks::dsl::*;
+    (
+        diesel::insert_into(schema::candlesticks::table)
+            .values(items_to_insert)
+            .on_conflict((market_id, period, start_time))
+            .do_update()
+            .set((
+                last_transaction_version.eq(excluded(last_transaction_version)),
+                open_price.eq(sql("COALESCE(")
+                    .bind(open_price)
+                    .sql(",")
+                    .bind(excluded(open_price))
+                    .sql(")")),
+                high_price.eq(sql("GREATEST(COALESCE(")
+                    .bind(high_price)
+                    .sql(",")
+                    .bind(excluded(high_price))
+                    .sql("),")
+                    .bind(excluded(high_price))
+                    .sql(")")),
+                low_price.eq(sql("LEAST(COALESCE(")
+                    .bind(low_price)
+                    .sql(",")
+                    .bind(excluded(low_price))
+                    .sql("),")
+                    .bind(excluded(low_price))
+                    .sql(")")),
+                close_price.eq(excluded(close_price)),
+                volume.eq(volume + excluded(volume)),
+            )),
         None,
     )
 }

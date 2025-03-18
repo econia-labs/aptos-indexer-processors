@@ -161,6 +161,7 @@ impl Debug for EmojicoinProcessor {
 }
 
 struct InsertEvents {
+    candlesticks: Vec<CandlestickModel>,
     market_registration_events: Vec<MarketRegistrationEventModel>,
     swap_events: Vec<SwapEventModel>,
     chat_events: Vec<ChatEventModel>,
@@ -217,6 +218,7 @@ async fn insert_to_db(
         arena_leaderboard_history,
         arena_info_update,
         arena_candlesticks,
+        candlesticks,
     } = insert_events;
 
     let mut conn = pool.get().await.unwrap();
@@ -402,6 +404,16 @@ async fn insert_to_db(
                 ),
             )
             .await?;
+            execute_in_transaction(
+                conn,
+                insert_candlesticks_query,
+                &candlesticks,
+                get_config_table_chunk_size::<CandlestickModel>(
+                    "candlesticks",
+                    per_table_chunk_sizes,
+                ),
+            )
+            .await?;
             execute_single_transaction(
                 conn,
                 update_arena_leaderboard_history_query,
@@ -546,6 +558,7 @@ impl EmojicoinProcessor {
             (TxnInfo, MarketResource, Trigger, InstantaneousStats),
         >,
         arena_candlesticks_builders: &mut Vec<ArenaCandlestickDiffModelBuilder>,
+        candlesticks_builders: &mut Vec<CandlestickDiffModelBuilder>,
         states: &mut AHashMap<BigDecimal, StateEvent>,
         insert_events: &mut InsertEvents,
     ) -> anyhow::Result<()> {
@@ -603,6 +616,13 @@ impl EmojicoinProcessor {
                     )? {
                         match &evt {
                             EventWithMarket::State(state) => {
+                                candlesticks_builders.extend(
+                                    CandlestickDiffModelBuilder::from_state_event(
+                                        &txn_info,
+                                        state,
+                                        (txn_info.version, event_index as i64),
+                                    ),
+                                );
                                 states
                                     .insert(state.market_metadata.market_id.clone(), state.clone());
                                 // For arena swaps, we need to track two market states. The market swapped *out of*
@@ -964,6 +984,7 @@ impl ProcessorTrait for EmojicoinProcessor {
             arena_leaderboard_history: vec![],
             arena_info_update: vec![],
             arena_candlesticks: vec![],
+            candlesticks: vec![],
         };
 
         // Store the writeset changes for each market in the transaction so we can lazily parse them later only for the
@@ -975,6 +996,7 @@ impl ProcessorTrait for EmojicoinProcessor {
         let mut user_pools_db: AHashMap<(String, u64), UserLiquidityPoolsModel> = AHashMap::new();
         let mut period_data = vec![];
         let mut arena_candlesticks_builders = vec![];
+        let mut candlesticks_builders = vec![];
 
         let mut market_registrations = vec![];
         let mut states: AHashMap<BigDecimal, StateEvent> = AHashMap::new();
@@ -994,6 +1016,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                     &mut period_data,
                     &mut latest_market_resources,
                     &mut arena_candlesticks_builders,
+                    &mut candlesticks_builders,
                     &mut states,
                     &mut insert_events,
                 )
@@ -1034,6 +1057,11 @@ impl ProcessorTrait for EmojicoinProcessor {
                 .map(|a| a.into())
                 .collect();
 
+        insert_events.candlesticks = CandlestickDiffModelBuilder::merge(candlesticks_builders)
+            .into_iter()
+            .map(|a| a.into())
+            .collect();
+
         let processing_duration_in_secs = processing_start.elapsed().as_secs_f64();
         let db_insertion_start = std::time::Instant::now();
 
@@ -1057,6 +1085,7 @@ impl ProcessorTrait for EmojicoinProcessor {
                 &insert_events.arena_vault_balance_update_events,
             ),
             EmojicoinDbEvent::from_arena_candlesticks(&insert_events.arena_candlesticks),
+            EmojicoinDbEvent::from_candlesticks(&insert_events.candlesticks),
         ]
         .into_iter()
         .flatten()
