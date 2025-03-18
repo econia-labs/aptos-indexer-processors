@@ -1,6 +1,6 @@
 use crate::{
     db::common::models::emojicoin_models::{
-        constants::CANDLESTICK_DECIMALS,
+        constants::{ARENA_CANDLESTICK_PERIODS, CANDLESTICK_DECIMALS},
         enums::Period,
         json_types::{StateEvent, TxnInfo},
     },
@@ -71,18 +71,9 @@ impl ArenaCandlestickDiffModelBuilder {
         price_0: BigDecimal,
         price_1: BigDecimal,
     ) -> Vec<Self> {
-        let periods = vec![
-            Period::FifteenSeconds,
-            Period::OneMinute,
-            Period::FiveMinutes,
-            Period::FifteenMinutes,
-            Period::ThirtyMinutes,
-            Period::OneHour,
-        ];
-
         let mut candlesticks: Vec<Self> = vec![];
 
-        for period in periods {
+        for &period in ARENA_CANDLESTICK_PERIODS.iter() {
             let start_time = txn_info
                 .timestamp
                 .duration_trunc(period.to_time_delta())
@@ -147,6 +138,36 @@ impl From<ArenaCandlestickDiffModelBuilder> for ArenaCandlestickModel {
 
             volume: value.volume,
             n_swaps: value.n_swaps,
+        }
+    }
+}
+
+pub type AllArenaCandlestickColumns = (
+    BigDecimal,
+    i64,
+    crate::db::common::models::emojicoin_models::enums::Period,
+    chrono::NaiveDateTime,
+    BigDecimal,
+    BigDecimal,
+    BigDecimal,
+    BigDecimal,
+    BigDecimal,
+    BigDecimal,
+);
+
+impl From<AllArenaCandlestickColumns> for ArenaCandlestickModel {
+    fn from(value: AllArenaCandlestickColumns) -> Self {
+        Self {
+            melee_id: value.0,
+            last_transaction_version: value.1,
+            period: value.2,
+            start_time: value.3,
+            open_price: value.4,
+            high_price: value.5,
+            low_price: value.6,
+            close_price: value.7,
+            volume: value.8,
+            n_swaps: value.9,
         }
     }
 }

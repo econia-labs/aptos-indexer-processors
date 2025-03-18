@@ -393,83 +393,93 @@ pub fn insert_arena_vault_balance_update_events_query(
     )
 }
 
-pub fn insert_arena_candlesticks_query(
-    items_to_insert: Vec<ArenaCandlestickModel>,
-) -> (
-    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
-    Option<&'static str>,
-) {
-    use schema::arena_candlesticks::dsl::*;
-    (
-        diesel::insert_into(schema::arena_candlesticks::table)
-            .values(items_to_insert)
-            .on_conflict((melee_id, period, start_time))
-            .do_update()
-            .set((
-                last_transaction_version.eq(excluded(last_transaction_version)),
-                open_price.eq(sql("COALESCE(")
-                    .bind(open_price)
-                    .sql(",")
-                    .bind(excluded(open_price))
-                    .sql(")")),
-                high_price.eq(sql("GREATEST(COALESCE(")
-                    .bind(high_price)
-                    .sql(",")
-                    .bind(excluded(high_price))
-                    .sql("),")
-                    .bind(excluded(high_price))
-                    .sql(")")),
-                low_price.eq(sql("LEAST(COALESCE(")
-                    .bind(low_price)
-                    .sql(",")
-                    .bind(excluded(low_price))
-                    .sql("),")
-                    .bind(excluded(low_price))
-                    .sql(")")),
-                close_price.eq(excluded(close_price)),
-                volume.eq(volume + excluded(volume)),
-                n_swaps.eq(n_swaps + excluded(n_swaps)),
-            )),
-        None,
-    )
-}
+pub mod run_queries {
+    //! Due to the way diesel types queries, it's not possible to use an insert query that has a
+    //! [`diesel::query_builder::InsertStatement::returning`] clause with the helper functions
+    //! declared in the [`crate::utils::database`] module. For that reason, those queries are
+    //! isolated in this [`run_queries`] module.
 
-pub fn insert_candlesticks_query(
-    items_to_insert: Vec<CandlestickModel>,
-) -> (
-    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
-    Option<&'static str>,
-) {
-    use schema::candlesticks::dsl::*;
-    (
-        diesel::insert_into(schema::candlesticks::table)
-            .values(items_to_insert)
-            .on_conflict((market_id, period, start_time))
-            .do_update()
-            .set((
-                last_transaction_version.eq(excluded(last_transaction_version)),
-                open_price.eq(sql("COALESCE(")
-                    .bind(open_price)
-                    .sql(",")
-                    .bind(excluded(open_price))
-                    .sql(")")),
-                high_price.eq(sql("GREATEST(COALESCE(")
-                    .bind(high_price)
-                    .sql(",")
-                    .bind(excluded(high_price))
-                    .sql("),")
-                    .bind(excluded(high_price))
-                    .sql(")")),
-                low_price.eq(sql("LEAST(COALESCE(")
-                    .bind(low_price)
-                    .sql(",")
-                    .bind(excluded(low_price))
-                    .sql("),")
-                    .bind(excluded(low_price))
-                    .sql(")")),
-                close_price.eq(excluded(close_price)),
-                volume.eq(volume + excluded(volume)),
-            )),
-        None,
-    )
+    macro_rules! coalesce {
+        // coalesce!(open) -> COALESCE(open, excluded(open))
+        ($column:expr) => {
+            sql("COALESCE(")
+                .bind($column)
+                .sql(",")
+                .bind(excluded($column))
+                .sql(")")
+        };
+
+        // coalesce!("GREATEST", high) -> GREATEST(COALESCE(high, excluded(high)))
+        // coalesce!("LEAST", low)     -> LEAST(COALESCE(low, excluded(low)))
+        ($operation:expr, $column:expr) => {
+            sql(concat!($operation, "(COALESCE("))
+                .bind($column)
+                .sql(",")
+                .bind(excluded($column))
+                .sql("),")
+                .bind(excluded($column))
+                .sql(")")
+        };
+    }
+
+    use crate::{db::common::models::emojicoin_models::models::prelude::*, schema};
+    use diesel::{dsl::sql, upsert::excluded, ExpressionMethods};
+    use diesel_async::{pooled_connection::bb8::PooledConnection, AsyncPgConnection, RunQueryDsl};
+
+    pub async fn insert_arena_candlesticks_query(
+        conn: &mut PooledConnection<'_, AsyncPgConnection>,
+        items_to_insert: Vec<ArenaCandlestickModel>,
+        chunk_size: usize,
+    ) -> Result<Vec<ArenaCandlestickModel>, diesel::result::Error> {
+        use schema::arena_candlesticks::dsl::*;
+        let mut res = vec![];
+        for chunk in items_to_insert.chunks(chunk_size) {
+            let r = diesel::insert_into(schema::arena_candlesticks::table)
+                .values(chunk)
+                .on_conflict((melee_id, period, start_time))
+                .do_update()
+                .set((
+                    last_transaction_version.eq(excluded(last_transaction_version)),
+                    open_price.eq(coalesce!(open_price)),
+                    high_price.eq(coalesce!("GREATEST", high_price)),
+                    low_price.eq(coalesce!("LEAST", low_price)),
+                    close_price.eq(excluded(close_price)),
+                    volume.eq(volume + excluded(volume)),
+                    n_swaps.eq(n_swaps + excluded(n_swaps)),
+                ))
+                .returning(schema::arena_candlesticks::all_columns)
+                .get_results::<AllArenaCandlestickColumns>(conn)
+                .await?;
+            res.extend(r);
+        }
+        Ok(res.into_iter().map(|e| e.into()).collect())
+    }
+
+    pub async fn insert_candlesticks_query(
+        conn: &mut PooledConnection<'_, AsyncPgConnection>,
+        items_to_insert: Vec<CandlestickModel>,
+        chunk_size: usize,
+    ) -> Result<Vec<CandlestickModel>, diesel::result::Error> {
+        use schema::candlesticks::dsl::*;
+        let mut res = vec![];
+        for chunk in items_to_insert.chunks(chunk_size) {
+            let r = diesel::insert_into(schema::candlesticks::table)
+                .values(chunk)
+                .on_conflict((market_id, period, start_time))
+                .do_update()
+                .set((
+                    last_transaction_version.eq(excluded(last_transaction_version)),
+                    open_price.eq(coalesce!(open_price)),
+                    high_price.eq(coalesce!("GREATEST", high_price)),
+                    low_price.eq(coalesce!("LEAST", low_price)),
+                    close_price.eq(excluded(close_price)),
+                    volume.eq(volume + excluded(volume)),
+                ))
+                .returning(schema::candlesticks::all_columns)
+                .get_results::<AllCandlestickColumns>(conn)
+                .await?;
+            res.extend(r);
+        }
+        Ok(res.into_iter().map(|e| e.into()).collect())
+    }
 }
