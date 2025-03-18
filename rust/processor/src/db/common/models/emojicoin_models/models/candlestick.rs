@@ -1,6 +1,6 @@
 use crate::{
     db::common::models::emojicoin_models::{
-        constants::CANDLESTICK_DECIMALS,
+        constants::{CANDLESTICK_DECIMALS, NORMAL_CANDLESTICK_PERIODS},
         enums::Period,
         json_types::{StateEvent, TxnInfo},
         parsers::emojis::parser::symbol_bytes_to_emojis,
@@ -69,20 +69,9 @@ impl CandlestickDiffModelBuilder {
         state: &StateEvent,
         swap_timestamp: (i64, i64),
     ) -> Vec<Self> {
-        let periods = vec![
-            Period::FifteenSeconds,
-            Period::OneMinute,
-            Period::FiveMinutes,
-            Period::FifteenMinutes,
-            Period::ThirtyMinutes,
-            Period::OneHour,
-            Period::FourHours,
-            Period::OneDay,
-        ];
-
         let mut candlesticks: Vec<Self> = vec![];
 
-        for period in periods {
+        for &period in NORMAL_CANDLESTICK_PERIODS.iter() {
             let start_time = txn_info
                 .timestamp
                 .duration_trunc(period.to_time_delta())
@@ -155,6 +144,36 @@ impl From<CandlestickDiffModelBuilder> for CandlestickModel {
     }
 }
 
+pub type AllCandlestickColumns = (
+    BigDecimal,
+    i64,
+    crate::db::common::models::emojicoin_models::enums::Period,
+    chrono::NaiveDateTime,
+    BigDecimal,
+    BigDecimal,
+    BigDecimal,
+    BigDecimal,
+    Vec<Option<String>>,
+    BigDecimal,
+);
+
+impl From<AllCandlestickColumns> for CandlestickModel {
+    fn from(value: AllCandlestickColumns) -> Self {
+        Self {
+            market_id: value.0,
+            last_transaction_version: value.1,
+            period: value.2,
+            start_time: value.3,
+            open_price: value.4,
+            high_price: value.5,
+            low_price: value.6,
+            close_price: value.7,
+            symbol_emojis: value.8.into_iter().map(Option::unwrap).collect(),
+            volume: value.9,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -171,7 +190,7 @@ mod tests {
             last_transaction_version: 12,
 
             period: Period::OneMinute,
-            start_time: start_time.clone(),
+            start_time,
 
             open_price: BigDecimal::from(50),
             high_price: BigDecimal::from(50),
@@ -190,7 +209,7 @@ mod tests {
             last_transaction_version: 15,
 
             period: Period::OneMinute,
-            start_time: start_time.clone(),
+            start_time,
 
             open_price: BigDecimal::from(40),
             high_price: BigDecimal::from(40),
@@ -210,7 +229,7 @@ mod tests {
             last_transaction_version: 15,
 
             period: Period::OneHour,
-            start_time: start_time.clone(),
+            start_time,
 
             open_price: BigDecimal::from(40),
             high_price: BigDecimal::from(40),
@@ -231,7 +250,6 @@ mod tests {
 
             period: Period::OneMinute,
             start_time: start_time
-                .clone()
                 .checked_add_signed(TimeDelta::minutes(1))
                 .unwrap(),
 
@@ -253,7 +271,7 @@ mod tests {
             last_transaction_version: 15,
 
             period: Period::OneMinute,
-            start_time: start_time.clone(),
+            start_time,
 
             open_price: BigDecimal::from(40),
             high_price: BigDecimal::from(40),
@@ -347,7 +365,7 @@ mod tests {
             last_transaction_version: 12,
 
             period: Period::OneMinute,
-            start_time: start_time.clone(),
+            start_time,
 
             open_price: BigDecimal::from(50),
             high_price: BigDecimal::from(50),
@@ -377,35 +395,5 @@ mod tests {
         assert_eq!(candlestick.close_price, builder.close_price);
         assert_eq!(candlestick.symbol_emojis, builder.symbol_emojis);
         assert_eq!(candlestick.volume, builder.volume);
-    }
-}
-
-pub type AllCandlestickColumns = (
-    BigDecimal,
-    i64,
-    crate::db::common::models::emojicoin_models::enums::Period,
-    chrono::NaiveDateTime,
-    BigDecimal,
-    BigDecimal,
-    BigDecimal,
-    BigDecimal,
-    Vec<Option<String>>,
-    BigDecimal,
-);
-
-impl From<AllCandlestickColumns> for CandlestickModel {
-    fn from(value: AllCandlestickColumns) -> Self {
-        Self {
-            market_id: value.0,
-            last_transaction_version: value.1,
-            period: value.2,
-            start_time: value.3,
-            open_price: value.4,
-            high_price: value.5,
-            low_price: value.6,
-            close_price: value.7,
-            symbol_emojis: value.8.into_iter().map(Option::unwrap).collect(),
-            volume: value.9,
-        }
     }
 }

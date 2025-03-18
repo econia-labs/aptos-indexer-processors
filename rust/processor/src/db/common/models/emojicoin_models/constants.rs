@@ -1,7 +1,7 @@
+use super::enums::Period;
 use lazy_static::lazy_static;
 use std::num::NonZeroU64;
 
-// Only for use below to construct the lazy static strings.
 const SWAP: &str = "::emojicoin_dot_fun::Swap";
 const CHAT: &str = "::emojicoin_dot_fun::Chat";
 const MARKET_REGISTRATION: &str = "::emojicoin_dot_fun::MarketRegistration";
@@ -15,7 +15,26 @@ const ARENA_ENTER: &str = "::emojicoin_arena::Enter";
 const ARENA_EXIT: &str = "::emojicoin_arena::Exit";
 const ARENA_SWAP: &str = "::emojicoin_arena::Swap";
 const ARENA_VAULT_BALANCE_UPDATE: &str = "::emojicoin_arena::VaultBalanceUpdate";
+
 pub const CANDLESTICK_DECIMALS: NonZeroU64 = NonZeroU64::new(16).unwrap();
+pub const NORMAL_CANDLESTICK_PERIODS: [Period; 8] = [
+    Period::FifteenSeconds,
+    Period::OneMinute,
+    Period::FiveMinutes,
+    Period::FifteenMinutes,
+    Period::ThirtyMinutes,
+    Period::OneHour,
+    Period::FourHours,
+    Period::OneDay,
+];
+pub const ARENA_CANDLESTICK_PERIODS: [Period; 6] = [
+    Period::FifteenSeconds,
+    Period::OneMinute,
+    Period::FiveMinutes,
+    Period::FifteenMinutes,
+    Period::ThirtyMinutes,
+    Period::OneHour,
+];
 
 lazy_static! {
     pub static ref MODULE_ADDRESS: String = std::env::var("EMOJICOIN_MODULE_ADDRESS")
