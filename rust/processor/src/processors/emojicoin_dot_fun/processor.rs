@@ -1000,7 +1000,7 @@ impl ProcessorTrait for EmojicoinProcessor {
         let mut market_registrations = vec![];
         let mut states: AHashMap<BigDecimal, StateEvent> = AHashMap::new();
 
-        let mut max_transaction_version = 0;
+        let mut max_transaction_version = prev_last_success_version;
 
         for txn in &transactions {
             max_transaction_version = std::cmp::max(max_transaction_version, txn.version);
