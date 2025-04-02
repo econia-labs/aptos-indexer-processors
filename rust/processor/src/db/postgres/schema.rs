@@ -290,6 +290,24 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
+    use super::sql_types::PeriodType;
+
+    candlesticks (market_id, period, start_time) {
+        market_id -> Numeric,
+        last_transaction_version -> Int8,
+        period -> PeriodType,
+        start_time -> Timestamp,
+        open_price -> Numeric,
+        high_price -> Numeric,
+        low_price -> Numeric,
+        close_price -> Numeric,
+        volume -> Numeric,
+        symbol_emojis -> Array<Nullable<Text>>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
     use super::sql_types::TriggerType;
 
     chat_events (market_id, market_nonce) {
@@ -1333,24 +1351,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    use diesel::sql_types::*;
-    use super::sql_types::PeriodType;
-
-    candlesticks (market_id, period, start_time) {
-        market_id -> Numeric,
-        last_transaction_version -> Int8,
-        period -> PeriodType,
-        start_time -> Timestamp,
-        open_price -> Numeric,
-        high_price -> Numeric,
-        low_price -> Numeric,
-        close_price -> Numeric,
-        symbol_emojis -> Array<Nullable<Text>>,
-        volume -> Numeric,
-    }
-}
-
-diesel::table! {
     objects (transaction_version, write_set_change_index) {
         transaction_version -> Int8,
         write_set_change_index -> Int8,
@@ -1875,6 +1875,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     arena_swap_events,
     arena_vault_balance_update_events,
     block_metadata_transactions,
+    candlesticks,
     chat_events,
     coin_activities,
     coin_balances,
@@ -1925,7 +1926,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     move_modules,
     move_resources,
     nft_points,
-    candlesticks,
     objects,
     periodic_state_events,
     processor_status,
