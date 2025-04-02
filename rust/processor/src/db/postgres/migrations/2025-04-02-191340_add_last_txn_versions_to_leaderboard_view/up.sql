@@ -13,8 +13,6 @@ SELECT
     arena_leaderboard_history.emojicoin_1_balance,
     arena_leaderboard_history.exited,
     arena_leaderboard_history.last_exit_0,
-    -- This is one of the two new columns. Nothing else changes in this view.
-    arena_leaderboard_history.last_transaction_version AS leaderboard_last_transaction_version,
 
     arena_info.emojicoin_0_symbols,
     arena_info.emojicoin_1_symbols,
@@ -24,7 +22,9 @@ SELECT
     arena_info.emojicoin_1_market_id,
     arena_info.start_time,
     arena_info.duration,
-    -- This is one of the two new columns. Nothing else changes in this view.
+
+    -- The two new columns.
+    arena_leaderboard_history.last_transaction_version AS leaderboard_history_last_transaction_version,
     arena_info.last_transaction_version AS arena_info_last_transaction_version
 FROM
     arena_leaderboard_history
