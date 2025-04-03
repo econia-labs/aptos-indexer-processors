@@ -29,9 +29,9 @@ pub struct CandlestickDiffModelBuilder {
     pub open_timestamp: (i64, i64),
     pub close_timestamp: (i64, i64),
 
-    pub symbol_emojis: Vec<String>,
-
     pub volume: BigDecimal,
+
+    pub symbol_emojis: Vec<String>,
 }
 
 impl CandlestickDiffModelBuilder {
@@ -112,9 +112,9 @@ pub struct CandlestickModel {
     pub low_price: BigDecimal,
     pub close_price: BigDecimal,
 
-    pub symbol_emojis: Vec<String>,
-
     pub volume: BigDecimal,
+
+    pub symbol_emojis: Vec<String>,
 }
 
 impl CandlestickModel {
@@ -137,9 +137,9 @@ impl From<CandlestickDiffModelBuilder> for CandlestickModel {
             low_price: Self::truncate(value.low_price),
             close_price: Self::truncate(value.close_price),
 
-            symbol_emojis: value.symbol_emojis,
-
             volume: value.volume,
+
+            symbol_emojis: value.symbol_emojis,
         }
     }
 }
@@ -153,8 +153,8 @@ pub type AllCandlestickColumns = (
     BigDecimal,
     BigDecimal,
     BigDecimal,
-    Vec<Option<String>>,
     BigDecimal,
+    Vec<Option<String>>,
 );
 
 impl From<AllCandlestickColumns> for CandlestickModel {
@@ -168,8 +168,8 @@ impl From<AllCandlestickColumns> for CandlestickModel {
             high_price: value.5,
             low_price: value.6,
             close_price: value.7,
-            symbol_emojis: value.8.into_iter().map(Option::unwrap).collect(),
-            volume: value.9,
+            volume: value.8,
+            symbol_emojis: value.9.into_iter().map(Option::unwrap).collect(),
         }
     }
 }
