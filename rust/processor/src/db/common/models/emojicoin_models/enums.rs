@@ -189,7 +189,7 @@ pub enum EmojicoinDbEvent {
     ArenaExit(ArenaExitEventModel),
     ArenaSwap(ArenaSwapEventModel),
     ArenaVaultBalanceUpdate(ArenaVaultBalanceUpdateEventModel),
-    // Not an actual event in the move Module- but is sent to the broker.
+    // Not an actual event in the Move module- but is sent to the broker.
     ArenaCandlestick(ArenaCandlestickModel),
     Candlestick(CandlestickModel),
 }
