@@ -15,7 +15,8 @@ DROP VIEW IF EXISTS price_feed;
 -- This reduces the query time by roughly 50%, tested using `EXPLAIN ANALYZE`
 -- on the live `fallback` indexer.
 
-EXPLAIN ANALYZE WITH markets AS (
+CREATE VIEW price_feed AS
+WITH markets AS (
     SELECT market_id
     FROM market_state
     ORDER BY daily_volume DESC
