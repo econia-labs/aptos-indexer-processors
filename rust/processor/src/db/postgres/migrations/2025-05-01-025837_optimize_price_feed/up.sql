@@ -19,6 +19,7 @@ CREATE VIEW price_feed AS
 WITH markets AS (
     SELECT market_id
     FROM market_state
+    WHERE daily_volume > 0
     ORDER BY daily_volume DESC
 ),
 swap24 AS (
