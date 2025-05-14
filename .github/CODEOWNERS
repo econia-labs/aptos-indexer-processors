@@ -8,7 +8,7 @@ README.md         @alnoki
 cfg/              @alnoki
 hasura-api/       @alnoki
 python/           @alnoki
-rust/             @CRBl69 @xbtmatt
+rust/             @xbtmatt
 scripts/          @alnoki
 test_move_script/ @alnoki
 typescript/       @alnoki
