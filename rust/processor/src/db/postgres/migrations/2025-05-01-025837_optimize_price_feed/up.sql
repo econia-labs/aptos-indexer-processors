@@ -10,10 +10,12 @@ DROP VIEW IF EXISTS price_feed;
 -- 2. It calculated first_swap for all markets even though it was rarely needed
 -- 3. It performed expensive operations before filtering the dataset
 --
--- This adds a CASE statement to avoid calculating all `first_swap`s unless it's
--- actually necessary.
--- This reduces the query time by roughly 50%, tested using `EXPLAIN ANALYZE`
--- on the live `fallback` indexer.
+-- This adds a `WHERE daily_volume > 0` to filter by markets that will never be
+-- displayed (no daily volume means no 24h delta) and a CASE statement to avoid
+-- calculating the `first_swap` for each market unless it's actually necessary.
+--
+-- This reduces the query time by roughly 70% (from 1000ms to 300ms), tested using
+-- `EXPLAIN ANALYZE` on both live indexers. 
 --
 -- It also adds a new field `delta_percentage` to allow sorting on the price delta
 -- as a percentage.
@@ -22,6 +24,8 @@ CREATE VIEW price_feed AS
 WITH markets AS (
     SELECT market_id
     FROM market_state
+    -- Filter markets that will not be displayed in the price feed. No 24h volume
+    -- means there is no 24h delta.
     WHERE daily_volume > 0
 ),
 swap24 AS (
