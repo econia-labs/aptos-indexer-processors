@@ -55,5 +55,6 @@ with_prices AS (
     WHERE latest_swap.transaction_timestamp > CURRENT_TIMESTAMP - interval '1 day'
 )
 SELECT *,
-    ((close_price_q64 / open_price_q64 * 100) - 100) AS delta_percentage
+    -- 16 decimals to match the number of decimals in `CANDLESTICK_DECIMALS`.
+    ROUND(((close_price_q64 / open_price_q64) * 100 - 100), 16) AS delta_percentage
 FROM with_prices;
