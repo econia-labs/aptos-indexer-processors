@@ -54,7 +54,7 @@ with_prices AS (
         END AS open_price_q64,
         latest_swap.last_swap_avg_execution_price_q64 AS close_price_q64
     FROM markets
-    INNER JOIN market_latest_state_event AS latest_swap ON markets.market_id = latest_swap.market_id
+    INNER JOIN market_state AS latest_swap ON markets.market_id = latest_swap.market_id
     LEFT JOIN swap24 AS swap_open ON markets.market_id = swap_open.market_id
     WHERE latest_swap.transaction_timestamp > CURRENT_TIMESTAMP - interval '1 day'
 )
