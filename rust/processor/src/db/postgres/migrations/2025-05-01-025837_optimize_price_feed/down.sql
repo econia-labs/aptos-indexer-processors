@@ -1,9 +1,8 @@
 -- This file should undo anything in `up.sql`
 -- Your SQL goes here
-DROP FUNCTION price_feed;
-ALTER INDEX price_feed RENAME TO price_feed_idx;
+DROP VIEW IF EXISTS price_feed;
 
-CREATE OR REPLACE VIEW price_feed AS
+CREATE VIEW price_feed AS
 WITH markets AS (
     SELECT market_id
     FROM market_state
