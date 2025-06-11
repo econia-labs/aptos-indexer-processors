@@ -1,3 +1,6 @@
+use crate::db::common::models::fungible_asset_models::v2_fungible_asset_balances::{
+    get_paired_metadata_address, get_primary_fungible_store_address,
+};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime};
 use num::ToPrimitive;
@@ -15,4 +18,17 @@ pub fn within_past_day(time: NaiveDateTime) -> bool {
     let one_day_ago = chrono::Utc::now() - chrono::Duration::hours(24);
 
     time.and_utc() > one_day_ago
+}
+
+// Expects that the `market_address` has already been standardized.
+pub fn to_lp_coin_type(market_address: &str) -> String {
+    format!("{market_address}::coin_factory::EmojicoinLP")
+}
+
+// Expects that both inputs have already been standardized.
+pub fn to_lp_primary_store_address(owner_address: &str, market_address: &str) -> String {
+    let lp_coin_type = to_lp_coin_type(market_address);
+    let metadata_address = get_paired_metadata_address(lp_coin_type.as_str());
+    get_primary_fungible_store_address(owner_address, metadata_address.as_str())
+        .expect("Should be able to get the primary fungible store address")
 }

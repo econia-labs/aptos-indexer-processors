@@ -86,7 +86,7 @@ pub struct CurrentUnifiedFungibleAssetBalance {
     pub last_transaction_timestamp_v2: Option<chrono::NaiveDateTime>,
 }
 
-fn get_paired_metadata_address(coin_type_name: &str) -> String {
+pub fn get_paired_metadata_address(coin_type_name: &str) -> String {
     if coin_type_name == APTOS_COIN_TYPE_STR {
         APT_METADATA_ADDRESS_HEX.clone()
     } else {
