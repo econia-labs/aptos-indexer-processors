@@ -26,9 +26,8 @@ pub fn to_lp_coin_type(market_address: &str) -> String {
 }
 
 // Expects that both inputs have already been standardized.
-pub fn to_lp_primary_store_address(owner_address: &str, market_address: &str) -> String {
-    let lp_coin_type = to_lp_coin_type(market_address);
-    let metadata_address = get_paired_metadata_address(lp_coin_type.as_str());
+pub fn to_lp_primary_store_address(lp_coin_type: &str, owner_address: &str) -> String {
+    let metadata_address = get_paired_metadata_address(lp_coin_type);
     get_primary_fungible_store_address(owner_address, metadata_address.as_str())
         .expect("Should be able to get the primary fungible store address")
 }

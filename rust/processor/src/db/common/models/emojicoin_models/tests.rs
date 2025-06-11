@@ -1,18 +1,15 @@
 #[cfg(test)]
 mod json_tests {
     use crate::db::common::models::{
-        default_models::transactions::Transaction as JSONTransaction,
         emojicoin_models::{
-            enums::{EmojicoinTypeTag, Trigger},
-            json_types::{EventWithMarket, GlobalStateEvent},
-            models::prelude::UserLiquidityPoolsModel,
+            enums::Trigger,
+            json_types::EventWithMarket,
+            utils::{to_lp_coin_type, to_lp_primary_store_address},
         },
-        fungible_asset_models::v2_fungible_asset_balances::get_primary_fungible_store_address,
+        fungible_asset_models::v2_fungible_asset_balances::{
+            get_paired_metadata_address, get_primary_fungible_store_address,
+        },
     };
-    use aptos_protos::transaction::v1::{
-        transaction::TxnData, Transaction, TransactionInfo, UserTransaction,
-    };
-    use tracing::{debug, field::debug};
 
     #[test]
     fn test_state_event_json() {
@@ -129,19 +126,39 @@ mod json_tests {
     }
 
     #[test]
-    fn test_paired_metadata_address() {
+    fn test_fungible_store_address() {
         // All of these values are copied directly from the writeset changes in the explorer after
         // a real transaction for a liquidity event on localnet.
         let metadata_address = "0xf4c801d6592ecf9c24bfe60b505913576ff8e7b12937adb41b0e37e1b4a11a8d";
-        assert_eq!(get_paired_metadata_address("0x58f40ecd236f430c28e30699bf8a7f478c6e4efe9c6d6a2227a86f41e1f0e44::coin_factory::EmojicoinLP").expect("Should be able to get the paired metadata address"),
+        assert_eq!(get_paired_metadata_address("0x58f40ecd236f430c28e30699bf8a7f478c6e4efe9c6d6a2227a86f41e1f0e44::coin_factory::EmojicoinLP"),
       metadata_address);
-        let fungible_store_address =
+        let expected_fungible_store_address: &'static str =
             "0xc6e60ab1124a56340889861289be47b1cf6f62f5ce0e4ba6871d8400ef0b712e";
         let owner_address = "0x5048c88ba0ab78f78f4da8d2c3c3a35078315a79e28f8e223c1522761d0eec64";
         assert_eq!(
             get_primary_fungible_store_address(owner_address, metadata_address)
                 .expect("Should be able to create a primary store address"),
-            fungible_store_address
+            expected_fungible_store_address
+        );
+    }
+
+    #[test]
+    fn test_to_lp_coin_type() {
+        let market_address = "0x58f40ecd236f430c28e30699bf8a7f478c6e4efe9c6d6a2227a86f41e1f0e44";
+        let lp_coin_type = to_lp_coin_type(market_address);
+        assert_eq!(lp_coin_type, "0x58f40ecd236f430c28e30699bf8a7f478c6e4efe9c6d6a2227a86f41e1f0e44::coin_factory::EmojicoinLP");
+    }
+
+    #[test]
+    fn test_to_lp_primary_fungible_store_address() {
+        let market_address = "0x58f40ecd236f430c28e30699bf8a7f478c6e4efe9c6d6a2227a86f41e1f0e44";
+        let owner_address = "0x5048c88ba0ab78f78f4da8d2c3c3a35078315a79e28f8e223c1522761d0eec64";
+        let expected_fungible_store_address =
+            "0xc6e60ab1124a56340889861289be47b1cf6f62f5ce0e4ba6871d8400ef0b712e";
+        let lp_coin_type = to_lp_coin_type(market_address).as_str();
+        assert_eq!(
+            to_lp_primary_store_address(lp_coin_type, owner_address),
+            expected_fungible_store_address
         );
     }
 }
