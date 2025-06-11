@@ -131,6 +131,6 @@ impl UserLiquidityPoolsModel {
                     None
                 }
             })
-            .expect("LP fungible asset balance change should exist in the writeset.")
+            .expect("LP coin/FA balance change should be in the writeset.")
     }
 }
