@@ -100,33 +100,33 @@ impl UserLiquidityPoolsModel {
             .find_map(|wsc| {
                 if let Change::WriteResource(write_resource) = &wsc.change.as_ref().unwrap() {
                     let txn_version = txn.version as i64;
-                    get_lp_coin_balance(write_resource, txn_version, lp_coin_type.as_str())
-                        .or_else(|| {
-                            get_lp_fungible_asset_balance(
-                                write_resource,
-                                txn_version,
-                                lp_primary_store_address.as_str(),
-                            )
-                        })
-                        .map(|lp_coin_balance| UserLiquidityPoolsModel {
-                            provider: evt.provider.clone(),
-                            transaction_version: evt.transaction_version,
-                            transaction_timestamp: evt.transaction_timestamp,
-                            market_id: evt.market_id.clone(),
-                            symbol_bytes: evt.symbol_bytes.clone(),
-                            symbol_emojis: symbol_bytes_to_emojis(&evt.symbol_bytes),
-                            bump_time: evt.bump_time,
-                            market_nonce: evt.market_nonce.clone(),
-                            trigger: evt.trigger,
-                            base_amount: evt.base_amount.clone(),
-                            quote_amount: evt.quote_amount.clone(),
-                            lp_coin_amount: evt.lp_coin_amount.clone(),
-                            liquidity_provided: evt.liquidity_provided,
-                            base_donation_claim_amount: evt.base_donation_claim_amount.clone(),
-                            quote_donation_claim_amount: evt.quote_donation_claim_amount.clone(),
-                            lp_coin_balance,
-                            market_address: evt.market_address.clone(),
-                        })
+                    get_lp_fungible_asset_balance(
+                        write_resource,
+                        txn_version,
+                        lp_primary_store_address.as_str(),
+                    )
+                    .or_else(|| {
+                        get_lp_coin_balance(write_resource, txn_version, lp_coin_type.as_str())
+                    })
+                    .map(|lp_coin_balance| UserLiquidityPoolsModel {
+                        provider: evt.provider.clone(),
+                        transaction_version: evt.transaction_version,
+                        transaction_timestamp: evt.transaction_timestamp,
+                        market_id: evt.market_id.clone(),
+                        symbol_bytes: evt.symbol_bytes.clone(),
+                        symbol_emojis: symbol_bytes_to_emojis(&evt.symbol_bytes),
+                        bump_time: evt.bump_time,
+                        market_nonce: evt.market_nonce.clone(),
+                        trigger: evt.trigger,
+                        base_amount: evt.base_amount.clone(),
+                        quote_amount: evt.quote_amount.clone(),
+                        lp_coin_amount: evt.lp_coin_amount.clone(),
+                        liquidity_provided: evt.liquidity_provided,
+                        base_donation_claim_amount: evt.base_donation_claim_amount.clone(),
+                        quote_donation_claim_amount: evt.quote_donation_claim_amount.clone(),
+                        lp_coin_balance,
+                        market_address: evt.market_address.clone(),
+                    })
                 } else {
                     None
                 }
