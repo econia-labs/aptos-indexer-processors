@@ -403,7 +403,7 @@ mod json_tests {
     }
 
     #[test]
-    fn test_sdk_leading_zeroes_inputs() {
+    fn test_sdk_leading_zeros_inputs() {
         let leading_zero_market_address =
             "0x058f40ecd236f430c28e30699bf8a7f478c6e4efe9c6d6a2227a86f41e1f0e44";
         let no_leading_zero_market_address =
@@ -417,7 +417,7 @@ mod json_tests {
             to_lp_primary_store_address(no_leading_zero_market_address, owner_address),
             to_lp_primary_store_address(leading_zero_market_address, owner_address),
         );
-        // Ensure they all work with owner addresses with/without leading zeroes, too.
+        // Ensure they all work with owner addresses with/without leading zeros, too.
         assert_eq!(
             to_lp_primary_store_address(leading_zero_market_address, "0x012345"),
             to_lp_primary_store_address(leading_zero_market_address, "0x12345"),
