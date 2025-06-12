@@ -3,7 +3,7 @@ mod json_tests {
     use crate::db::common::models::{
         emojicoin_models::{
             enums::Trigger,
-            json_types::EventWithMarket,
+            json_types::{EventWithMarket, GlobalStateEvent},
             utils::{to_lp_coin_type, to_lp_primary_store_address},
         },
         fungible_asset_models::v2_fungible_asset_balances::{
@@ -233,7 +233,8 @@ mod json_tests {
               "market_id": "2304"
             },
             "registrant": "0xbad225596d685895aa64d92f4f0e14d2f9d8075d3b8adf1e90ae6037f1fcbabe",
-            "time": "1723253654764692"
+            "time": "1723253654764692",
+            "event_index": "1"
           }
         "#;
 
@@ -359,15 +360,76 @@ mod json_tests {
     }
 
     #[test]
+    fn test_to_lp_coin_type_leading_zero() {
+        let market_address = "0x00000000236f430c28e30699bf8a7f478c6e4efe9c6d6a2227a86f41e1f0e44";
+        let lp_coin_type = to_lp_coin_type(market_address);
+        assert_eq!(
+            lp_coin_type,
+            "0x236f430c28e30699bf8a7f478c6e4efe9c6d6a2227a86f41e1f0e44::coin_factory::EmojicoinLP"
+        );
+    }
+
+    #[test]
+    fn test_to_lp_coin_type_trailing_zero() {
+        let market_address = "0x58f40ecd236f430c28e30699bf8a7f478c6e4efe9c6d6a2227a86f41e1f0e00";
+        let lp_coin_type = to_lp_coin_type(market_address);
+        assert_eq!(lp_coin_type, "0x58f40ecd236f430c28e30699bf8a7f478c6e4efe9c6d6a2227a86f41e1f0e00::coin_factory::EmojicoinLP");
+    }
+
+    #[test]
     fn test_to_lp_primary_fungible_store_address() {
         let market_address = "0x58f40ecd236f430c28e30699bf8a7f478c6e4efe9c6d6a2227a86f41e1f0e44";
         let owner_address = "0x5048c88ba0ab78f78f4da8d2c3c3a35078315a79e28f8e223c1522761d0eec64";
         let expected_fungible_store_address =
             "0xc6e60ab1124a56340889861289be47b1cf6f62f5ce0e4ba6871d8400ef0b712e";
-        let lp_coin_type = to_lp_coin_type(market_address).as_str();
         assert_eq!(
-            to_lp_primary_store_address(lp_coin_type, owner_address),
+            to_lp_primary_store_address(market_address, owner_address),
             expected_fungible_store_address
+        );
+    }
+
+    // Uses the same inputs as the other fungible store tests, but with the leading zero included
+    // in the market address.
+    #[test]
+    fn test_primary_store_with_leading_zero() {
+        let market_address = "0x058f40ecd236f430c28e30699bf8a7f478c6e4efe9c6d6a2227a86f41e1f0e44";
+        let owner_address = "0x5048c88ba0ab78f78f4da8d2c3c3a35078315a79e28f8e223c1522761d0eec64";
+        let expected_fungible_store_address =
+            "0xc6e60ab1124a56340889861289be47b1cf6f62f5ce0e4ba6871d8400ef0b712e";
+        assert_eq!(
+            to_lp_primary_store_address(market_address, owner_address),
+            expected_fungible_store_address
+        );
+    }
+
+    #[test]
+    fn test_sdk_leading_zeroes_inputs() {
+        let leading_zero_market_address =
+            "0x058f40ecd236f430c28e30699bf8a7f478c6e4efe9c6d6a2227a86f41e1f0e44";
+        let no_leading_zero_market_address =
+            "0x58f40ecd236f430c28e30699bf8a7f478c6e4efe9c6d6a2227a86f41e1f0e44";
+        let owner_address = "0x5048c88ba0ab78f78f4da8d2c3c3a35078315a79e28f8e223c1522761d0eec64";
+        assert_eq!(
+            to_lp_coin_type(leading_zero_market_address),
+            to_lp_coin_type(no_leading_zero_market_address),
+        );
+        assert_eq!(
+            to_lp_primary_store_address(no_leading_zero_market_address, owner_address),
+            to_lp_primary_store_address(leading_zero_market_address, owner_address),
+        );
+        // Ensure they all work with owner addresses with/without leading zeroes, too.
+        assert_eq!(
+            to_lp_primary_store_address(leading_zero_market_address, "0x012345"),
+            to_lp_primary_store_address(leading_zero_market_address, "0x12345"),
+        );
+        assert_eq!(
+            to_lp_primary_store_address(no_leading_zero_market_address, "0x012345"),
+            to_lp_primary_store_address(no_leading_zero_market_address, "0x12345"),
+        );
+        // Redundant, but just to be sure, exhaustively ensure equality.
+        assert_eq!(
+            to_lp_primary_store_address(leading_zero_market_address, "0x012345"),
+            to_lp_primary_store_address(no_leading_zero_market_address, "0x012345"),
         );
     }
 }

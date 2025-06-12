@@ -91,7 +91,7 @@ impl UserLiquidityPoolsModel {
     pub fn from_event_and_writeset(txn: &Transaction, evt: LiquidityEventModel) -> Self {
         let lp_coin_type = to_lp_coin_type(&evt.market_address);
         let lp_primary_store_address =
-            to_lp_primary_store_address(lp_coin_type.as_str(), &evt.provider);
+            to_lp_primary_store_address(&evt.market_address, &evt.provider);
         txn.info
             .as_ref()
             .expect("Transaction info should exist.")
