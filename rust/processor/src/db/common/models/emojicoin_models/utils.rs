@@ -23,7 +23,6 @@ pub fn within_past_day(time: NaiveDateTime) -> bool {
     time.and_utc() > one_day_ago
 }
 
-// Expects that the `market_address` has already been standardized.
 // Since we are relying on serialization from within the VM to get derived fungible asset addresses,
 // we must use the same serialization functions for addresses.
 // In this case, `fungible_asset.move` uses `type_info::type_name`, a native function that you can
