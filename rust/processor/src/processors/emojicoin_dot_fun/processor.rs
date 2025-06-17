@@ -928,7 +928,6 @@ impl EmojicoinProcessor {
                         insert_events.swap_events.push(swap_model);
                     },
                     BumpEvent::Liquidity(event) => {
-                        let market_addr = market_addr.clone();
                         let evt_model =
                             LiquidityEventModel::new(txn_info.clone(), event, state_event);
                         insert_events.liquidity_events.push(evt_model.clone());
@@ -942,11 +941,7 @@ impl EmojicoinProcessor {
                             bigdecimal_to_u64(&evt_model.market_id),
                         );
                         let new_pool: UserLiquidityPoolsModel =
-                            UserLiquidityPoolsModel::from_event_and_writeset(
-                                txn,
-                                evt_model,
-                                &market_addr,
-                            );
+                            UserLiquidityPoolsModel::from_event_and_writeset(txn, evt_model);
                         user_pools_db
                             .entry(key)
                             .and_modify(|pool| {
