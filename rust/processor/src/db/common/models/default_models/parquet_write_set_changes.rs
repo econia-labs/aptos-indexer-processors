@@ -118,8 +118,7 @@ impl WriteSetChange {
                 resource_option
                     .unwrap()
                     .context(format!(
-                        "Failed to parse move resource, version {}",
-                        txn_version
+                        "Failed to parse move resource, version {txn_version}"
                     ))
                     .map(|resource| {
                         Some((
@@ -150,8 +149,7 @@ impl WriteSetChange {
                 resource_option
                     .unwrap()
                     .context(format!(
-                        "Failed to parse move resource, version {}",
-                        txn_version
+                        "Failed to parse move resource, version {txn_version}"
                     ))
                     .map(|resource| {
                         Some((

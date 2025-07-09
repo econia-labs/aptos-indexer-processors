@@ -153,8 +153,7 @@ impl CurrentTokenPendingClaim {
             let table_metadata = table_handle_to_owner.get(&table_handle).unwrap_or_else(|| {
                 panic!(
                     "Missing table handle metadata for claim. \
-                    Version: {}, table handle for PendingClaims: {}, all metadata: {:?}",
-                    txn_version, table_handle, table_handle_to_owner
+                    Version: {txn_version}, table handle for PendingClaims: {table_handle}, all metadata: {table_handle_to_owner:?}"
                 )
             });
 

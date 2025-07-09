@@ -69,9 +69,9 @@ pub struct MultisigPayloadClean {
 /// Standardizes all addresses and table handles to be length 66 (0x-64 length hash)
 pub fn standardize_address(handle: &str) -> String {
     if let Some(handle) = handle.strip_prefix("0x") {
-        format!("0x{:0>64}", handle)
+        format!("0x{handle:0>64}")
     } else {
-        format!("0x{:0>64}", handle)
+        format!("0x{handle:0>64}")
     }
 }
 
@@ -81,9 +81,9 @@ pub fn standardize_address_from_bytes(bytes: &[u8]) -> String {
     // let encdoed_bytes = binding.as_str();
 
     if let Some(handle) = &encdoed_bytes.strip_prefix("0x") {
-        format!("0x{:0>64}", handle)
+        format!("0x{handle:0>64}")
     } else {
-        format!("0x{:0>64}", encdoed_bytes)
+        format!("0x{encdoed_bytes:0>64}")
     }
 }
 
@@ -298,7 +298,7 @@ pub fn parse_timestamp(ts: &Timestamp, version: i64) -> chrono::NaiveDateTime {
     };
     #[allow(deprecated)]
     chrono::NaiveDateTime::from_timestamp_opt(final_ts.seconds, final_ts.nanos as u32)
-        .unwrap_or_else(|| panic!("Could not parse timestamp {:?} for version {}", ts, version))
+        .unwrap_or_else(|| panic!("Could not parse timestamp {ts:?} for version {version}"))
 }
 
 pub fn parse_timestamp_secs(ts: u64, version: i64) -> chrono::NaiveDateTime {
@@ -307,7 +307,7 @@ pub fn parse_timestamp_secs(ts: u64, version: i64) -> chrono::NaiveDateTime {
         std::cmp::min(ts, MAX_TIMESTAMP_SECS as u64) as i64,
         0,
     )
-    .unwrap_or_else(|| panic!("Could not parse timestamp {:?} for version {}", ts, version))
+    .unwrap_or_else(|| panic!("Could not parse timestamp {ts:?} for version {version}"))
 }
 
 pub fn remove_null_bytes<T: serde::Serialize + for<'de> serde::Deserialize<'de>>(input: &T) -> T {
@@ -388,7 +388,7 @@ pub fn convert_bcs_hex(typ: String, value: String) -> Option<String> {
         "u64" => bcs::from_bytes::<u64>(decoded.as_slice()).map(|e| e.to_string()),
         "u128" => bcs::from_bytes::<u128>(decoded.as_slice()).map(|e| e.to_string()),
         "bool" => bcs::from_bytes::<bool>(decoded.as_slice()).map(|e| e.to_string()),
-        "address" => bcs::from_bytes::<String>(decoded.as_slice()).map(|e| format!("0x{}", e)),
+        "address" => bcs::from_bytes::<String>(decoded.as_slice()).map(|e| format!("0x{e}")),
         _ => Ok(value),
     }
     .ok()
@@ -406,7 +406,7 @@ pub fn convert_bcs_hex_new(typ: u8, value: String) -> Option<String> {
         4 /* u64 */ => bcs::from_bytes::<u64>(decoded.as_slice()).map(|e| e.to_string()),
         5 /* u128 */ => bcs::from_bytes::<u128>(decoded.as_slice()).map(|e| e.to_string()),
         6 /* u256 */ => bcs::from_bytes::<BigDecimal>(decoded.as_slice()).map(|e| e.to_string()),
-        7 /* address */ => bcs::from_bytes::<String>(decoded.as_slice()).map(|e| format!("0x{}", e)),
+        7 /* address */ => bcs::from_bytes::<String>(decoded.as_slice()).map(|e| format!("0x{e}")),
         8 /* byte_vector */ => bcs::from_bytes::<Vec<u8>>(decoded.as_slice()).map(|e| format!("0x{}", hex::encode(e))),
         9 /* string */ => bcs::from_bytes::<String>(decoded.as_slice()),
         _ => Ok(value),

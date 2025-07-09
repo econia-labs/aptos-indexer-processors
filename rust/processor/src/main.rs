@@ -16,8 +16,7 @@ fn main() -> Result<()> {
     let num_cpus = num_cpus::get();
     let worker_threads = (num_cpus * RUNTIME_WORKER_MULTIPLIER).max(16);
     println!(
-        "[Processor] Starting processor tokio runtime: num_cpus={}, worker_threads={}",
-        num_cpus, worker_threads
+        "[Processor] Starting processor tokio runtime: num_cpus={num_cpus}, worker_threads={worker_threads}"
     );
 
     let mut builder = tokio::runtime::Builder::new_multi_thread();
