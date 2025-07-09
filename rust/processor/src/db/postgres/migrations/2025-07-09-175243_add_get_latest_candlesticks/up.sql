@@ -1,8 +1,8 @@
 -- Your SQL goes here
 
 -- Retrieves each period's latest candlestick for a single market.
--- Note these are unrolled manually, since the `DISTINCT ON period`
--- query that seems obvious to use here is actually 100x slower.
+-- Note these are unrolled manually, since the `DISTINCT ON (period)`
+-- query that seems obvious to use here is up to 100x slower.
 CREATE FUNCTION get_market_latest_candlesticks(market_id NUMERIC)
 RETURNS SETOF candlesticks
 AS $$
@@ -26,8 +26,8 @@ AS $$
 $$ LANGUAGE SQL;
 
 -- Retrieves each period's latest candlestick for a single melee.
--- Note these are unrolled manually, since the `DISTINCT ON period`
--- query that seems obvious to use here is actually 100x slower.
+-- Note these are unrolled manually, since the `DISTINCT ON (period)`
+-- query that seems obvious to use here is up to 100x slower.
 CREATE FUNCTION get_arena_latest_candlesticks(melee_id NUMERIC)
 RETURNS SETOF arena_candlesticks
 AS $$
