@@ -97,7 +97,6 @@ fn generate_parquet_file_path(
     counter: u32,
 ) -> PathBuf {
     gcs_bucket_root.join(format!(
-        "{}/{}/{}_{}.parquet",
-        table, highwater_s, highwater_ms, counter
+        "{table}/{highwater_s}/{highwater_ms}_{counter}.parquet"
     ))
 }

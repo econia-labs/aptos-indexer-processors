@@ -306,11 +306,11 @@ pub enum V2FungibleAssetResource {
 impl V2FungibleAssetResource {
     pub fn is_resource_supported(data_type: &str) -> bool {
         [
-            format!("{}::fungible_asset::Supply", COIN_ADDR),
-            format!("{}::fungible_asset::ConcurrentSupply", COIN_ADDR),
-            format!("{}::fungible_asset::Metadata", COIN_ADDR),
-            format!("{}::fungible_asset::FungibleStore", COIN_ADDR),
-            format!("{}::fungible_asset::ConcurrentFungibleBalance", COIN_ADDR),
+            format!("{COIN_ADDR}::fungible_asset::Supply"),
+            format!("{COIN_ADDR}::fungible_asset::ConcurrentSupply"),
+            format!("{COIN_ADDR}::fungible_asset::Metadata"),
+            format!("{COIN_ADDR}::fungible_asset::FungibleStore"),
+            format!("{COIN_ADDR}::fungible_asset::ConcurrentFungibleBalance"),
         ]
         .contains(&data_type.to_string())
     }
@@ -321,35 +321,33 @@ impl V2FungibleAssetResource {
         txn_version: i64,
     ) -> Result<Self> {
         match data_type {
-            x if x == format!("{}::fungible_asset::Supply", COIN_ADDR) => {
+            x if x == format!("{COIN_ADDR}::fungible_asset::Supply") => {
                 serde_json::from_value(data.clone())
                     .map(|inner| Some(Self::FungibleAssetSupply(inner)))
             },
-            x if x == format!("{}::fungible_asset::ConcurrentSupply", COIN_ADDR) => {
+            x if x == format!("{COIN_ADDR}::fungible_asset::ConcurrentSupply") => {
                 serde_json::from_value(data.clone())
                     .map(|inner| Some(Self::ConcurrentFungibleAssetSupply(inner)))
             },
-            x if x == format!("{}::fungible_asset::Metadata", COIN_ADDR) => {
+            x if x == format!("{COIN_ADDR}::fungible_asset::Metadata") => {
                 serde_json::from_value(data.clone())
                     .map(|inner| Some(Self::FungibleAssetMetadata(inner)))
             },
-            x if x == format!("{}::fungible_asset::FungibleStore", COIN_ADDR) => {
+            x if x == format!("{COIN_ADDR}::fungible_asset::FungibleStore") => {
                 serde_json::from_value(data.clone())
                     .map(|inner| Some(Self::FungibleAssetStore(inner)))
             },
-            x if x == format!("{}::fungible_asset::ConcurrentFungibleBalance", COIN_ADDR) => {
+            x if x == format!("{COIN_ADDR}::fungible_asset::ConcurrentFungibleBalance") => {
                 serde_json::from_value(data.clone())
                     .map(|inner| Some(Self::ConcurrentFungibleAssetBalance(inner)))
             },
             _ => Ok(None),
         }
         .context(format!(
-            "version {} failed! failed to parse type {}, data {:?}",
-            txn_version, data_type, data
+            "version {txn_version} failed! failed to parse type {data_type}, data {data:?}"
         ))?
         .context(format!(
-            "Resource unsupported! Call is_resource_supported first. version {} type {}",
-            txn_version, data_type
+            "Resource unsupported! Call is_resource_supported first. version {txn_version} type {data_type}"
         ))
     }
 }
@@ -387,8 +385,7 @@ impl FungibleAssetEvent {
             _ => Ok(None),
         }
         .context(format!(
-            "version {} failed! failed to parse type {}, data {:?}",
-            txn_version, data_type, data
+            "version {txn_version} failed! failed to parse type {data_type}, data {data:?}"
         ))
     }
 }

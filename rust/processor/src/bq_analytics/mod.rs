@@ -57,11 +57,11 @@ impl std::error::Error for ParquetProcessorError {
 impl Display for ParquetProcessorError {
     fn fmt(&self, f: &mut Formatter<'_>) -> FormatResult {
         match *self {
-            ParquetProcessorError::ParquetError(ref err) => write!(f, "Parquet error: {}", err),
-            ParquetProcessorError::StorageError(ref err) => write!(f, "Storage error: {}", err),
-            ParquetProcessorError::TimeoutError(ref err) => write!(f, "Timeout error: {}", err),
-            ParquetProcessorError::IoError(ref err) => write!(f, "IO error: {}", err),
-            ParquetProcessorError::Other(ref desc) => write!(f, "Error: {}", desc),
+            ParquetProcessorError::ParquetError(ref err) => write!(f, "Parquet error: {err}"),
+            ParquetProcessorError::StorageError(ref err) => write!(f, "Storage error: {err}"),
+            ParquetProcessorError::TimeoutError(ref err) => write!(f, "Timeout error: {err}"),
+            ParquetProcessorError::IoError(ref err) => write!(f, "IO error: {err}"),
+            ParquetProcessorError::Other(ref desc) => write!(f, "Error: {desc}"),
         }
     }
 }
@@ -152,7 +152,7 @@ where
                                 "[Parquet Handler] Error processing parquet files: {:?}",
                                 e
                             );
-                            panic!("Error processing parquet files: {:?}", e);
+                            panic!("Error processing parquet files: {e:?}");
                         },
                     }
                 },

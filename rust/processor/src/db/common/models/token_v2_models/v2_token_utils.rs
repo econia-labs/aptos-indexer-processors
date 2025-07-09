@@ -51,7 +51,7 @@ impl fmt::Display for TokenStandard {
             TokenStandard::V1 => "v1",
             TokenStandard::V2 => "v2",
         };
-        write!(f, "{}", res)
+        write!(f, "{res}")
     }
 }
 
@@ -507,16 +507,16 @@ pub enum V2TokenResource {
 impl V2TokenResource {
     pub fn is_resource_supported(data_type: &str) -> bool {
         [
-            format!("{}::object::ObjectCore", COIN_ADDR),
-            format!("{}::object::Untransferable", COIN_ADDR),
-            format!("{}::collection::Collection", TOKEN_V2_ADDR),
-            format!("{}::collection::ConcurrentSupply", TOKEN_V2_ADDR),
-            format!("{}::collection::FixedSupply", TOKEN_V2_ADDR),
-            format!("{}::collection::UnlimitedSupply", TOKEN_V2_ADDR),
-            format!("{}::aptos_token::AptosCollection", TOKEN_V2_ADDR),
-            format!("{}::token::Token", TOKEN_V2_ADDR),
-            format!("{}::property_map::PropertyMap", TOKEN_V2_ADDR),
-            format!("{}::token::TokenIdentifiers", TOKEN_V2_ADDR),
+            format!("{COIN_ADDR}::object::ObjectCore"),
+            format!("{COIN_ADDR}::object::Untransferable"),
+            format!("{TOKEN_V2_ADDR}::collection::Collection"),
+            format!("{TOKEN_V2_ADDR}::collection::ConcurrentSupply"),
+            format!("{TOKEN_V2_ADDR}::collection::FixedSupply"),
+            format!("{TOKEN_V2_ADDR}::collection::UnlimitedSupply"),
+            format!("{TOKEN_V2_ADDR}::aptos_token::AptosCollection"),
+            format!("{TOKEN_V2_ADDR}::token::Token"),
+            format!("{TOKEN_V2_ADDR}::property_map::PropertyMap"),
+            format!("{TOKEN_V2_ADDR}::token::TokenIdentifiers"),
         ]
         .contains(&data_type.to_string())
     }
@@ -527,48 +527,46 @@ impl V2TokenResource {
         txn_version: i64,
     ) -> Result<Self> {
         match data_type {
-            x if x == format!("{}::object::ObjectCore", COIN_ADDR) => {
+            x if x == format!("{COIN_ADDR}::object::ObjectCore") => {
                 serde_json::from_value(data.clone()).map(|inner| Some(Self::ObjectCore(inner)))
             },
-            x if x == format!("{}::object::Untransferable", COIN_ADDR) => {
+            x if x == format!("{COIN_ADDR}::object::Untransferable") => {
                 serde_json::from_value(data.clone()).map(|inner| Some(Self::Untransferable(inner)))
             },
-            x if x == format!("{}::collection::Collection", TOKEN_V2_ADDR) => {
+            x if x == format!("{TOKEN_V2_ADDR}::collection::Collection") => {
                 serde_json::from_value(data.clone()).map(|inner| Some(Self::Collection(inner)))
             },
-            x if x == format!("{}::collection::ConcurrentSupply", TOKEN_V2_ADDR) => {
+            x if x == format!("{TOKEN_V2_ADDR}::collection::ConcurrentSupply") => {
                 serde_json::from_value(data.clone())
                     .map(|inner| Some(Self::ConcurrentSupply(inner)))
             },
-            x if x == format!("{}::collection::FixedSupply", TOKEN_V2_ADDR) => {
+            x if x == format!("{TOKEN_V2_ADDR}::collection::FixedSupply") => {
                 serde_json::from_value(data.clone()).map(|inner| Some(Self::FixedSupply(inner)))
             },
-            x if x == format!("{}::collection::UnlimitedSupply", TOKEN_V2_ADDR) => {
+            x if x == format!("{TOKEN_V2_ADDR}::collection::UnlimitedSupply") => {
                 serde_json::from_value(data.clone()).map(|inner| Some(Self::UnlimitedSupply(inner)))
             },
-            x if x == format!("{}::aptos_token::AptosCollection", TOKEN_V2_ADDR) => {
+            x if x == format!("{TOKEN_V2_ADDR}::aptos_token::AptosCollection") => {
                 serde_json::from_value(data.clone()).map(|inner| Some(Self::AptosCollection(inner)))
             },
-            x if x == format!("{}::token::Token", TOKEN_V2_ADDR) => {
+            x if x == format!("{TOKEN_V2_ADDR}::token::Token") => {
                 serde_json::from_value(data.clone()).map(|inner| Some(Self::TokenV2(inner)))
             },
-            x if x == format!("{}::token::TokenIdentifiers", TOKEN_V2_ADDR) => {
+            x if x == format!("{TOKEN_V2_ADDR}::token::TokenIdentifiers") => {
                 serde_json::from_value(data.clone())
                     .map(|inner| Some(Self::TokenIdentifiers(inner)))
             },
-            x if x == format!("{}::property_map::PropertyMap", TOKEN_V2_ADDR) => {
+            x if x == format!("{TOKEN_V2_ADDR}::property_map::PropertyMap") => {
                 serde_json::from_value(data.clone())
                     .map(|inner| Some(Self::PropertyMapModel(inner)))
             },
             _ => Ok(None),
         }
         .context(format!(
-            "version {} failed! failed to parse type {}, data {:?}",
-            txn_version, data_type, data
+            "version {txn_version} failed! failed to parse type {data_type}, data {data:?}"
         ))?
         .context(format!(
-            "Resource unsupported! Call is_resource_supported first. version {} type {}",
-            txn_version, data_type
+            "Resource unsupported! Call is_resource_supported first. version {txn_version} type {data_type}"
         ))
     }
 }
@@ -607,8 +605,7 @@ impl V2TokenEvent {
             _ => Ok(None),
         }
         .context(format!(
-            "version {} failed! failed to parse type {}, data {:?}",
-            txn_version, data_type, data
+            "version {txn_version} failed! failed to parse type {data_type}, data {data:?}"
         ))
     }
 }

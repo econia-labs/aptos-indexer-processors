@@ -224,8 +224,7 @@ impl Signature {
         ));
         for (index, address) in s.secondary_signer_addresses.iter().enumerate() {
             let secondary_sig = s.secondary_signers.get(index).context(format!(
-                "Failed to parse index {} for multi agent secondary signers",
-                index
+                "Failed to parse index {index} for multi agent secondary signers"
             ))?;
             signatures.append(&mut Self::parse_multi_agent_signature_helper(
                 secondary_sig,
@@ -259,8 +258,7 @@ impl Signature {
         ));
         for (index, address) in s.secondary_signer_addresses.iter().enumerate() {
             let secondary_sig = s.secondary_signers.get(index).context(format!(
-                "Failed to parse index {} for multi agent secondary signers",
-                index
+                "Failed to parse index {index} for multi agent secondary signers"
             ))?;
             signatures.append(&mut Self::parse_multi_agent_signature_helper(
                 secondary_sig,
@@ -502,11 +500,11 @@ impl Signature {
             "multi_key"
         };
         match signature_variant {
-            Some(SignatureVariant::Ed25519(_)) => Some(format!("{}_ed25519_signature", prefix)),
-            Some(SignatureVariant::Keyless(_)) => Some(format!("{}_keyless_signature", prefix)),
-            Some(SignatureVariant::Webauthn(_)) => Some(format!("{}_webauthn_signature", prefix)),
+            Some(SignatureVariant::Ed25519(_)) => Some(format!("{prefix}_ed25519_signature")),
+            Some(SignatureVariant::Keyless(_)) => Some(format!("{prefix}_keyless_signature")),
+            Some(SignatureVariant::Webauthn(_)) => Some(format!("{prefix}_webauthn_signature")),
             Some(SignatureVariant::Secp256k1Ecdsa(_)) => {
-                Some(format!("{}_secp256k1_ecdsa_signature", prefix))
+                Some(format!("{prefix}_secp256k1_ecdsa_signature"))
             },
             None => {
                 PROCESSOR_UNKNOWN_TYPE_COUNT

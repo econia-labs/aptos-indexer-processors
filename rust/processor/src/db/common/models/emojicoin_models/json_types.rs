@@ -612,8 +612,7 @@ impl EventWithMarket {
             _ => Ok(None),
         }
         .context(format!(
-            "version {} failed! Failed to parse type {}, with data: {:?}",
-            txn_version, event_type, data,
+            "version {txn_version} failed! Failed to parse type {event_type}, with data: {data:?}",
         ))
     }
 }
@@ -659,8 +658,7 @@ impl ArenaEvent {
             _ => Ok(None),
         }
         .context(format!(
-            "version {} failed! Failed to parse type {}, with data: {:?}",
-            txn_version, event_type, data,
+            "version {txn_version} failed! Failed to parse type {event_type}, with data: {data:?}",
         ))
     }
 }
@@ -678,8 +676,7 @@ impl GlobalStateEvent {
             _ => Ok(None),
         }
         .context(format!(
-            "version {} failed! Failed to parse type {}, with data: {:?}",
-            txn_version, event_type, data,
+            "version {txn_version} failed! Failed to parse type {event_type}, with data: {data:?}",
         ))
     }
 }

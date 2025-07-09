@@ -117,7 +117,7 @@ pub async fn create_gap_detector_status_tracker_loop(
                         error = ?e,
                         "[Parser] Gap detector task has panicked"
                         );
-                        panic!("[Parser] Gap detector task has panicked: {:?}", e);
+                        panic!("[Parser] Gap detector task has panicked: {e:?}");
                     },
                 }
             },
@@ -175,7 +175,7 @@ pub async fn create_gap_detector_status_tracker_loop(
                             error = ?e,
                             "[Parser] Gap detector task has panicked"
                         );
-                        panic!("[Parser] Gap detector task has panicked: {:?}", e);
+                        panic!("[Parser] Gap detector task has panicked: {e:?}");
                     },
                 }
             },

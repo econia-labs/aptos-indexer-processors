@@ -92,10 +92,10 @@ pub trait RunnableConfig: DeserializeOwned + Send + Sync + 'static {
 /// Parse a yaml file into a struct.
 pub fn load<T: for<'de> Deserialize<'de>>(path: &PathBuf) -> Result<T> {
     let mut file =
-        File::open(path).with_context(|| format!("failed to open the file at path: {:?}", path))?;
+        File::open(path).with_context(|| format!("failed to open the file at path: {path:?}"))?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)
-        .with_context(|| format!("failed to read the file at path: {:?}", path))?;
+        .with_context(|| format!("failed to read the file at path: {path:?}"))?;
     serde_yaml::from_str::<T>(&contents).context("Unable to parse yaml file")
 }
 
@@ -119,14 +119,14 @@ pub fn setup_panic_handler() {
 // Formats and logs panic information
 fn handle_panic(panic_info: &PanicInfo<'_>) {
     // The Display formatter for a PanicInfo contains the message, payload and location.
-    let details = format!("{}", panic_info);
+    let details = format!("{panic_info}");
     let backtrace = format!("{:#?}", Backtrace::new());
     let info = CrashInfo { details, backtrace };
     let crash_info = toml::to_string_pretty(&info).unwrap();
     error!("{}", crash_info);
     // TODO / HACK ALARM: Write crash info synchronously via eprintln! to ensure it is written before the process exits which error! doesn't guarantee.
     // This is a workaround until https://github.com/aptos-labs/aptos-core/issues/2038 is resolved.
-    eprintln!("{}", crash_info);
+    eprintln!("{crash_info}");
     // Kill the process
     process::exit(12);
 }

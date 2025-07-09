@@ -506,10 +506,7 @@ impl Worker {
                                 "[Parser][T#{}] Stream somehow changed chain id!",
                                 task_index
                             );
-                            panic!(
-                                "[Parser][T#{}] Stream somehow changed chain id!",
-                                task_index
-                            );
+                            panic!("[Parser][T#{task_index}] Stream somehow changed chain id!");
                         }
 
                         let processing_time = std::time::Instant::now();
@@ -543,8 +540,7 @@ impl Worker {
                                     .with_label_values(&[processor_name])
                                     .inc();
                                 panic!(
-                                    "[Parser][T#{}] Error processing '{:}' transactions: {:?}",
-                                    task_index, processor_name, e
+                                    "[Parser][T#{task_index}] Error processing '{processor_name:}' transactions: {e:?}"
                                 );
                             },
                         };

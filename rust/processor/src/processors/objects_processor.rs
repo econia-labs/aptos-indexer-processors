@@ -183,10 +183,7 @@ impl ProcessorTrait for ObjectsProcessor {
                 .info
                 .as_ref()
                 .unwrap_or_else(|| {
-                    panic!(
-                        "Transaction info doesn't exist! Transaction {}",
-                        txn_version
-                    )
+                    panic!("Transaction info doesn't exist! Transaction {txn_version}")
                 })
                 .changes;
 
